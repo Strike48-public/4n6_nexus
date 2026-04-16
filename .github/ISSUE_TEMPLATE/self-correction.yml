@@ -1,0 +1,117 @@
+name: Self-Correction Scenario
+description: Design and implement a specific self-correction mechanism (star feature)
+title: "[Self-Correction] [Scenario Name]"
+labels: ["self-correction", "feature", "p1-high"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Self-correction scenarios are the core innovation of our hackathon entry. Each scenario must demonstrate autonomous detection of issues and re-investigation without human intervention.
+
+  - type: dropdown
+    id: scenario_type
+    attributes:
+      label: Self-Correction Scenario Type
+      options:
+        - "Cross-Artifact Validation"
+        - "Uncertainty Budget Threshold"
+        - "Contradiction Detection"
+        - "Tool Failure Recovery"
+        - "Confidence Degradation"
+        - "Evidence Integrity Violation"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenario_description
+    attributes:
+      label: Scenario Description
+      description: What goes wrong and how do we detect it?
+      placeholder: |
+        **Trigger:** MFT shows file modification at 10:00 AM, but Prefetch shows executable run at 9:55 AM (impossible: file modified before program that modifies it ran).
+        **Detection:** Timestamp comparison finds 5-minute backwards discrepancy.
+        **Response:** Flag contradiction, re-query both artifacts with verbose flags, check Event Logs for process start time as tiebreaker.
+    validations:
+      required: true
+
+  - type: textarea
+    id: detection_logic
+    attributes:
+      label: Detection Logic (Pseudocode or Code Snippet)
+      description: How do we programmatically detect this condition?
+      placeholder: |
+        ```python
+        mft_timestamp = parse_mft_timestamp(file_path)
+        prefetch_timestamp = parse_prefetch_last_run(executable_name)
+
+        if mft_timestamp < prefetch_timestamp:
+            log_contradiction(
+                type="timestamp_causality_violation",
+                mft=mft_timestamp,
+                prefetch=prefetch_timestamp,
+                confidence_before=0.85,
+                confidence_after=0.40
+            )
+            trigger_reinvestigation(artifact_list=[file_path, executable_name])
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: response_logic
+    attributes:
+      label: Response Logic
+      description: What does the agent do when it detects this?
+      placeholder: |
+        1. Log contradiction with both timestamps and source tools
+        2. Reduce confidence score for both findings to 0.40 (from 0.85)
+        3. Add to re-investigation queue with priority P1
+        4. Query additional artifact (Event Logs) to resolve discrepancy
+        5. Update confidence based on tiebreaker result
+        6. Log final resolution and reasoning chain
+    validations:
+      required: true
+
+  - type: textarea
+    id: demo_value
+    attributes:
+      label: Demo Video Value
+      description: Why will judges be impressed by this scenario?
+      placeholder: |
+        - Shows autonomous detection of logical impossibility (effect before cause)
+        - Demonstrates multi-source correlation (3 artifact types)
+        - Shows real-time confidence degradation + recovery
+        - Proves architectural self-correction (not prompt-based)
+        - Generates compelling visual: confidence meter drops, then recovers
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: Detection logic implemented and unit tested
+          required: true
+        - label: Response logic implemented and integration tested
+          required: true
+        - label: Test case created that triggers this scenario
+          required: true
+        - label: Audit logs capture full decision chain (before/after confidence, reasoning)
+          required: true
+        - label: Tested on demo ransomware case
+          required: true
+        - label: Can be demonstrated in ≤60 seconds in demo video
+          required: true
+        - label: Documentation added to `docs/SELF_CORRECTION.md`
+          required: true
+
+  - type: input
+    id: test_case
+    attributes:
+      label: Test Case File/Name
+      description: Which test case triggers this scenario?
+      placeholder: "synthetic_ransomware_case_v1"
+    validations:
+      required: false

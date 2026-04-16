@@ -1,0 +1,148 @@
+name: TTP / Process Documentation
+description: Document a tactic, technique, procedure, decision tree, or lesson learned
+title: "[TTP] [Brief description]"
+labels: ["ttp", "documentation", "knowledge-base"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        TTPs are the living playbook of our product. Document every investigation workflow, decision tree, and lesson learned so future development can build on validated patterns.
+
+  - type: dropdown
+    id: ttp_category
+    attributes:
+      label: TTP Category
+      options:
+        - "Investigation Playbook"
+        - "Decision Tree / Workflow"
+        - "Tool Usage Pattern"
+        - "Correlation Technique"
+        - "Self-Correction Pattern"
+        - "Lesson Learned"
+        - "Performance Optimization"
+        - "Edge Case Handling"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / When to Use
+      description: Under what circumstances is this TTP relevant?
+      placeholder: |
+        **Context:** When analyzing a suspected ransomware case with disk encryption artifacts.
+        **Trigger:** Detection of ransom note files (.txt, .html) or large-scale file extension changes (.encrypted, .locked).
+    validations:
+      required: true
+
+  - type: textarea
+    id: procedure
+    attributes:
+      label: Procedure (Step-by-Step)
+      description: Detailed steps for executing this TTP
+      placeholder: |
+        1. **Triage Phase:**
+           - Search for ransom note files: `fls -r | grep -i "readme\|ransom\|decrypt"`
+           - Identify encrypted file extensions: `fls -r | awk '{print $NF}' | grep '\.' | sort | uniq -c | sort -nr`
+
+        2. **Timeline Reconstruction:**
+           - Extract MFT timeline: `fls -m / -r > mft_timeline.csv`
+           - Filter for file creation spike (ransomware encryption phase): `awk -F',' '{print $3}' mft_timeline.csv | sort | uniq -c | sort -nr`
+
+        3. **Execution Artifact Analysis:**
+           - Check Prefetch for suspicious executables: `pf -l | grep -i "crypt\|lock\|ransom"`
+           - Extract process creation time from Prefetch
+
+        4. **Cross-Artifact Validation:**
+           - Compare MFT file modification times with Prefetch execution times
+           - Flag discrepancies >5 minutes as contradictions
+
+        5. **IoC Extraction:**
+           - Hash all ransom note files
+           - Extract ransom payment addresses (Bitcoin, Monero) from notes
+           - Search registry for persistence mechanisms
+    validations:
+      required: true
+
+  - type: textarea
+    id: decision_points
+    attributes:
+      label: Decision Points / Branches
+      description: Where does the workflow branch based on findings?
+      placeholder: |
+        **Decision 1:** If no Prefetch found for suspected ransomware executable:
+          - Branch A: Check Event Logs for process creation (Event ID 4688)
+          - Branch B: Memory analysis for process list (if memory capture available)
+
+        **Decision 2:** If timeline shows encryption started before executable run time (contradiction):
+          - Trigger self-correction: Re-analyze MFT with timezone correction
+          - Check for anti-forensics (timestomping) via $FILE_NAME vs $STANDARD_INFORMATION comparison
+    validations:
+      required: false
+
+  - type: textarea
+    id: tools_used
+    attributes:
+      label: Tools Used
+      description: List all SIFT tools / MCP wrappers used in this TTP
+      placeholder: |
+        - `fls` (file listing)
+        - `pf` (Prefetch parser)
+        - `mft` (MFT parser)
+        - `grep`, `awk`, `sort`, `uniq` (log analysis)
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_outputs
+    attributes:
+      label: Expected Outputs / Artifacts
+      description: What should this TTP produce?
+      placeholder: |
+        - Timeline CSV with encryption event window identified
+        - List of encrypted file extensions (e.g., `.locked`, `.encrypted`)
+        - Hash list of ransom notes
+        - Suspected ransomware executable path and hash
+        - Confidence score: High (0.85+) if all artifacts align, Medium (0.60-0.84) if contradictions exist
+    validations:
+      required: true
+
+  - type: textarea
+    id: lessons_learned
+    attributes:
+      label: Lessons Learned / Edge Cases
+      description: What did we learn from using this TTP? What edge cases were encountered?
+      placeholder: |
+        **Lesson 1:** Some ransomware families delete Prefetch files post-encryption. Fallback to Event Logs required.
+        **Lesson 2:** Encrypted files may have original timestamps preserved. Use $FILE_NAME vs $STANDARD_INFORMATION comparison to detect timestomping.
+        **Edge Case:** False positive on legitimate encryption tools (BitLocker, VeraCrypt). Check for ransom note presence before flagging.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: TTP documented in `docs/TTPs/` directory
+          required: true
+        - label: Step-by-step procedure is executable (tested on case data)
+          required: true
+        - label: Decision trees are clear and unambiguous
+          required: true
+        - label: Tools list is complete and accurate
+          required: true
+        - label: Lessons learned capture real findings from testing
+          required: true
+        - label: Referenced in main `docs/KNOWLEDGE_BASE.md` index
+          required: true
+
+  - type: input
+    id: related_issues
+    attributes:
+      label: Related Issues
+      description: Link to related feature/test issues (e.g., #42, #57)
+      placeholder: "#42, #57"
+    validations:
+      required: false

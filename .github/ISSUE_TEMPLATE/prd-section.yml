@@ -1,0 +1,97 @@
+name: PRD Section Completion
+description: Complete a specific PRD section with content and acceptance criteria
+title: "[PRD] Section X: [Title]"
+labels: ["prd", "documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to track completion of a PRD section. The agent will populate detailed content.
+
+  - type: dropdown
+    id: prd_section
+    attributes:
+      label: PRD Section
+      description: Which section of the PRD is this?
+      options:
+        - "Section 1: Executive Summary & Problem Statement"
+        - "Section 2: Objectives & Success Metrics"
+        - "Section 3: User Stories & Personas"
+        - "Section 4: Functional Requirements"
+        - "Section 5: Non-Functional Requirements"
+        - "Section 6: Architecture & Technical Design"
+        - "Section 7: Feature Prioritization & Roadmap"
+        - "Section 8: Risks, Gaps, Dependencies & Mitigations"
+        - "Section 9: Testing, Validation & Accuracy Reporting"
+        - "Section 10: Documentation & Submission Deliverables"
+        - "Section 11: TTPs, Processes & Knowledge Base"
+    validations:
+      required: true
+
+  - type: textarea
+    id: content_summary
+    attributes:
+      label: Content Summary
+      description: High-level summary of what this section will cover
+      placeholder: "This section defines the core objectives, success metrics mapped to judging criteria, and over-performance opportunities..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: key_decisions
+    attributes:
+      label: Key Decisions Required
+      description: What decisions need to be made before this section is finalized?
+      placeholder: |
+        - Confirm target precision/recall thresholds
+        - Finalize list of artifact types for breadth metric
+        - Decide on demo video structure
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Checklist for completion (agent will verify)
+      options:
+        - label: Content is complete and formatted in Markdown
+          required: true
+        - label: All tables, lists, and examples are provided
+          required: true
+        - label: Content aligns with hackathon judging criteria
+          required: true
+        - label: Content is agent-friendly (clear structure, parseable)
+          required: true
+        - label: Human has reviewed and approved content
+          required: true
+        - label: Added to main `docs/PRD.md` file
+          required: true
+
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Milestone
+      description: Which milestone does this belong to?
+      options:
+        - "M1: PRD Foundation"
+        - "M2: Environment Setup"
+        - "M3: Core Agent Loop"
+        - "M4: Self-Correction Engine"
+        - "M5: Correlation & Timeline"
+        - "M6: Audit & Guardrails"
+        - "M7: Testing & Accuracy"
+        - "M8: Demo & Documentation"
+        - "M9: Hackathon Submission"
+        - "M10: Post-Hackathon Analysis"
+    validations:
+      required: true
+
+  - type: input
+    id: agent_owner
+    attributes:
+      label: Agent Owner
+      description: Which agent is responsible? (e.g., docs-writer, api-architect)
+      placeholder: "docs-writer"
+    validations:
+      required: false

@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Evidence files (can be large, should not be committed)
+evidence/*
+!evidence/.gitkeep
+
+# Case outputs (investigation results)
+cases/*
+!cases/.gitkeep
+
+# Logs (except sample logs for documentation)
+logs/*
+!logs/sample_investigation.jsonl
+!logs/.gitkeep
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Model checkpoints (if using ML)
+*.pth
+*.h5
+*.pb
+
+# Environment variables
+.env
+.env.local
+
+# Claude Code specific
+.claude/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini

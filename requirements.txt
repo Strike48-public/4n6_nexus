@@ -1,0 +1,35 @@
+# Core dependencies
+python-dateutil>=2.8.2
+pytz>=2024.1
+pyyaml>=6.0
+click>=8.1.0
+pydantic>=2.0.0
+rich>=13.0.0
+
+# Protocol SIFT MCP integration
+anthropic>=0.18.0
+
+# Forensic tool wrappers
+pytsk3>=20231007
+volatility3>=2.5.0
+
+# Logging and audit
+structlog>=24.1.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Reporting
+jinja2>=3.1.0
+markdown>=3.5.0
+
+# Testing (will move to requirements-dev.txt later)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Code quality (will move to requirements-dev.txt later)
+black>=24.0.0
+pylint>=3.0.0
+mypy>=1.8.0

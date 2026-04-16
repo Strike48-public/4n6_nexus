@@ -1,0 +1,111 @@
+name: New Feature or Tool Wrapper
+description: Implement a new feature or Protocol SIFT tool wrapper
+title: "[Feature] [Brief description]"
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for new feature development or tool wrapper creation.
+
+  - type: dropdown
+    id: feature_category
+    attributes:
+      label: Feature Category
+      options:
+        - "Self-Correction Engine"
+        - "Tool Wrapper (Protocol SIFT MCP)"
+        - "Correlation / Timeline"
+        - "Audit Logging"
+        - "Guardrails / Safety"
+        - "Agent Loop Core"
+        - "Reporting / Visualization"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      description: Who needs this and why?
+      placeholder: "As a [senior IR analyst], I want [cross-artifact timestamp validation], so that [I can trust timeline reconstruction accuracy]"
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical_approach
+    attributes:
+      label: Technical Approach
+      description: High-level implementation plan
+      placeholder: |
+        1. Query MFT $STANDARD_INFORMATION timestamps for target file
+        2. Query Prefetch last run times for associated executable
+        3. Compare timestamps with ±5 minute tolerance
+        4. If mismatch, flag contradiction and log for re-investigation
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What must exist before this can be built?
+      placeholder: |
+        - Protocol SIFT MCP tool wrappers for `fls` and `pf`
+        - Timestamp normalization utility (UTC conversion)
+        - Contradiction detection framework
+    validations:
+      required: false
+
+  - type: textarea
+    id: testing_strategy
+    attributes:
+      label: Testing Strategy
+      description: How will we verify this works?
+      placeholder: |
+        - Unit tests for timestamp parsing and comparison logic
+        - Integration test with synthetic case (known mismatched timestamps)
+        - Verify contradiction detection triggers re-investigation loop
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      options:
+        - label: Feature implemented and passes unit tests
+          required: true
+        - label: Integration test passes on test case
+          required: true
+        - label: Code reviewed (security, performance, readability)
+          required: true
+        - label: Documentation updated (docstrings, README)
+          required: true
+        - label: Audit logging added for all key decisions
+          required: true
+        - label: Demo-ready (can be shown in video)
+          required: false
+
+  - type: dropdown
+    id: self_correction_scenario
+    attributes:
+      label: Self-Correction Scenario (if applicable)
+      options:
+        - "N/A"
+        - "Cross-Artifact Validation"
+        - "Uncertainty Budget"
+        - "Contradiction Detection"
+        - "Tool Failure Recovery"
+    validations:
+      required: false
+
+  - type: input
+    id: effort
+    attributes:
+      label: Effort (Story Points)
+      description: Fibonacci scale 1-13
+      placeholder: "5"
+    validations:
+      required: false
