@@ -57,7 +57,7 @@ analysis/real_examples/*/extracted/
 analysis/real_examples/*/csv/
 analysis/real_examples/*/logs/
 
-# Disk images and VM assets (multi-GB, ship out-of-band)
+# Practice images - ALL binary evidence files (multi-GB, downloadable via scripts)
 practice_images/
 *.E0[0-9]
 *.Ex[0-9]
@@ -69,6 +69,11 @@ practice_images/
 *.vdi
 *.ova
 *.ovf
+*.pcap
+*.pcapng
+*.mem
+*.dmp
+*.bin
 
 # Case outputs (investigation results)
 cases/*
@@ -108,3 +113,8 @@ logs/*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

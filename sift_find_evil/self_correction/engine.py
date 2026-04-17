@@ -15,6 +15,34 @@ from .contradiction_detector import (
 )
 from .confidence_scorer import ConfidenceScorer, Resolution
 from ..validators.timestamp_comparator import TimestampComparator
+from ..findings import FindingCategory
+
+
+# Which finding category a given contradiction type maps to. Every known
+# ContradictionType must appear here; unmapped types fall through to UNKNOWN.
+_CATEGORY_BY_CONTRADICTION: dict[ContradictionType, FindingCategory] = {
+    ContradictionType.CAUSALITY_VIOLATION: FindingCategory.TIMELINE_TAMPERING,
+    ContradictionType.TIMESTOMPING: FindingCategory.TIMELINE_TAMPERING,
+    ContradictionType.TEMPORAL_MISMATCH: FindingCategory.TIMELINE_TAMPERING,
+    ContradictionType.MISSING_ARTIFACT: FindingCategory.ANTI_FORENSICS,
+}
+
+
+def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
+    """Choose the strongest category represented among the contradictions.
+
+    Order of precedence reflects how unambiguous each category is as a signal:
+    anti_forensics > timeline_tampering > unknown.
+    """
+    categories = {
+        _CATEGORY_BY_CONTRADICTION.get(c.type, FindingCategory.UNKNOWN)
+        for c in contradictions
+    }
+    if FindingCategory.ANTI_FORENSICS in categories:
+        return FindingCategory.ANTI_FORENSICS
+    if FindingCategory.TIMELINE_TAMPERING in categories:
+        return FindingCategory.TIMELINE_TAMPERING
+    return FindingCategory.UNKNOWN
 
 
 @dataclass
@@ -27,6 +55,7 @@ class Finding:
     description: str
     finding_type: str  # indicator, behavior, timeline_event
     severity: str  # critical, high, medium, low, info
+    category: FindingCategory  # case-agnostic taxonomy label
 
     # Evidence
     evidence: dict = field(default_factory=dict)
@@ -52,6 +81,7 @@ class Finding:
             'description': self.description,
             'type': self.finding_type,
             'severity': self.severity,
+            'category': self.category.value,
             'evidence': self.evidence,
             'confidence': round(self.confidence, 2),
             'confidence_label': self.confidence_label,
@@ -282,6 +312,7 @@ class SelfCorrectionEngine:
             description=self._generate_description(executable, contradictions, resolutions),
             finding_type='indicator',
             severity=severity,
+            category=_pick_category(contradictions),
             evidence=evidence,
             confidence=final_confidence,
             confidence_label=self.scorer.get_confidence_label(final_confidence),

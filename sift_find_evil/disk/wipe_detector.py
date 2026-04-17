@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .gpt_inspector import GPTInspection, inspect_ewf, inspect_raw
+from ..findings import FindingCategory
 
 WIPE_FINDING_TITLE = "Partition table wiped (primary GPT zeroed, secondary GPT intact)"
 WIPE_FINDING_DESCRIPTION = (
@@ -38,6 +39,7 @@ class WipedDiskFinding:
     severity: str
     confidence: float
     confidence_label: str
+    category: FindingCategory
     evidence: dict[str, Any] = field(default_factory=dict)
     reasoning_chain: list[str] = field(default_factory=list)
     contradictions: list[Any] = field(default_factory=list)
@@ -52,6 +54,7 @@ class WipedDiskFinding:
             "description": self.description,
             "type": self.finding_type,
             "severity": self.severity,
+            "category": self.category.value,
             "evidence": self.evidence,
             "confidence": round(self.confidence, 2),
             "confidence_label": self.confidence_label,
@@ -138,6 +141,7 @@ def detect_wiped_disk(
         severity="critical",
         confidence=0.95,
         confidence_label="Very High",
+        category=FindingCategory.ANTI_FORENSICS,
         evidence=evidence,
         reasoning_chain=reasoning,
         artifact_sources=["disk_image"],

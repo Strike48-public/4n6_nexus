@@ -43,6 +43,7 @@ def print_finding(finding, index: int):
     """Print a finding in a readable format."""
     print(f"\n[Finding {index}] {finding.title}")
     print(f"  Severity: {finding.severity.upper()}")
+    print(f"  Category: {finding.category.value}")
     print(f"  Confidence: {finding.confidence:.2f} ({finding.confidence_label})")
     print(f"  Type: {finding.finding_type}")
     print()

@@ -14,6 +14,19 @@ Entries use this shape:
 - Acceptance: <what "done" looks like, testable>
 ```
 
+## Index
+
+One line per entry, grep-friendly. `grep "Status: open" docs/ROADMAP.md` lists ready work. Keep this index in sync with the entry bodies below.
+
+- SFE-F1 | Feature | P1 | Status: open    | Depends on: -                  | Email-based exfiltration detection
+- SFE-1  | Task    | P1 | Status: open    | Depends on: -                  | Promote PST parser to first-class artifact source
+- SFE-2  | Task    | P1 | Status: open    | Depends on: SFE-1              | Plumb a content-reader through the engine
+- SFE-3  | Task    | P1 | Status: open    | Depends on: SFE-1, SFE-2, SFE-7| Add EXFIL_CORRELATION contradiction type and detector
+- SFE-4  | Task    | P2 | Status: open    | Depends on: SFE-3              | CLI wiring and documentation
+- SFE-5  | Task    | P1 | Status: open    | Depends on: SFE-4              | Re-run Jean case as acceptance test (case-agnostic)
+- SFE-6  | Task    | P3 | Status: open    | Depends on: SFE-5              | Automate adversarial validator as post-engine check
+- SFE-7  | Task    | P1 | Status: done    | Depends on: -                  | Establish case-agnostic finding category taxonomy
+
 ---
 
 ## Feature: Email-based exfiltration detection (SFE-F1)
@@ -56,7 +69,7 @@ Entries use this shape:
 - Status: open
 - Type: task
 - Priority: P1
-- Depends on: SFE-1, SFE-2
+- Depends on: SFE-1, SFE-2, SFE-7
 - Why: The new signal needs a home in the same detection/scoring pipeline the existing detectors use so findings appear in the same output shape, ranked alongside everything else.
 - Acceptance:
   - `ContradictionType.EXFIL_CORRELATION` added to `sift_find_evil/self_correction/contradiction_detector.py`.
@@ -79,23 +92,40 @@ Entries use this shape:
   - `docs/CLI_USAGE.md` updated.
   - `--help` output documents the new flags.
 
-### SFE-5: Re-run Jean case as acceptance test
+### SFE-5: Re-run Jean case as acceptance test (case-agnostic criteria)
 
 - Status: open
 - Type: task
 - Priority: P1
 - Depends on: SFE-4
-- Why: This is the real acceptance test. The feature lands when the engine, invoked with no case-specific hints, produces the finding that the manual pass produced. If the finding's confidence is below 0.90 we go back and tune the scorer, not the test.
+- Why: This is the real acceptance test. In production we get arbitrary disk images without knowing the case type, so the acceptance bar must be *artifact-centric*, not title-centric. A detector that only fires when the analyst already suspected exfiltration is useless. The bar is: given Jean's artifacts and no case-specific hints, does the engine surface the hash-identity correlation as a ranked finding?
+- Acceptance (all artifact-centric, no case-string matching):
+  - At least one finding is produced with:
+    - `category == data_exfiltration` (from the fixed category taxonomy — see SFE-7)
+    - `severity == CRITICAL`
+    - `confidence >= 0.90`
+    - evidence field contains two independent SHA-256 values that are byte-equal (cross-artifact hash correlation)
+    - evidence field contains a save-to-send delta under 300 s
+    - reasoning chain cites at least two independent artifact sources (e.g. MFT + PST)
+  - The finding ranks in the top 5 by confidence, so an analyst reading the output lands on it without searching.
+  - The raw JSON is captured in `docs/real_examples/nps-2008-jean/engine_pass.md` for regression visibility.
+  - If confidence drops below 0.90 or the finding is not in the top 5, we iterate on scoring, not on the acceptance bar.
+  - No acceptance criterion references the strings "Jean", "m57biz", "exfil", or "tuckgorge". The test must pass for any image exhibiting the same pattern.
+
+### SFE-7: Establish a case-agnostic finding category taxonomy
+
+- Status: done
+- Type: task
+- Priority: P1
+- Depends on: none (should land before SFE-3 so EXFIL_CORRELATION can tag findings correctly)
+- Why: SFE-5's acceptance criteria reference `category == data_exfiltration`. For that to be testable, the engine needs a fixed, documented category vocabulary so every detector tags its findings consistently. Without this, "category" becomes a free-text field and acceptance tests devolve back into string matching.
 - Acceptance:
-  - Re-running the engine against the Jean artifacts produces exactly one finding with:
-    - title matching "exfil" or "exfiltration"
-    - severity CRITICAL
-    - confidence >= 0.90
-    - evidence field containing both the on-disk SHA-256 and the PST attachment SHA-256 (equal)
-    - evidence field containing the 44 s save-to-send delta
-    - reasoning chain mentioning the `tuckgorge@gmail.com` header anomaly
-  - The finding is captured in `docs/real_examples/nps-2008-jean/engine_pass.md` with the raw JSON output, so future regressions are visible.
-  - If the finding drops below 0.90 or the title/severity don't match, the task is not done — we iterate on scoring, not on the acceptance bar.
+  - `sift_find_evil/findings/categories.py` exports a `FindingCategory` `StrEnum` with at least: `data_exfiltration`, `timeline_tampering`, `process_injection`, `credential_theft`, `persistence`, `lateral_movement`, `anti_forensics`, `unknown`.
+  - Every existing detector is audited and its findings tagged with the correct category (or `unknown` if none applies).
+  - `Finding` dataclass gains `category: FindingCategory` as a required field.
+  - `EXFIL_CORRELATION` (SFE-3) tags its findings `data_exfiltration`.
+  - Docs: `docs/DETECTION_TAXONOMY.md` lists each category, what it means, and which detectors populate it.
+  - Unit test: a detector cannot emit a `Finding` without a category (type system enforces it).
 
 ### SFE-6 (optional): Extend the adversarial validator as a standing check
 
@@ -105,3 +135,11 @@ Entries use this shape:
 - Depends on: SFE-5
 - Why: The validator pass on Jean caught three real errors in the first analyst draft. It was valuable enough that it's worth trying to automate it as a post-engine review step, where every CRITICAL finding gets a structured "attack each claim" pass before being reported.
 - Acceptance: design doc only at this stage; implementation would be a separate feature.
+
+---
+
+## Why this file and not beads
+
+Beads is the intended tracker (see `~/.claude/CLAUDE.md` root guidance). The beads binary shipped on this SIFT install (`bd 0.52.0`) was built without CGO support, so `bd init` fails with a dolt error and there is no JSONL-only fallback on this version. Rebuilding beads from source with `CGO_ENABLED=1` is a yak-shave that provides no value over a structured markdown file.
+
+Migration trigger: when a CGO-enabled `bd` is installed (or when a future release adds real `--no-db` JSONL mode), migrate these entries into beads issues preserving id prefix (`SFE-`), dependency edges, priority, and status. Delete the corresponding entries from this file as they land in beads, and update the index above. Until then, this file is the durable source of truth and every edit lands in git alongside the code it describes.
