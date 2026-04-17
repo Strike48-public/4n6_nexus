@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+import pytz
 
 from sift_find_evil.parsers.pst_parser import (
     Attachment,
@@ -111,7 +112,7 @@ def test_parse_message_no_attachments():
     )
     parsed = _parse_message(("Inbox",), msg)
     assert parsed.folder == "Inbox"
-    assert parsed.submit_time == datetime(2008, 7, 20, 1, 28, 47)
+    assert parsed.submit_time == datetime(2008, 7, 20, 1, 28, 47, tzinfo=pytz.utc)
     assert parsed.sender_name == "John Doe"
     assert parsed.sender_email == "john@example.com"
     assert parsed.subject == "Test Subject"

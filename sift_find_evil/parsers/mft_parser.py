@@ -215,6 +215,11 @@ class MFTParser:
             if self.comparator.is_null(dt):
                 return None
 
+            # Ensure timezone-aware UTC (pypff returns aware, MFT must match)
+            if dt.tzinfo is None:
+                import pytz
+                dt = dt.replace(tzinfo=pytz.utc)
+
             return dt
         except Exception:
             return None

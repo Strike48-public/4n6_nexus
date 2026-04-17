@@ -198,10 +198,19 @@ def _parse_message(folder_path: tuple[str, ...], msg: PstMessage) -> EmailMessag
         # rather than discarding the entire message.
         pass
 
+    # Normalize PST timestamps to UTC-aware (pypff returns naive datetimes)
+    import pytz
+    submit_time = msg.client_submit_time
+    delivery_time = msg.delivery_time
+    if submit_time and submit_time.tzinfo is None:
+        submit_time = submit_time.replace(tzinfo=pytz.utc)
+    if delivery_time and delivery_time.tzinfo is None:
+        delivery_time = delivery_time.replace(tzinfo=pytz.utc)
+
     return EmailMessage(
         folder=folder,
-        submit_time=msg.client_submit_time,
-        delivery_time=msg.delivery_time,
+        submit_time=submit_time,
+        delivery_time=delivery_time,
         sender_name=_safe_text(msg, "sender_name"),
         sender_email=_safe_text(msg, "sender_email_address"),
         subject=_safe_text(msg, "subject"),
