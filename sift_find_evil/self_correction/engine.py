@@ -6,7 +6,7 @@ This is the main orchestrator for the autonomous self-correction system.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Any
+from typing import Callable, List, Optional, Any
 
 from .contradiction_detector import (
     ContradictionDetector,
@@ -133,7 +133,8 @@ class SelfCorrectionEngine:
         self,
         mft_entries: List[Any],
         prefetch_entries: List[Any],
-        event_log_entries: List[Any]
+        event_log_entries: List[Any],
+        content_reader: Optional[Callable[[Any], bytes]] = None,
     ) -> List[Finding]:
         """
         Run full self-correction analysis.
@@ -142,6 +143,10 @@ class SelfCorrectionEngine:
             mft_entries: List of MFTEntry objects
             prefetch_entries: List of PrefetchEntry objects
             event_log_entries: List of EventLogEntry objects (Event ID 4688)
+            content_reader: Optional callable for reading file bytes from disk image.
+                           When None (default), existing CSV-only behavior is unchanged.
+                           When provided, hash-based detectors (e.g. EXFIL_CORRELATION)
+                           can compute on-disk file hashes for correlation.
 
         Returns:
             List of Finding objects with confidence and reasoning

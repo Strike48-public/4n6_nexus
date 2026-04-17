@@ -5,9 +5,9 @@ Extracts file metadata and timestamps from Master File Table analysis.
 """
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Callable, List, Optional
 from pathlib import Path
 
 from ..validators.timestamp_comparator import TimestampComparator
@@ -37,6 +37,9 @@ class MFTEntry:
     fn_modified: Optional[datetime]
     fn_accessed: Optional[datetime]
     fn_mft_modified: Optional[datetime]
+
+    # Optional content reader for hash-based correlation (SFE-2)
+    content_reader: Optional[Callable[["MFTEntry"], bytes]] = field(default=None, repr=False)
 
     def __post_init__(self):
         """Construct full file path after initialization."""
@@ -95,12 +98,19 @@ class MFTParser:
     def __init__(self):
         self.comparator = TimestampComparator()
 
-    def parse_csv(self, csv_path: str) -> List[MFTEntry]:
+    def parse_csv(
+        self,
+        csv_path: str,
+        content_reader: Optional[Callable[[MFTEntry], bytes]] = None,
+    ) -> List[MFTEntry]:
         """
         Parse MFTECmd CSV file.
 
         Args:
             csv_path: Path to mft_parsed.csv
+            content_reader: Optional callable that reads file bytes given an MFTEntry.
+                           When None, entries have no content-reading capability (CSV-only mode).
+                           When provided, each entry's content_reader field is populated.
 
         Returns:
             List of MFTEntry objects
@@ -119,18 +129,21 @@ class MFTParser:
             reader = csv.DictReader(f)
 
             for row in reader:
-                entry = self._parse_row(row)
+                entry = self._parse_row(row, content_reader=content_reader)
                 if entry:
                     entries.append(entry)
 
         return entries
 
-    def _parse_row(self, row: dict) -> Optional[MFTEntry]:
+    def _parse_row(
+        self, row: dict, content_reader: Optional[Callable[[MFTEntry], bytes]] = None
+    ) -> Optional[MFTEntry]:
         """
         Parse a single CSV row into an MFTEntry.
 
         Args:
             row: Dictionary of CSV column values
+            content_reader: Optional content reader to attach to the entry
 
         Returns:
             MFTEntry object, or None if row is invalid
@@ -173,7 +186,8 @@ class MFTParser:
                 fn_created=fn_created,
                 fn_modified=fn_modified,
                 fn_accessed=fn_accessed,
-                fn_mft_modified=fn_mft_modified
+                fn_mft_modified=fn_mft_modified,
+                content_reader=content_reader,
             )
 
         except Exception as e:
