@@ -7,6 +7,7 @@ Unlike `test_data/scenarios/` (small synthetic CSVs for unit-style regression), 
 | Case | Image | Source | Purpose | Outcome |
 |------|-------|--------|---------|---------|
 | [wiped_disk](wiped_disk/) | `practice_images/wiped_disk.E01` (52 MB) | CIRCL "Recovering data from a wiped disk" (2023-01-31) | Insider wiped primary GPT; recover via backup GPT, then analyze the NTFS partition. | CRITICAL finding at partition-table layer (0.95 confidence). Partition NTFS metadata is also destroyed and partition 2 is LUKS, so no MFT/Prefetch/EVTX findings are produced. |
+| [nps-2008-jean](nps-2008-jean/) | `practice_images/nps-2008-jean.E01`+`.E02` (3.0 GB) | Digital Corpora M57-Jean scenario | Determine whether CFO Jean exfiltrated `m57biz.xls` from her Windows XP SP3 laptop. | In progress. Phase 2 inventory complete: target file present on Jean's desktop with LNK evidence; 130 Prefetch entries including AIM6.EXE and Firefox. |
 
 ## Reproducibility
 
