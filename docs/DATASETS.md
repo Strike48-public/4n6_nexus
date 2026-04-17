@@ -1,7 +1,7 @@
 # Test Datasets
 
-**Status:** Planning  
-**Last Updated:** 2026-04-16
+**Status:** Planning
+**Last Updated:** 2026-04-17
 
 This document describes all forensic datasets used for testing, validation, and accuracy reporting.
 
@@ -10,9 +10,34 @@ This document describes all forensic datasets used for testing, validation, and 
 ## Dataset Strategy
 
 **Hybrid approach:**
-1. **NIST CFReDS datasets** - Ground truth for accuracy report (Precision/Recall)
-2. **SANS starter datasets** - Realistic cases with multiple artifact types
-3. **Synthetic ransomware case** - Custom-built for demo video with known self-correction triggers
+1. **Synthetic scenarios** (`test_data/scenarios/`) - Deterministic CSV fixtures covering the five core detection paths; used by the automated harness and CI.
+2. **NIST CFReDS datasets** - Ground truth for accuracy report (Precision/Recall)
+3. **SANS starter datasets** - Realistic cases with multiple artifact types
+4. **Synthetic ransomware case** - Custom-built for demo video with known self-correction triggers
+
+---
+
+## 0. Synthetic Scenario Fixtures
+
+Location: [`test_data/scenarios/`](../test_data/scenarios/README.md)
+
+Five small CSV triples that exercise the self-correction engine deterministically:
+
+| Scenario | Purpose |
+|----------|---------|
+| `01_clean_baseline` | Legitimate activity - must produce zero findings |
+| `02_ransomware` | Three causality violations resolved via Event ID 4688 |
+| `03_timestomping` | `$SI`/`$FN` discrepancy (critical, unresolved) |
+| `04_edge_cases` | Tolerance boundary, null timestamps, future dates |
+| `05_missing_prefetch` | Executable in MFT+Event Log but no Prefetch |
+
+Run the harness:
+
+```bash
+PYTHONPATH=. python tests/scenario_harness.py
+```
+
+The harness writes precision/recall/F1 metrics to `analysis/scenario_report.json` and the corresponding summary is tracked in [`docs/ACCURACY_REPORT.md`](ACCURACY_REPORT.md).
 
 ---
 

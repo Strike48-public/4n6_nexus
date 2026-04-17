@@ -1,0 +1,5 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-03-15T09:00:00.5000000Z,4688,70001,EDGE-HOST,Security,Information,S-1-5-21-7777777,C:\Users\user\Downloads\just_under_tolerance.exe,%%1936,0xEDGE1,C:\Windows\explorer.exe,0xF201,just_under_tolerance.exe,Process Create (Event ID 4688)
+2025-03-15T10:00:00.6000000Z,4688,70002,EDGE-HOST,Security,Information,S-1-5-21-7777777,C:\Users\user\Downloads\just_over_tolerance.exe,%%1936,0xEDGE2,C:\Windows\explorer.exe,0xF202,just_over_tolerance.exe,Process Create (Event ID 4688)
+2025-03-15T11:00:00.7000000Z,4688,70003,EDGE-HOST,Security,Information,S-1-5-21-7777777,C:\Windows\System32\null_timestamps.exe,%%1936,0xEDGE3,C:\Windows\explorer.exe,0xF203,null_timestamps.exe,Process Create (Event ID 4688)
+2025-03-15T12:00:00.8000000Z,4688,70004,EDGE-HOST,Security,Information,S-1-5-21-7777777,C:\Temp\future_timestamp.exe,%%1936,0xEDGE4,C:\Windows\explorer.exe,0xF204,future_timestamp.exe,Process Create (Event ID 4688)

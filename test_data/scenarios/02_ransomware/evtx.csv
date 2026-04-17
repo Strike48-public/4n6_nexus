@@ -1,0 +1,5 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-03-15T10:30:00.1234567Z,4688,40001,VICTIM-PC,Security,Information,S-1-5-21-9876543,C:\Users\victim\Downloads\ransom_note.exe,%%1936,0xBEE1,C:\Windows\explorer.exe,0xF001,ransom_note.exe,Process Create (Event ID 4688)
+2025-03-15T10:45:00.5678900Z,4688,40002,VICTIM-PC,Security,Information,S-1-5-21-9876543,C:\Users\victim\AppData\Roaming\crypt_engine.exe,%%1936,0xBEE2,C:\Users\victim\Downloads\ransom_note.exe,0xF002,crypt_engine.exe --encrypt C:\Users,Process Create (Event ID 4688)
+2025-03-15T11:15:00.0000000Z,4688,40003,VICTIM-PC,Security,Information,S-1-5-21-9876543,C:\ProgramData\persist.exe,%%1936,0xBEE3,C:\Users\victim\AppData\Roaming\crypt_engine.exe,0xF003,persist.exe --install,Process Create (Event ID 4688)
+2025-03-15T10:18:00.2500000Z,4688,40004,VICTIM-PC,Security,Information,S-1-5-21-9876543,C:\Windows\System32\cmd.exe,%%1936,0xBEE4,C:\Users\victim\Downloads\ransom_note.exe,0xF004,cmd.exe /c vssadmin delete shadows /all,Process Create (Event ID 4688)

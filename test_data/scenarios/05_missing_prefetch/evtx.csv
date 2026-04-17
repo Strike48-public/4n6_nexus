@@ -1,0 +1,5 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-03-15T13:30:00.1234567Z,4688,90001,INSIDER-PC,Security,Information,S-1-5-21-8888888,C:\Users\insider\Documents\data_exfil.exe,%%1936,0xABC01,C:\Windows\explorer.exe,0xF301,data_exfil.exe /target \\fileserver\sensitive,Process Create (Event ID 4688)
+2025-03-15T13:35:00.5678900Z,4688,90002,INSIDER-PC,Security,Information,S-1-5-21-8888888,C:\Users\insider\Documents\zip_tool.exe,%%1936,0xABC02,C:\Users\insider\Documents\data_exfil.exe,0xF302,zip_tool.exe -r -p"secret" archive.zip *,Process Create (Event ID 4688)
+2025-03-15T13:50:00.0000000Z,4688,90003,INSIDER-PC,Security,Information,S-1-5-21-8888888,C:\Users\insider\AppData\Local\Temp\cleaner.exe,%%1936,0xABC03,C:\Windows\explorer.exe,0xF303,cleaner.exe --wipe-prefetch,Process Create (Event ID 4688)
+2025-03-15T13:00:00.0000000Z,4688,90004,INSIDER-PC,Security,Information,S-1-5-21-8888888,C:\Windows\explorer.exe,%%1936,0xABC04,C:\Windows\System32\userinit.exe,0xF304,explorer.exe,Process Create (Event ID 4688)
