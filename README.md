@@ -86,79 +86,67 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed design.
 
 ### Prerequisites
 
-- **SANS SIFT Workstation** (Ubuntu 20.04+ with forensic tools)
 - **Python 3.10+**
-- **Claude Code CLI** (Direct Agent Extension)
-- **Protocol SIFT MCP Server**
+- **Git**
 
-### Installation (10 minutes)
+### Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/sift-find-evil.git
-cd sift-find-evil
+git clone https://github.com/jtomek-strike48/sift_find_evil.git
+cd sift_find_evil
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Install Protocol SIFT MCP server
-git clone https://github.com/protocol-sift/mcp-server.git
-cd mcp-server && pip install -e . && cd ..
-
-# Verify SIFT tools available
-which fls mmls volatility
-
-# Run setup verification
-python -m sift_find_evil.setup verify
 ```
 
-### Run Investigation
+### Demo Mode (Try It Now!)
+
+Run the self-correction engine with synthetic test data:
 
 ```bash
-# Basic investigation (disk image only)
-sift-find-evil investigate \
-  --disk /evidence/disk.dd \
-  --output /cases/case_001
-
-# Full investigation (disk + memory + logs)
-sift-find-evil investigate \
-  --disk /evidence/disk.E01 \
-  --memory /evidence/memory.raw \
-  --logs /evidence/eventlogs/ \
-  --output /cases/case_002 \
-  --hypothesis ransomware
-
-# View real-time progress
-sift-find-evil status case_002
-
-# Generate final report
-sift-find-evil report case_002 --format html
+python -m sift_find_evil demo
 ```
 
-### Example Output
+This demonstrates:
+- Causality violation detection (file modified after execution)
+- Event Log tiebreaker resolution
+- Confidence score adjustment
+- Transparent reasoning chain
 
+**Example output:**
 ```
-[10:05:32] Evidence intake complete
-           - Disk: /evidence/disk.dd (SHA256: abc123...)
-           - Memory: /evidence/memory.raw (SHA256: def456...)
-
-[10:05:45] Triage phase: 3 hypotheses generated
-           - Primary: Ransomware (confidence: 0.85)
-           - Secondary: Data exfiltration (confidence: 0.60)
-
-[10:12:18] Self-correction triggered: Timestamp contradiction
-           - MFT: evil.exe modified 2026-04-15 10:00:00
-           - Prefetch: evil.exe ran 2026-04-15 09:55:00
-           - Querying Event Logs for tiebreaker...
-
-[10:12:45] Contradiction resolved via Event Log 4688
-           - Process creation: 2026-04-15 09:55:03
-           - Confidence restored: 0.40 → 0.85
-
-[10:25:30] Timeline reconstruction complete (1,247 events)
-[10:30:15] IoC extraction: 12 suspicious files, 3 C2 IPs, 1 Bitcoin address
-[10:35:00] Final report generated: cases/case_002/report.html
+[Finding 1] Suspicious Activity: malware.exe
+  Severity: HIGH
+  Confidence: 0.75 (Medium)
+  
+  Contradictions Detected: 1
+    1. causality_violation (high)
+       File modified at 14:40 but executed at 14:25
+  
+  Resolutions Applied: 1
+    1. event_log_confirms_prefetch (recovery: +0.30)
+  
+  Reasoning Chain:
+    1. Found 3 artifact types (MFT, Prefetch, EventLog)
+    2. Initial confidence: 0.95
+    3. Detected causality violation (impact: -0.50)
+    4. Event Log confirms Prefetch time (recovery: +0.30)
+    5. Final confidence: 0.75
 ```
+
+### Analyze Real Evidence
+
+```bash
+# Analyze MFTECmd, PECmd, and EvtxECmd CSV output
+python -m sift_find_evil analyze \
+  --mft /path/to/mft.csv \
+  --prefetch /path/to/prefetch.csv \
+  --evtx /path/to/evtx.csv \
+  --output findings.json
+```
+
+See [docs/CLI_USAGE.md](docs/CLI_USAGE.md) for detailed CLI documentation.
 
 ---
 
@@ -166,9 +154,11 @@ sift-find-evil report case_002 --format html
 
 | Document | Description |
 |----------|-------------|
+| [CLI_USAGE.md](docs/CLI_USAGE.md) | Command-line interface guide |
 | [PRD.md](docs/PRD.md) | Complete Product Requirements Document |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, data flows |
 | [SELF_CORRECTION.md](docs/SELF_CORRECTION.md) | Self-correction scenarios and logic |
+| [TIMESTAMP_FORMATS.md](docs/TIMESTAMP_FORMATS.md) | Windows timestamp parsing reference |
 | [TOOL_INVENTORY.md](docs/TOOL_INVENTORY.md) | Available SIFT tools and MCP wrappers |
 | [DATASETS.md](docs/DATASETS.md) | Test datasets (NIST CFReDS, SANS, synthetic) |
 | [ACCURACY_REPORT.md](docs/ACCURACY_REPORT.md) | Precision/Recall results on ground truth |

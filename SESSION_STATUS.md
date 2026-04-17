@@ -65,9 +65,11 @@
 | Validators | 1 | 217 | 22 |
 | Parsers | 3 | 851 | 0 (TBD) |
 | Self-Correction | 3 | 990 | 7 |
+| CLI | 2 | 460 | 0 |
 | Test Data | 3 CSVs + README | - | - |
 | Tool Specs | 3 | ~400 | - |
-| **Total** | **13** | **~2,900** | **29** |
+| Documentation | 6 | ~2,500 | - |
+| **Total** | **18** | **~5,400** | **29** |
 
 ---
 
@@ -78,10 +80,18 @@
 - ✅ Integration test with 7 passing tests
 - ✅ Full workflow: detect → resolve → adjust confidence → generate findings
 
-## Next Session: Phase 4 - CLI and Demo
+### Phase 4: CLI Interface (COMPLETED)
+- ✅ `sift_find_evil/cli.py` (450 lines)
+- ✅ `sift_find_evil/__main__.py` (module entry point)
+- ✅ Demo command with synthetic data
+- ✅ Analyze command for real artifacts
+- ✅ JSON output format
+- ✅ Comprehensive CLI documentation
+
+## Next Session: Phase 5 - Documentation and Polish
 
 ### Goal
-Build command-line interface and demo the system.
+Finalize documentation, create demo materials, prepare for submission.
 
 ### Tasks (COMPLETED)
 
