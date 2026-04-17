@@ -1,0 +1,6 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-03-15T14:25:03.1234567Z,4688,12345,VICTIM-PC,Security,Information,S-1-5-21-123456789,C:\Users\victim\AppData\Local\Temp\malware.exe,%%1936,0x1234,C:\Windows\System32\cmd.exe,0x5678,malware.exe --payload,Process Create (Event ID 4688)
+2025-03-15T10:00:03.0000000Z,4688,12346,VICTIM-PC,Security,Information,S-1-5-21-123456789,C:\Users\victim\AppData\Local\Temp\malware.exe,%%1936,0x9ABC,C:\Windows\Explorer.exe,0xDEF0,malware.exe,Process Create (Event ID 4688)
+2025-03-15T09:55:03.5000000Z,4688,12347,VICTIM-PC,Security,Information,S-1-5-21-123456789,C:\Users\victim\AppData\Local\Temp\malware.exe,%%1936,0x1111,C:\Windows\System32\services.exe,0x2222,malware.exe --install,Process Create (Event ID 4688)
+2025-03-15T08:00:05.0000000Z,4688,12348,VICTIM-PC,Security,Information,S-1-5-18,C:\Program Files\LegitApp\legitapp.exe,%%1936,0x3333,C:\Windows\System32\svchost.exe,0x4444,legitapp.exe,Process Create (Event ID 4688)
+2025-03-15T13:00:00.5000000Z,4688,12349,VICTIM-PC,Security,Information,S-1-5-21-123456789,C:\Windows\System32\notepad.exe,%%1936,0x5555,C:\Windows\Explorer.exe,0x6666,notepad.exe,Process Create (Event ID 4688)
