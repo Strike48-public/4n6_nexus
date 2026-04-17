@@ -84,7 +84,9 @@ def analyze_artifacts(
     prefetch_path: Path,
     evtx_path: Path,
     output_json: Optional[Path] = None,
-    verbose: bool = False
+    verbose: bool = False,
+    pst_path: Optional[Path] = None,
+    image_path: Optional[Path] = None,
 ) -> list:
     """
     Analyze forensic artifacts and detect contradictions.
@@ -125,13 +127,38 @@ def analyze_artifacts(
     if verbose:
         print(f"    Loaded {len(evtx_entries)} Event ID 4688 entries")
 
+    # Parse PST if provided
+    emails = None
+    if pst_path:
+        if verbose:
+            print(f"  Loading emails from: {pst_path}")
+        from .parsers.pst_parser import PstParser
+        pst_parser = PstParser()
+        emails = pst_parser.parse_file(pst_path)
+        if verbose:
+            print(f"    Loaded {len(emails)} email messages")
+
+    # Create content reader if image provided
+    content_reader = None
+    if image_path:
+        from .parsers.image_content_reader import make_content_reader
+        content_reader = make_content_reader(image_path)
+        if verbose:
+            print(f"  Created content reader for: {image_path}")
+
     # Run self-correction engine
     if verbose:
         print_section("Running Self-Correction Engine")
         print("  Detecting contradictions across artifacts...")
 
     engine = SelfCorrectionEngine()
-    findings = engine.analyze(mft_entries, prefetch_entries, evtx_entries)
+    findings = engine.analyze(
+        mft_entries,
+        prefetch_entries,
+        evtx_entries,
+        content_reader=content_reader,
+        emails=emails
+    )
 
     if verbose:
         print(f"  Detected {len(findings)} findings")
@@ -184,11 +211,12 @@ def cmd_analyze(args):
     print_banner()
 
     image_path: Optional[Path] = Path(args.image) if getattr(args, 'image', None) else None
+    pst_path: Optional[Path] = Path(args.pst) if getattr(args, 'pst', None) else None
     artifact_args = [getattr(args, 'mft', None), getattr(args, 'prefetch', None), getattr(args, 'evtx', None)]
     has_artifacts = any(artifact_args)
 
-    if image_path is None and not has_artifacts:
-        print("Error: provide --image and/or all of --mft/--prefetch/--evtx", file=sys.stderr)
+    if image_path is None and not has_artifacts and pst_path is None:
+        print("Error: provide --image and/or --pst and/or all of --mft/--prefetch/--evtx", file=sys.stderr)
         sys.exit(1)
 
     if has_artifacts and not all(artifact_args):
@@ -235,7 +263,9 @@ def cmd_analyze(args):
         prefetch_path,
         evtx_path,
         output_json=None,  # we write combined output below
-        verbose=True
+        verbose=True,
+        pst_path=pst_path,
+        image_path=image_path
     )
 
     if disk_finding is not None:
@@ -425,8 +455,12 @@ Examples:
         help='Path to Event Log CSV file (EvtxECmd output)'
     )
     analyze_parser.add_argument(
+        '--pst',
+        help='Path to PST file for email exfiltration detection (optional)'
+    )
+    analyze_parser.add_argument(
         '--image', '-i',
-        help='Path to a disk image (.E01 or raw .dd) for partition-table wipe detection'
+        help='Path to disk image (.E01 or .dd) for wipe detection and/or content reading (optional)'
     )
     analyze_parser.add_argument(
         '--output', '-o',
