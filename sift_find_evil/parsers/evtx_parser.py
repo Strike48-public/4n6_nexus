@@ -36,25 +36,31 @@ class EventLogEntry:
 
     map_description: Optional[str] = None
 
+    # Event IDs that represent process creation across Windows generations.
+    # 4688 = Vista+. 592 = XP / Windows Server 2003 / NT classic Security log.
+    PROCESS_CREATION_EVENT_IDS = (4688, 592)
+
+    def is_process_creation(self) -> bool:
+        return self.event_id in self.PROCESS_CREATION_EVENT_IDS
+
     def get_process_name(self) -> Optional[str]:
         """
-        Extract process name for Event ID 4688 (Process Creation).
+        Extract process name for a process-creation event (4688 / 592).
 
         Returns:
             Full process path, or None if not available
         """
-        if self.event_id == 4688 and self.payload_data1:
+        if self.is_process_creation() and self.payload_data1:
             return self.payload_data1
         return None
 
     def get_command_line(self) -> Optional[str]:
         """
-        Extract command line for Event ID 4688.
+        Extract command line for a process-creation event.
 
-        Returns:
-            Command line string, or None if not available
+        Windows XP Event 592 does not include a command line; only 4688 does.
         """
-        if self.event_id == 4688 and self.payload_data6:
+        if self.is_process_creation() and self.payload_data6:
             return self.payload_data6
         return None
 
@@ -203,15 +209,11 @@ class EventLogParser:
 
     def get_process_creation_events(self, entries: List[EventLogEntry]) -> List[EventLogEntry]:
         """
-        Filter to Event ID 4688 (Process Creation) only.
+        Filter to process-creation events across Windows generations.
 
-        Args:
-            entries: List of event log entries
-
-        Returns:
-            List of process creation events
+        Matches Event ID 4688 (Vista+) and 592 (XP / Server 2003).
         """
-        return [e for e in entries if e.event_id == 4688]
+        return [e for e in entries if e.is_process_creation()]
 
     def find_by_executable(self, entries: List[EventLogEntry], executable_name: str,
                           case_sensitive: bool = False) -> List[EventLogEntry]:
@@ -276,7 +278,7 @@ class EventLogParser:
                             entries: List[EventLogEntry],
                             tolerance_seconds: int = 300) -> dict:
         """
-        Use Event ID 4688 as tiebreaker for MFT vs Prefetch contradiction.
+        Use process-creation events (4688 or 592) as MFT vs Prefetch tiebreaker.
 
         Args:
             executable_name: Name of executable to search for

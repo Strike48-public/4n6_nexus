@@ -52,6 +52,11 @@ evidence/*
 # Scenario harness outputs (regenerated on every run)
 analysis/scenario_*.json
 
+# Real-example extracted artifacts (derived from practice_images/, not shipped)
+analysis/real_examples/*/extracted/
+analysis/real_examples/*/csv/
+analysis/real_examples/*/logs/
+
 # Disk images and VM assets (multi-GB, ship out-of-band)
 practice_images/
 *.E0[0-9]
