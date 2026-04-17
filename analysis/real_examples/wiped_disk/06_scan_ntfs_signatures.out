@@ -1,0 +1,16 @@
+Sectors scanned: 7,380,992
+Sectors with any non-zero content in first 32 bytes: 228
+Non-zero ratio: 0.0031%
+
+Signature hits:
+         0  NTFS OEM (in boot sector, at offset 3)
+         0  MFT FILE record
+         0  MFT BAAD record
+         0  NTFS INDX block
+         0  NTFS logfile restart area
+         0  NTFS logfile record
+         0  ELF header
+         0  PE/COFF header
+         0  ZIP/JAR
+         0  PDF
+         0  gzip

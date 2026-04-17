@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+markers = [
+    "unit: Fast, isolated unit test",
+    "integration: Crosses module boundaries or touches real artifacts",
+]

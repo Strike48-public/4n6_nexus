@@ -16,6 +16,7 @@ from .parsers.mft_parser import MFTParser
 from .parsers.prefetch_parser import PrefetchParser
 from .parsers.evtx_parser import EventLogParser
 from .self_correction.engine import SelfCorrectionEngine
+from .disk.wipe_detector import detect_from_image
 
 
 def print_banner():
@@ -155,11 +156,64 @@ def analyze_artifacts(
     return findings
 
 
+def _write_output(findings: list, output_path: Optional[Path]) -> None:
+    """Serialize findings to JSON if a path is provided."""
+    if output_path is None:
+        return
+    payload = {
+        'findings': [f.to_dict() for f in findings],
+        'summary': {'total_findings': len(findings)},
+    }
+    with open(output_path, 'w') as fh:
+        json.dump(payload, fh, indent=2, default=str)
+
+
+def _render_findings(findings: list) -> None:
+    """Print a minimal rendering for image-only runs."""
+    print_section("Analysis Results")
+    if not findings:
+        print("\n  No findings.")
+        return
+    for idx, finding in enumerate(findings, 1):
+        print_finding(finding, idx)
+
+
 def cmd_analyze(args):
     """Handle analyze command."""
     print_banner()
 
-    # Validate paths
+    image_path: Optional[Path] = Path(args.image) if getattr(args, 'image', None) else None
+    artifact_args = [getattr(args, 'mft', None), getattr(args, 'prefetch', None), getattr(args, 'evtx', None)]
+    has_artifacts = any(artifact_args)
+
+    if image_path is None and not has_artifacts:
+        print("Error: provide --image and/or all of --mft/--prefetch/--evtx", file=sys.stderr)
+        sys.exit(1)
+
+    if has_artifacts and not all(artifact_args):
+        print("Error: --mft, --prefetch, and --evtx must be provided together", file=sys.stderr)
+        sys.exit(1)
+
+    disk_finding = None
+    if image_path is not None:
+        if not image_path.exists():
+            print(f"Error: disk image not found: {image_path}", file=sys.stderr)
+            sys.exit(1)
+        print_section("Inspecting Disk Image")
+        print(f"  Scanning GPT on: {image_path}")
+        disk_finding = detect_from_image(image_path)
+        if disk_finding is None:
+            print("  No partition-table anomaly detected.")
+        else:
+            print(f"  Detected: {disk_finding.title}")
+
+    if not has_artifacts:
+        findings = [disk_finding] if disk_finding else []
+        _write_output(findings, Path(args.output) if args.output else None)
+        _render_findings(findings)
+        return
+
+    # Validate artifact paths
     mft_path = Path(args.mft)
     prefetch_path = Path(args.prefetch)
     evtx_path = Path(args.evtx)
@@ -179,9 +233,14 @@ def cmd_analyze(args):
         mft_path,
         prefetch_path,
         evtx_path,
-        output_json=Path(args.output) if args.output else None,
+        output_json=None,  # we write combined output below
         verbose=True
     )
+
+    if disk_finding is not None:
+        findings = [disk_finding] + list(findings)
+
+    _write_output(findings, Path(args.output) if args.output else None)
 
     # Display findings
     print_section("Analysis Results")
@@ -354,18 +413,19 @@ Examples:
     )
     analyze_parser.add_argument(
         '--mft', '-m',
-        required=True,
         help='Path to MFT CSV file (MFTECmd output)'
     )
     analyze_parser.add_argument(
         '--prefetch', '-p',
-        required=True,
         help='Path to Prefetch CSV file (PECmd output)'
     )
     analyze_parser.add_argument(
         '--evtx', '-e',
-        required=True,
         help='Path to Event Log CSV file (EvtxECmd output)'
+    )
+    analyze_parser.add_argument(
+        '--image', '-i',
+        help='Path to a disk image (.E01 or raw .dd) for partition-table wipe detection'
     )
     analyze_parser.add_argument(
         '--output', '-o',

@@ -49,6 +49,22 @@ htmlcov/
 evidence/*
 !evidence/.gitkeep
 
+# Scenario harness outputs (regenerated on every run)
+analysis/scenario_*.json
+
+# Disk images and VM assets (multi-GB, ship out-of-band)
+practice_images/
+*.E0[0-9]
+*.Ex[0-9]
+*.e0[0-9]
+*.dd
+*.raw
+*.img
+*.vmdk
+*.vdi
+*.ova
+*.ovf
+
 # Case outputs (investigation results)
 cases/*
 !cases/.gitkeep

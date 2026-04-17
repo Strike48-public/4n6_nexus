@@ -1,0 +1,6 @@
+Partition 1 span: 1,048,576 - 3,780,116,480 (3.78 GB)
+Total zero 1 MiB chunks: 3595
+First non-zero offset: 562036736
+  distance from partition start: 560.99 MB
+NTFS boot sector candidates: 0
+MFT 'FILE' record candidates: 0

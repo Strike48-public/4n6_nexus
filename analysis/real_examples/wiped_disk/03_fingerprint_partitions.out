@@ -1,0 +1,10 @@
+Partition 1 (disk1): LBA 2048..7383039 (3.78 GB)
+  first 16 bytes hex : 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  first 64 bytes text: '................................................................'
+  -> unknown signature
+
+Partition 2 (disk2): LBA 7383040..15972351 (4.40 GB)
+  first 16 bytes hex : 4c 55 4b 53 ba be 00 02 00 00 00 00 00 00 40 00
+  first 64 bytes text: 'LUKS��.\x02......@........\x03........................................'
+  -> LUKS1 header (magic 'LUKS\xba\xbe')
+

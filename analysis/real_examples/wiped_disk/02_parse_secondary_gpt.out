@@ -1,0 +1,25 @@
+Secondary GPT header at LBA 15974399
+  signature         : b'EFI PART'
+  revision          : 0x00010000
+  disk GUID         : d4d2aac6-7159-422f-b5bc-520ac650ece1
+  entry array LBA   : 15974367
+  entry count       : 128
+  entry size        : 128
+  first usable LBA  : 34
+  last usable LBA   : 15974366
+
+Populated entries: 2
+
+  Entry 1: 'disk1'
+    type GUID     : ebd0a0a2-b9e5-4433-87c0-68b6b72699c7
+    unique GUID   : ecb05a99-40f7-4915-8ee2-67d1767dff0b
+    first LBA     : 2048
+    last LBA      : 7383039
+    size          : 7,380,992 sectors (3.78 GB)
+
+  Entry 2: 'disk2'
+    type GUID     : ebd0a0a2-b9e5-4433-87c0-68b6b72699c7
+    unique GUID   : 4f5b7983-771b-435d-bf13-a6461c013e88
+    first LBA     : 7383040
+    last LBA      : 15972351
+    size          : 8,589,312 sectors (4.40 GB)
