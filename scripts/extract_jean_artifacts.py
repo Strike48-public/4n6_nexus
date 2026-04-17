@@ -37,6 +37,16 @@ TARGETS: tuple[tuple[str, str], ...] = (
     ("/WINDOWS/system32/config/SysEvent.Evt", "evtlog/SysEvent.Evt"),
     # Jean's per-user hive
     ("/Documents and Settings/Jean/NTUSER.DAT", "registry/Jean_NTUSER.DAT"),
+    # Email exfiltration candidates
+    (
+        "/Documents and Settings/Jean/Local Settings/Application Data/Microsoft/Outlook/outlook.pst",
+        "email/outlook.pst",
+    ),
+    # AIM chat transcripts (alisonm57 is Jean's claimed boss)
+    (
+        "/Documents and Settings/Jean/My Documents/AIMLogger/m57jean/IM Logs/alisonm57.html",
+        "chat/alisonm57.html",
+    ),
 )
 
 # Whole directories we recurse into.
