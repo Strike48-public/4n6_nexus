@@ -64,133 +64,103 @@
 |-----------|-------|-------|-------|
 | Validators | 1 | 217 | 22 |
 | Parsers | 3 | 851 | 0 (TBD) |
+| Self-Correction | 3 | 990 | 7 |
 | Test Data | 3 CSVs + README | - | - |
 | Tool Specs | 3 | ~400 | - |
-| **Total** | **10+** | **~2,100** | **22** |
+| **Total** | **13** | **~2,900** | **29** |
 
 ---
 
-## Next Session: Phase 3 - Self-Correction Engine
+### Phase 3: Self-Correction Engine (COMPLETED)
+- ✅ `sift_find_evil/self_correction/contradiction_detector.py` (352 lines)
+- ✅ `sift_find_evil/self_correction/confidence_scorer.py` (238 lines)
+- ✅ `sift_find_evil/self_correction/engine.py` (400 lines)
+- ✅ Integration test with 7 passing tests
+- ✅ Full workflow: detect → resolve → adjust confidence → generate findings
+
+## Next Session: Phase 4 - CLI and Demo
 
 ### Goal
-Build the star feature - autonomous contradiction detection and resolution.
+Build command-line interface and demo the system.
 
-### Tasks
+### Tasks (COMPLETED)
 
-#### 1. Contradiction Detector (1 hour)
-**File:** `sift_find_evil/self_correction/contradiction_detector.py`
+#### 1. Contradiction Detector ✅
+**File:** `sift_find_evil/self_correction/contradiction_detector.py` (352 lines)
 
-**Purpose:** Detect contradictions across artifacts
+**Implemented:**
+- ContradictionType enum (CAUSALITY_VIOLATION, TIMESTOMPING, MISSING_ARTIFACT, TEMPORAL_MISMATCH)
+- Severity enum (CRITICAL, HIGH, MEDIUM, LOW, INFO)
+- Contradiction dataclass with type, severity, confidence_impact, artifacts, details
+- detect_causality_violation() - detects file modified after execution
+- detect_timestomping() - detects $SI vs $FN discrepancies
+- detect_missing_execution_artifact() - detects .exe without Prefetch
+- detect_temporal_mismatch() - detects Prefetch vs Event Log mismatches
+- detect_all() - orchestrates all detection methods
 
-**Key Classes:**
-```python
-@dataclass
-class Contradiction:
-    type: str  # causality_violation, timestomping, etc.
-    severity: str  # critical, high, medium, low
-    artifacts: List[Any]  # MFT/Prefetch/EventLog entries involved
-    description: str
-    confidence_impact: float  # -0.45 for causality violation
-    detected_at: datetime
+#### 2. Confidence Scorer ✅
+**File:** `sift_find_evil/self_correction/confidence_scorer.py` (238 lines)
 
-class ContradictionDetector:
-    def detect_mft_prefetch_contradiction(...)
-    def detect_timestomping(...)
-    def detect_all(...)
-```
+**Implemented:**
+- Resolution dataclass for recording contradiction resolutions
+- calculate_initial_confidence() - factors in artifact count and types
+- apply_contradiction() - reduces confidence by contradiction impact
+- apply_contradictions() - applies multiple contradictions sequentially
+- apply_resolution() - recovers confidence from resolutions
+- apply_resolutions() - applies multiple resolutions sequentially
+- calculate_final_confidence() - full calculation with audit trail
+- get_confidence_label() - converts score to human-readable label
 
-#### 2. Confidence Scorer (30 minutes)
-**File:** `sift_find_evil/self_correction/confidence_scorer.py`
+#### 3. Self-Correction Engine ✅
+**File:** `sift_find_evil/self_correction/engine.py` (400 lines)
 
-**Purpose:** Calculate 0.0-1.0 confidence scores
+**Implemented:**
+- Finding dataclass with full forensic finding structure
+- analyze() - main orchestration method
+- _group_contradictions_by_executable() - groups findings by executable
+- _generate_finding() - creates Finding with confidence and reasoning
+- _resolve_causality_violation() - Event Log tiebreaker resolution
+- _determine_severity() - calculates overall severity from contradictions
+- _generate_description() - human-readable finding description
+- to_dict() - JSON serialization for findings
 
-**Key Classes:**
-```python
-class ConfidenceScorer:
-    def __init__(self, base_confidence=0.85):
-        self.base = base_confidence
-    
-    def apply_contradiction(self, confidence, contradiction):
-        return max(0.0, confidence + contradiction.confidence_impact)
-    
-    def apply_resolution(self, confidence, resolution):
-        return min(1.0, confidence + resolution.confidence_recovery)
-```
+#### 4. Integration Test ✅
+**File:** `tests/test_self_correction_integration.py` (7 tests, all passing)
 
-#### 3. Self-Correction Engine (1 hour)
-**File:** `sift_find_evil/self_correction/engine.py`
+**Tests:**
+- test_malware_causality_violation_detection - Verifies contradiction detection
+- test_event_log_resolution - Verifies Event Log tiebreaker
+- test_confidence_calculation - Verifies confidence adjustments
+- test_reasoning_chain - Verifies reasoning transparency
+- test_legitimate_files_no_contradictions - Verifies no false positives
+- test_artifact_count_affects_confidence - Verifies artifact diversity boost
+- test_finding_json_serialization - Verifies output format
 
-**Purpose:** Orchestrate detection → resolution → confidence adjustment
+#### 5. Findings Model ✅
+**Integrated into:** `sift_find_evil/self_correction/engine.py`
 
-**Key Classes:**
-```python
-@dataclass
-class Finding:
-    description: str
-    evidence: dict
-    confidence: float
-    contradictions: List[Contradiction]
-    resolutions: List[dict]
-    reasoning_chain: List[str]
-
-class SelfCorrectionEngine:
-    def __init__(self):
-        self.detector = ContradictionDetector()
-        self.scorer = ConfidenceScorer()
-    
-    def analyze(self, mft_entries, prefetch_entries, evtx_entries):
-        # Detect contradictions
-        # Resolve via Event Log tiebreaker
-        # Adjust confidence
-        # Generate findings
-        pass
-```
-
-#### 4. Integration Test (30 minutes)
-**File:** `tests/test_self_correction_integration.py`
-
-**Purpose:** Test full workflow with synthetic data
-
-```python
-def test_malware_causality_violation_detection():
-    # Load synthetic CSVs
-    # Run self-correction engine
-    # Assert contradiction detected
-    # Assert Event Log resolves correctly
-    # Assert confidence adjusted properly
-```
-
-#### 5. Findings Model (30 minutes)
-**File:** `sift_find_evil/models/finding.py`
-
-**Purpose:** Structure for outputting results (mirror Valhuntir)
-
-```python
-@dataclass
-class Finding:
-    type: str  # indicator, behavior, timeline_event
-    severity: str  # critical, high, medium, low, info
-    confidence: float  # 0.0-1.0
-    title: str
-    description: str
-    evidence: dict
-    mitre_techniques: List[str]
-    timestamp: datetime
-    contradictions: List[Contradiction]
-    resolutions: List[dict]
-```
+**Finding Structure:**
+- title, description, finding_type, severity
+- evidence dictionary
+- confidence (0.0-1.0) with label
+- reasoning_chain (list of reasoning steps)
+- contradictions detected
+- resolutions applied
+- confidence_calculation details
+- artifact_sources
+- detected_at timestamp
 
 ---
 
-## Expected Deliverables Next Session
+## Completed Deliverables
 
-1. ✅ Contradiction detector with full logic
-2. ✅ Confidence scorer with adjustment calculations
-3. ✅ Self-correction engine orchestration
-4. ✅ Integration test demonstrating full workflow
-5. ✅ Findings model for structured output
+1. ✅ Contradiction detector with full logic (352 lines)
+2. ✅ Confidence scorer with adjustment calculations (238 lines)
+3. ✅ Self-correction engine orchestration (400 lines)
+4. ✅ Integration test demonstrating full workflow (7 tests passing)
+5. ✅ Findings model for structured output (integrated into engine)
 
-**Estimated Time:** 3-4 hours
+**Actual Time:** ~2.5 hours
 
 ---
 

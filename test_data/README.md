@@ -29,7 +29,7 @@ This synthetic dataset simulates a ransomware attack with intentional timestamp 
 
 #### MFT Timestamps (Entry 12345)
 - **$SI Created:** 09:55:00 AM (legitimate)
-- **$SI Modified:** **14:30:00 PM** (SUSPICIOUS - after last execution!)
+- **$SI Modified:** **14:40:00 PM** (SUSPICIOUS - 15 minutes after last execution!)
 - **$FN Created:** 14:00:00 PM
 - **$FN Modified:** 14:05:00 PM
 
@@ -50,13 +50,13 @@ This synthetic dataset simulates a ransomware attack with intentional timestamp 
 
 ### Contradiction 1: Causality Violation
 
-**MFT $SI Modified (14:30 PM) > Prefetch LastRunTime (14:25 PM)**
+**MFT $SI Modified (14:40 PM) > Prefetch LastRunTime (14:25 PM)**
 
-This violates causality - the file was modified **5 minutes AFTER** it was executed.
+This violates causality - the file was modified **15 minutes AFTER** it was executed.
 
 **Analysis:**
 - Attacker ran malware at 14:25 PM
-- Attacker then modified MFT $SI timestamp to 14:30 PM (timestomping attempt)
+- Attacker then modified MFT $SI timestamp to 14:40 PM (timestomping attempt)
 - But Prefetch and Event Logs preserve the true execution time
 
 **Self-Correction Expected:**
@@ -68,30 +68,27 @@ This violates causality - the file was modified **5 minutes AFTER** it was execu
 
 ### Contradiction 2: Timestomping ($SI vs $FN)
 
-**MFT $SI Modified (14:30 PM) > $FN Modified (14:05 PM)**
+**MFT $SI Modified (14:40 PM) > $FN Modified (14:05 PM)**
 
-Wait, this is **backwards** - normally timestomping makes $SI **earlier** than $FN.
+This is **atypical** timestomping - normally attackers make $SI **earlier** than $FN to hide malware.
 
-**Actually, let me check the logic:**
+**Analysis:**
 - $SI can be modified with SetFileTime API
-- $FN requires MFT record modification
+- $FN requires MFT record modification (harder)
 - If attacker only used SetFileTime, $FN stays original
 
 **This case:**
 - $FN Modified: 14:05 PM (original, harder to fake)
-- $SI Modified: 14:30 PM (modified by attacker)
+- $SI Modified: 14:40 PM (modified by attacker)
 
-This suggests the file's **real** modification time was around 14:05 PM, but attacker pushed $SI forward to 14:30 PM.
+This suggests the file's **real** modification time was around 14:05 PM, but attacker pushed $SI forward to 14:40 PM (possibly to match a timestamp range in logs or to create confusion).
 
-Actually, the typical timestomping pattern is $SI **earlier** than $FN. Let me reconsider the scenario.
-
-**Revised understanding:**
-The attacker may have:
+**Attack sequence:**
 1. Created malware.exe around 14:00-14:05 PM
 2. Executed it at 14:25 PM
-3. Attempted to modify timestamps to 14:30 PM but only changed $SI
+3. Attempted to modify timestamps to 14:40 PM but only changed $SI
 
-This is still suspicious because the file shouldn't be modified after execution.
+This is suspicious because the file was modified after execution, and the $SI/$FN mismatch indicates tampering.
 
 ---
 
@@ -173,7 +170,7 @@ assert violation is None  # No contradiction for legitimate file
 
 | File | Real Creation | Real Execution | Tampering |
 |------|---------------|----------------|-----------|
-| malware.exe | ~14:00-14:05 PM | 09:55 AM, 10:00 AM, 14:25 PM | Yes - $SI timestamp pushed to 14:30 PM |
+| malware.exe | ~14:00-14:05 PM | 09:55 AM, 10:00 AM, 14:25 PM | Yes - $SI timestamp pushed to 14:40 PM |
 | legitapp.exe | March 10, 10:00 AM | March 15, 08:00 AM | No |
 | notepad.exe | 2024-01-01 | March 15, 13:00 PM | No |
 
