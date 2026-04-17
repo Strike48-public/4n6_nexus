@@ -4,9 +4,10 @@ Contradiction Detector - Detect inconsistencies across forensic artifacts.
 This is the core of the self-correction mechanism.
 """
 
+import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Optional, Any
+from datetime import datetime, timedelta
+from typing import Callable, List, Optional, Any
 from enum import Enum
 
 from ..validators.timestamp_comparator import TimestampComparator
@@ -18,6 +19,7 @@ class ContradictionType(Enum):
     TIMESTOMPING = "timestomping"
     MISSING_ARTIFACT = "missing_artifact"
     TEMPORAL_MISMATCH = "temporal_mismatch"
+    EXFIL_CORRELATION = "exfil_correlation"  # File-save-then-email pattern (SFE-3)
 
 
 class Severity(Enum):
@@ -349,3 +351,170 @@ class ContradictionDetector:
                     contradictions.append(missing)
 
         return contradictions
+
+    def detect_save_then_exfil(
+        self,
+        mft_entries: List[Any],
+        emails: List[Any],
+        content_reader: Optional[Callable[[Any], bytes]] = None,
+        window_seconds: int = 300,
+    ) -> List[Contradiction]:
+        """Detect file-save-then-email exfiltration patterns (SFE-3).
+
+        For each email attachment, look for MFT entries whose content (hash-based)
+        or metadata (size+name fallback) matches, and whose $STANDARD_INFORMATION
+        creation time falls within `window_seconds` before the email's submit_time.
+
+        Args:
+            mft_entries: List of MFTEntry objects (may have content_reader populated).
+            emails: List of EmailMessage objects from PST parser.
+            content_reader: Optional callable for reading file bytes. If None,
+                           fall back to size+name matching (lower confidence).
+            window_seconds: Time window in seconds (default 300 = 5 minutes).
+
+        Returns:
+            List of Contradiction objects, one per matched (file, email) pair.
+        """
+        contradictions: List[Contradiction] = []
+
+        for email in emails:
+            if not email.attachments:
+                continue
+
+            for attachment in email.attachments:
+                # Try hash-based match first (when content_reader is available)
+                if content_reader is not None:
+                    match = self._find_by_hash(
+                        mft_entries, attachment, content_reader, email, window_seconds
+                    )
+                    if match:
+                        contradictions.append(match)
+                        continue  # Hash match is definitive; skip fallback
+
+                # Fall back to size+name match (lower confidence)
+                match = self._find_by_size_and_name(
+                    mft_entries, attachment, email, window_seconds
+                )
+                if match:
+                    contradictions.append(match)
+
+        return contradictions
+
+    def _find_by_hash(
+        self,
+        mft_entries: List[Any],
+        attachment: Any,
+        content_reader: Callable[[Any], bytes],
+        email: Any,
+        window_seconds: int,
+    ) -> Optional[Contradiction]:
+        """Hash-based matching: compute SHA-256 of on-disk file, compare to attachment."""
+        if not email.submit_time:
+            return None
+
+        window = timedelta(seconds=window_seconds)
+        cutoff = email.submit_time - window
+
+        for entry in mft_entries:
+            # Skip directories
+            if entry.is_directory:
+                continue
+
+            # Check temporal window (file created within N seconds before email submit)
+            if not entry.si_created or entry.si_created < cutoff:
+                continue
+            if entry.si_created > email.submit_time:
+                continue  # File created after email sent — not the exfil source
+
+            # Compute on-disk SHA-256
+            try:
+                file_bytes = content_reader(entry)
+                file_hash = hashlib.sha256(file_bytes).hexdigest()
+            except Exception:
+                # Read failed (corrupted file, wrong entry, etc.) — skip
+                continue
+
+            # Compare hashes
+            if file_hash == attachment.sha256:
+                delta = (email.submit_time - entry.si_created).total_seconds()
+                return Contradiction(
+                    type=ContradictionType.EXFIL_CORRELATION,
+                    severity=Severity.CRITICAL,
+                    description=(
+                        f"File {entry.file_name} (SHA-256 {file_hash[:16]}...) "
+                        f"saved at {entry.si_created.isoformat()}, then emailed "
+                        f"{delta:.1f}s later at {email.submit_time.isoformat()} "
+                        f"as attachment '{attachment.name}' in '{email.subject}'."
+                    ),
+                    confidence_impact=-0.05,  # High confidence for hash match
+                    artifacts=[entry, email, attachment],
+                    details={
+                        "match_type": "hash",
+                        "file_path": entry.file_path,
+                        "file_hash": file_hash,
+                        "attachment_hash": attachment.sha256,
+                        "save_time": entry.si_created.isoformat(),
+                        "send_time": email.submit_time.isoformat(),
+                        "delta_seconds": delta,
+                        "email_subject": email.subject,
+                        "email_folder": email.folder,
+                        "attachment_name": attachment.name,
+                        "attachment_size": attachment.size,
+                    },
+                )
+
+        return None
+
+    def _find_by_size_and_name(
+        self,
+        mft_entries: List[Any],
+        attachment: Any,
+        email: Any,
+        window_seconds: int,
+    ) -> Optional[Contradiction]:
+        """Fallback matching: compare filename and size (lower confidence)."""
+        if not email.submit_time:
+            return None
+
+        window = timedelta(seconds=window_seconds)
+        cutoff = email.submit_time - window
+
+        for entry in mft_entries:
+            if entry.is_directory:
+                continue
+
+            # Temporal check
+            if not entry.si_created or entry.si_created < cutoff:
+                continue
+            if entry.si_created > email.submit_time:
+                continue
+
+            # Size + name match
+            if entry.file_size == attachment.size and entry.file_name.lower() == attachment.name.lower():
+                delta = (email.submit_time - entry.si_created).total_seconds()
+                return Contradiction(
+                    type=ContradictionType.EXFIL_CORRELATION,
+                    severity=Severity.HIGH,  # Lower severity for fallback match
+                    description=(
+                        f"File {entry.file_name} ({entry.file_size} bytes) "
+                        f"saved at {entry.si_created.isoformat()}, then emailed "
+                        f"{delta:.1f}s later as attachment in '{email.subject}' "
+                        f"(size+name match only; no hash verification)."
+                    ),
+                    confidence_impact=-0.35,  # Lower confidence without hash
+                    artifacts=[entry, email, attachment],
+                    details={
+                        "match_type": "size_name_fallback",
+                        "file_path": entry.file_path,
+                        "file_size": entry.file_size,
+                        "attachment_name": attachment.name,
+                        "attachment_size": attachment.size,
+                        "save_time": entry.si_created.isoformat(),
+                        "send_time": email.submit_time.isoformat(),
+                        "delta_seconds": delta,
+                        "email_subject": email.subject,
+                        "email_folder": email.folder,
+                    },
+                )
+
+        return None

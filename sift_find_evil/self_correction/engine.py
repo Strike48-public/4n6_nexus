@@ -135,6 +135,7 @@ class SelfCorrectionEngine:
         prefetch_entries: List[Any],
         event_log_entries: List[Any],
         content_reader: Optional[Callable[[Any], bytes]] = None,
+        emails: Optional[List[Any]] = None,
     ) -> List[Finding]:
         """
         Run full self-correction analysis.
@@ -147,13 +148,15 @@ class SelfCorrectionEngine:
                            When None (default), existing CSV-only behavior is unchanged.
                            When provided, hash-based detectors (e.g. EXFIL_CORRELATION)
                            can compute on-disk file hashes for correlation.
+            emails: Optional list of EmailMessage objects from PST parser. When provided,
+                   EXFIL_CORRELATION detector runs to find file-save-then-email patterns.
 
         Returns:
             List of Finding objects with confidence and reasoning
         """
         findings = []
 
-        # Detect all contradictions
+        # Detect process-execution contradictions (MFT/Prefetch/EventLog)
         contradictions = self.detector.detect_all(
             mft_entries,
             prefetch_entries,
@@ -173,6 +176,15 @@ class SelfCorrectionEngine:
                 event_log_entries
             )
             findings.append(finding)
+
+        # Detect file-save-then-email exfiltration (EXFIL_CORRELATION)
+        if emails:
+            exfil_contradictions = self.detector.detect_save_then_exfil(
+                mft_entries, emails, content_reader
+            )
+            for contradiction in exfil_contradictions:
+                finding = self._generate_exfil_finding(contradiction)
+                findings.append(finding)
 
         return findings
 
@@ -329,6 +341,83 @@ class SelfCorrectionEngine:
         )
 
         return finding
+
+    def _generate_exfil_finding(self, contradiction: Contradiction) -> Finding:
+        """Generate a standalone finding for EXFIL_CORRELATION (SFE-3).
+
+        These findings have fixed confidence scores based on match type:
+        - Hash match: 0.95
+        - Size+name fallback: 0.65
+
+        Args:
+            contradiction: EXFIL_CORRELATION contradiction with match details.
+
+        Returns:
+            Finding with DATA_EXFILTRATION category and appropriate confidence.
+        """
+        details = contradiction.details
+        match_type = details.get("match_type", "unknown")
+
+        # Set confidence based on match type
+        if match_type == "hash":
+            confidence = 0.95
+            confidence_label = "Very High"
+        elif match_type == "size_name_fallback":
+            confidence = 0.65
+            confidence_label = "Medium"
+        else:
+            confidence = 0.50
+            confidence_label = "Low"
+
+        # Build reasoning chain
+        reasoning = [
+            f"File-save-then-email pattern detected ({match_type} match)",
+            f"File: {details.get('file_path', 'unknown')}",
+            f"Saved: {details.get('save_time', 'unknown')}",
+            f"Emailed: {details.get('send_time', 'unknown')} "
+            f"({details.get('delta_seconds', 0):.1f}s later)",
+            f"Subject: {details.get('email_subject', 'unknown')}",
+            f"Attachment: {details.get('attachment_name', 'unknown')} "
+            f"({details.get('attachment_size', 0)} bytes)",
+        ]
+
+        if match_type == "hash":
+            reasoning.append(
+                f"SHA-256 match: {details.get('file_hash', 'unknown')[:16]}... "
+                f"(on-disk) == {details.get('attachment_hash', 'unknown')[:16]}... (email)"
+            )
+            reasoning.append("Cryptographic proof: file bytes are byte-identical")
+        else:
+            reasoning.append("Filename and size match (no hash verification)")
+
+        # Check for external recipient flag (from transport headers analysis)
+        # For now, this is a placeholder — full header parsing would check
+        # for external domains, tuckgorge@gmail.com patterns, etc.
+        # The Jean case has this; we'll extend the detector in future if needed.
+
+        return Finding(
+            title=f"Data exfiltration: {details.get('attachment_name', 'file')} via email",
+            description=contradiction.description,
+            finding_type="indicator",
+            severity="critical",
+            category=FindingCategory.DATA_EXFILTRATION,
+            evidence=details,
+            confidence=confidence,
+            confidence_label=confidence_label,
+            reasoning_chain=reasoning,
+            contradictions=[contradiction],
+            resolutions=[],
+            confidence_calculation={
+                "base": confidence,
+                "match_type": match_type,
+                "rationale": (
+                    "Hash-based match provides cryptographic certainty"
+                    if match_type == "hash"
+                    else "Size+name match without hash verification"
+                ),
+            },
+            artifact_sources=["MFT", "PST"],
+        )
 
     def _resolve_causality_violation(
         self,
