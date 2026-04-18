@@ -5,10 +5,10 @@ Handles timestamp parsing from multiple forensic tools with different formats,
 precision levels, and timezone handling.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil import parser
 import pytz
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class TimestampComparator:

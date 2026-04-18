@@ -52,7 +52,7 @@ def print_finding(finding, index: int, validation_status: Optional[str] = None):
         print(f"  Validation: {validation_status}")
     print()
 
-    print(f"  Description:")
+    print("  Description:")
     for line in finding.description.split('\n'):
         print(f"    {line}")
     print()
@@ -72,12 +72,12 @@ def print_finding(finding, index: int, validation_status: Optional[str] = None):
             print(f"       Recovery: +{resolution.confidence_recovery:.2f}")
         print()
 
-    print(f"  Reasoning Chain:")
+    print("  Reasoning Chain:")
     for i, step in enumerate(finding.reasoning_chain, 1):
         print(f"    {i}. {step}")
     print()
 
-    print(f"  Evidence:")
+    print("  Evidence:")
     for key, value in finding.evidence.items():
         print(f"    - {key}: {value}")
     print()
@@ -401,13 +401,13 @@ def cmd_demo(args):
         sys.exit(1)
 
     print("\nRunning demonstration with synthetic test data...")
-    print(f"This dataset simulates a ransomware attack with timestamp manipulation.")
-    print(f"\nTest scenario:")
-    print(f"  - malware.exe executed at 14:25 PM")
-    print(f"  - MFT shows modification at 14:40 PM (15 min AFTER execution)")
-    print(f"  - This violates causality - files cannot be modified after execution")
-    print(f"  - Event ID 4688 confirms execution at 14:25:03 PM")
-    print(f"  - Expected: Detect violation, resolve via Event Log tiebreaker")
+    print("This dataset simulates a ransomware attack with timestamp manipulation.")
+    print("\nTest scenario:")
+    print("  - malware.exe executed at 14:25 PM")
+    print("  - MFT shows modification at 14:40 PM (15 min AFTER execution)")
+    print("  - This violates causality - files cannot be modified after execution")
+    print("  - Event ID 4688 confirms execution at 14:25:03 PM")
+    print("  - Expected: Detect violation, resolve via Event Log tiebreaker")
 
     # Analyze
     findings = analyze_artifacts(

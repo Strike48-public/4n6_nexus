@@ -11,8 +11,6 @@ import pytest
 import pytz
 
 from sift_find_evil.parsers.pst_parser import (
-    Attachment,
-    EmailMessage,
     PstParser,
     _hash_attachment_streaming,
     _parse_attachment,

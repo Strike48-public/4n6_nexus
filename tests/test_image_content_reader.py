@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 
-import pytest
 
 from sift_find_evil.parsers.mft_parser import MFTEntry
 

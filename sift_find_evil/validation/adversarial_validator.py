@@ -275,7 +275,7 @@ class AdversarialValidator:
                         try:
                             dt = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")
                             timestamps.append((key, dt))
-                        except:
+                        except (ValueError, AttributeError):
                             pass
 
         # Check timezone consistency

@@ -22,7 +22,7 @@ from typing import Any
 
 from ..findings.categories import FindingCategory
 from ..parsers.mft_parser import MFTEntry
-from ..parsers.pst_parser import EmailMessage, Attachment
+from ..parsers.pst_parser import EmailMessage
 from ..parsers.image_content_reader import ImageContentReader
 
 logger = logging.getLogger(__name__)

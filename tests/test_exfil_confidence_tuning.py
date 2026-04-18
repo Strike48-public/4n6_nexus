@@ -1,7 +1,5 @@
 """Tests for graduated confidence scoring in exfiltration detector."""
 
-import pytest
-from datetime import datetime, timezone
 from sift_find_evil.disk.exfil_detector import _calculate_confidence
 
 

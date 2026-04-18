@@ -5,7 +5,7 @@ This module provides confidence scoring with adjustments based on
 contradictions detected and resolutions applied.
 """
 
-from typing import List, Optional
+from typing import List
 from dataclasses import dataclass
 
 from .contradiction_detector import Contradiction

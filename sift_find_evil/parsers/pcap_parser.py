@@ -9,7 +9,6 @@ No GUI dependencies, CLI-only workflow.
 
 from __future__ import annotations
 
-import json
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -392,7 +391,7 @@ class PcapParser:
         ]
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 cmd, capture_output=True, text=True, check=True, timeout=60
             )
         except subprocess.CalledProcessError as e:

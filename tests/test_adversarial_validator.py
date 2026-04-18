@@ -1,6 +1,5 @@
 """Tests for adversarial validator."""
 
-from datetime import datetime, timezone
 from sift_find_evil.validation import AdversarialValidator
 
 

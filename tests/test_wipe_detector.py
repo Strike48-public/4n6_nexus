@@ -7,7 +7,6 @@ summary. Real-image coverage lives in the Real Examples walkthrough.
 
 from __future__ import annotations
 
-import io
 import struct
 import uuid
 

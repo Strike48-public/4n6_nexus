@@ -1,6 +1,5 @@
 """Tests for file signature detection."""
 
-import pytest
 from sift_find_evil.carving import detect_file_type, get_all_signatures, get_signatures_by_category
 
 
