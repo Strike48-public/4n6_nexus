@@ -18,6 +18,7 @@ from .parsers.evtx_parser import EventLogParser
 from .self_correction.engine import SelfCorrectionEngine
 from .disk.wipe_detector import detect_from_image
 from .disk.exfil_detector import detect_exfiltration
+from .validation import AdversarialValidator
 
 
 def print_banner():
@@ -40,13 +41,15 @@ def print_section(title: str):
     print('='*70)
 
 
-def print_finding(finding, index: int):
+def print_finding(finding, index: int, validation_status: Optional[str] = None):
     """Print a finding in a readable format."""
     print(f"\n[Finding {index}] {finding.title}")
     print(f"  Severity: {finding.severity.upper()}")
     print(f"  Category: {finding.category.value}")
     print(f"  Confidence: {finding.confidence:.2f} ({finding.confidence_label})")
     print(f"  Type: {finding.finding_type}")
+    if validation_status:
+        print(f"  Validation: {validation_status}")
     print()
 
     print(f"  Description:")
@@ -211,14 +214,24 @@ def _write_output(findings: list, output_path: Optional[Path]) -> None:
         json.dump(payload, fh, indent=2, default=str)
 
 
-def _render_findings(findings: list) -> None:
+def _render_findings(findings: list, validation_reports: Optional[dict] = None) -> None:
     """Print a minimal rendering for image-only runs."""
     print_section("Analysis Results")
     if not findings:
         print("\n  No findings.")
         return
     for idx, finding in enumerate(findings, 1):
-        print_finding(finding, idx)
+        validation_status = None
+        if validation_reports and finding in validation_reports:
+            report = validation_reports[finding]
+            if report.passed:
+                if report.warnings:
+                    validation_status = f"PASSED with {len(report.warnings)} warning(s)"
+                else:
+                    validation_status = "PASSED"
+            else:
+                validation_status = f"FAILED ({len(report.critical_issues)} critical issues)"
+        print_finding(finding, idx, validation_status)
 
 
 def cmd_analyze(args):
@@ -286,6 +299,40 @@ def cmd_analyze(args):
     if disk_finding is not None:
         findings = [disk_finding] + list(findings)
 
+    # Validate CRITICAL findings
+    print_section("Validating CRITICAL Findings")
+    validator = AdversarialValidator()
+    validation_reports = {}
+    validated_findings = []
+    suppressed_count = 0
+
+    for finding in findings:
+        if finding.severity == "critical":
+            report = validator.validate(finding)
+            validation_reports[finding] = report
+
+            if report.critical_issues:
+                # Finding failed validation - suppress it
+                suppressed_count += 1
+                print(f"  [SUPPRESSED] {finding.title}")
+                for issue in report.critical_issues:
+                    print(f"    - {issue}")
+            else:
+                # Finding passed validation
+                validated_findings.append(finding)
+                if report.warnings:
+                    print(f"  [PASSED] {finding.title} ({len(report.warnings)} warning(s))")
+                else:
+                    print(f"  [PASSED] {finding.title}")
+        else:
+            # Non-CRITICAL findings pass through unvalidated
+            validated_findings.append(finding)
+
+    if suppressed_count > 0:
+        print(f"\n  Suppressed {suppressed_count} finding(s) due to validation failures")
+
+    findings = validated_findings
+
     _write_output(findings, Path(args.output) if args.output else None)
 
     # Display findings
@@ -299,7 +346,14 @@ def cmd_analyze(args):
     print(f"\n  Found {len(findings)} suspicious activities:")
 
     for i, finding in enumerate(findings, 1):
-        print_finding(finding, i)
+        validation_status = None
+        if finding in validation_reports:
+            report = validation_reports[finding]
+            if report.warnings:
+                validation_status = f"PASSED with {len(report.warnings)} warning(s)"
+            else:
+                validation_status = "PASSED (6/6 checks)"
+        print_finding(finding, i, validation_status)
 
     # Summary
     print_section("Summary")
