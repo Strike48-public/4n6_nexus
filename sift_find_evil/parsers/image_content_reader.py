@@ -78,14 +78,38 @@ class ImageContentReader:
         # Wrap the EWF handle in a pytsk3 Img_Info adapter
         self._img_info = EwfImgInfo(self._ewf_handle)
 
-        # Open the filesystem (assume NTFS, offset 0 for single-partition images).
-        # For multi-partition images, caller would need to pass the partition offset.
-        # Jean is single-partition NTFS, so offset=0 works.
+        # Auto-detect NTFS partition offset by reading the partition table
+        partition_offset = self._find_ntfs_partition()
+
+        # Open the filesystem at the detected offset
         try:
-            self._fs = pytsk3.FS_Info(self._img_info, offset=0)
+            self._fs = pytsk3.FS_Info(self._img_info, offset=partition_offset)
         except Exception as e:
             self._ewf_handle.close()
-            raise RuntimeError(f"Failed to open filesystem at offset 0: {e}") from e
+            raise RuntimeError(f"Failed to open filesystem at offset {partition_offset}: {e}") from e
+
+    def _find_ntfs_partition(self) -> int:
+        """Find the first NTFS partition in the image.
+
+        Returns:
+            Byte offset of the NTFS partition.
+
+        Raises:
+            RuntimeError: If no NTFS partition is found.
+        """
+        try:
+            vol = pytsk3.Volume_Info(self._img_info)
+            for part in vol:
+                # NTFS/exFAT has type 0x07
+                desc = part.desc.decode() if isinstance(part.desc, bytes) else str(part.desc)
+                if "NTFS" in desc or "0x07" in desc:
+                    return part.start * 512  # Convert sectors to bytes
+        except Exception:
+            # No partition table or error — try offset 0 as fallback
+            pass
+
+        # Fallback: try offset 0 (single-partition images without partition table)
+        return 0
 
     def __enter__(self):
         return self
