@@ -5,12 +5,15 @@ Extracts security events for tiebreaker validation.
 """
 
 import csv
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 from pathlib import Path
 
 from ..validators.timestamp_comparator import TimestampComparator
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -180,7 +183,7 @@ class EventLogParser:
 
         except Exception as e:
             # Log error and skip invalid row
-            print(f"Warning: Failed to parse Event Log row: {e}")
+            logger.warning(f"Failed to parse Event Log row: {e}")
             return None
 
     def _parse_timestamp(self, timestamp_str: Optional[str]) -> Optional[datetime]:

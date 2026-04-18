@@ -173,21 +173,28 @@ See [docs/CLI_USAGE.md](docs/CLI_USAGE.md) for detailed CLI documentation.
 
 **Usage:**
 
-```bash
-# Analysis WITHOUT NSRL filtering (default)
-sift-find-evil analyze --image disk.E01 --pst email.pst
+NSRL filtering is currently available via the standalone analysis script:
 
-# Analysis WITH NSRL filtering (filters known-good files)
-sift-find-evil analyze --image disk.E01 --pst email.pst --use-nsrl
+```bash
+# Run CIRCL executable analysis WITH NSRL filtering
+python scripts/analyze_circl_executables.py --use-nsrl
+
+# Run WITHOUT NSRL filtering (no download required)
+python scripts/analyze_circl_executables.py
 ```
 
 **Example output with NSRL:**
 ```
-[*] Using NSRL database for known-good filtering
-[*] Carved 403 executables from wiped disk
-[*] Filtered 368 known-good files (NSRL matches)
-[*] Analyzing 35 unknown executables for malware/tools...
+Mode: Option A (with NSRL filtering)
+  - 90% noise reduction expected
+  - Known-good files automatically filtered
+
+[*] Carved 5 executables from wiped disk
+[*] Filtered 3 known-good files (NSRL matches)
+[*] Analyzing 2 unknown executables for malware/tools...
 ```
+
+**Note**: CLI integration (`sift-find-evil analyze --use-nsrl`) is planned for future release.
 
 More information: https://www.nist.gov/itl/ssd/software-quality-group/national-software-reference-library-nsrl
 

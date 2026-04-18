@@ -5,12 +5,15 @@ Extracts file metadata and timestamps from Master File Table analysis.
 """
 
 import csv
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, List, Optional
 from pathlib import Path
 
 from ..validators.timestamp_comparator import TimestampComparator
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -209,7 +212,7 @@ class MFTParser:
 
         except Exception as e:
             # Log error and skip invalid row
-            print(f"Warning: Failed to parse MFT row: {e}")
+            logger.warning(f"Failed to parse MFT row: {e}")
             return None
 
     def _parse_timestamp(self, timestamp_str: Optional[str]) -> Optional[datetime]:
