@@ -160,16 +160,33 @@ class MFTParser:
             in_use = row.get('InUse', 'False').lower() == 'true'
 
             # Parse $STANDARD_INFORMATION timestamps
-            si_created = self._parse_timestamp(row.get('Created0x10') or row.get('SI_LtCreated'))
-            si_modified = self._parse_timestamp(row.get('Modified0x10') or row.get('SI_LtModified'))
-            si_accessed = self._parse_timestamp(row.get('Accessed0x10') or row.get('SI_LtAccess'))
-            si_mft_modified = self._parse_timestamp(row.get('Changed0x10') or row.get('SI_LtMftModified'))
+            # MFTECmd uses different column names depending on version
+            si_created = self._parse_timestamp(
+                row.get('Created0x10') or row.get('SI_LtCreated')
+            )
+            si_modified = self._parse_timestamp(
+                row.get('LastModified0x10') or row.get('Modified0x10') or row.get('SI_LtModified')
+            )
+            si_accessed = self._parse_timestamp(
+                row.get('LastAccess0x10') or row.get('Accessed0x10') or row.get('SI_LtAccess')
+            )
+            si_mft_modified = self._parse_timestamp(
+                row.get('LastRecordChange0x10') or row.get('Changed0x10') or row.get('SI_LtMftModified')
+            )
 
             # Parse $FILE_NAME timestamps
-            fn_created = self._parse_timestamp(row.get('Created0x30') or row.get('FN_LtCreated'))
-            fn_modified = self._parse_timestamp(row.get('Modified0x30') or row.get('FN_LtModified'))
-            fn_accessed = self._parse_timestamp(row.get('Accessed0x30') or row.get('FN_LtAccess'))
-            fn_mft_modified = self._parse_timestamp(row.get('Changed0x30') or row.get('FN_LtMftModified'))
+            fn_created = self._parse_timestamp(
+                row.get('Created0x30') or row.get('FN_LtCreated')
+            )
+            fn_modified = self._parse_timestamp(
+                row.get('LastModified0x30') or row.get('Modified0x30') or row.get('FN_LtModified')
+            )
+            fn_accessed = self._parse_timestamp(
+                row.get('LastAccess0x30') or row.get('Accessed0x30') or row.get('FN_LtAccess')
+            )
+            fn_mft_modified = self._parse_timestamp(
+                row.get('LastRecordChange0x30') or row.get('Changed0x30') or row.get('FN_LtMftModified')
+            )
 
             return MFTEntry(
                 entry_number=entry_number,

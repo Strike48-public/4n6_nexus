@@ -17,6 +17,7 @@ from .parsers.prefetch_parser import PrefetchParser
 from .parsers.evtx_parser import EventLogParser
 from .self_correction.engine import SelfCorrectionEngine
 from .disk.wipe_detector import detect_from_image
+from .disk.exfil_detector import detect_exfiltration
 
 
 def print_banner():
@@ -162,6 +163,20 @@ def analyze_artifacts(
 
     if verbose:
         print(f"  Detected {len(findings)} findings")
+
+    # Run exfiltration detector if we have MFT, PST, and disk image
+    if emails and image_path and mft_entries:
+        if verbose:
+            print_section("Running Exfiltration Detector")
+            print("  Correlating file hashes with email attachments...")
+
+        exfil_finding = detect_exfiltration(image_path, mft_entries, emails)
+        if exfil_finding:
+            findings = [exfil_finding] + list(findings)
+            if verbose:
+                print(f"  Detected exfiltration: {len(exfil_finding.matches)} correlation(s)")
+        elif verbose:
+            print("  No exfiltration patterns detected")
 
     # Output JSON if requested
     if output_json:
