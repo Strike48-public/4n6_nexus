@@ -30,8 +30,22 @@ logger = logging.getLogger(__name__)
 # Time window for correlation: file modified → email sent
 DEFAULT_TIME_WINDOW_SECONDS = 300
 
-# Confidence threshold
-CORRELATION_CONFIDENCE = 0.95
+# Graduated confidence thresholds based on time delta
+def _calculate_confidence(time_delta_seconds: float) -> tuple[float, str]:
+    """Calculate confidence score based on time delta.
+
+    Args:
+        time_delta_seconds: Time between file modification and email send
+
+    Returns:
+        Tuple of (confidence_score, confidence_label)
+    """
+    if time_delta_seconds <= 60:
+        return (0.95, "Very High")  # Immediate exfiltration
+    elif time_delta_seconds <= 180:
+        return (0.90, "High")  # Deliberate but not immediate
+    else:
+        return (0.85, "Medium-High")  # Could be manual or automated
 
 
 @dataclass(frozen=True)
@@ -368,6 +382,9 @@ def detect_exfiltration(
     reasoning = _build_reasoning(matches, stats)
     evidence = _build_evidence(matches, stats)
 
+    # Calculate confidence based on primary match time delta
+    confidence, confidence_label = _calculate_confidence(primary_match.time_delta_seconds)
+
     return ExfilFinding(
         title=f"Data exfiltration detected: {len(matches)} file(s) emailed within {time_window_seconds}s",
         description=(
@@ -379,18 +396,20 @@ def detect_exfiltration(
         ),
         finding_type="indicator",
         severity="critical",
-        confidence=CORRELATION_CONFIDENCE,
-        confidence_label="Very High",
+        confidence=confidence,
+        confidence_label=confidence_label,
         category=FindingCategory.DATA_EXFILTRATION,
         matches=matches,
         evidence=evidence,
         reasoning_chain=reasoning,
         artifact_sources=["mft", "pst", "disk_image"],
         confidence_calculation={
-            "base": CORRELATION_CONFIDENCE,
+            "base": confidence,
+            "time_delta_seconds": primary_match.time_delta_seconds,
             "rationale": (
-                "SHA-256 hash match + temporal proximity (<300s) is a near-deterministic "
-                "indicator of intentional file exfiltration via email."
+                f"SHA-256 hash match + temporal proximity ({primary_match.time_delta_seconds:.1f}s) "
+                f"indicates intentional exfiltration. Confidence graduated by time delta: "
+                f"0-60s=0.95, 60-180s=0.90, 180-300s=0.85."
             ),
         },
     )

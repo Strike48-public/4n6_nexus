@@ -320,3 +320,73 @@ def test_validation_report_warnings_only():
     assert len(report.critical_issues) == 0
     assert len(report.warnings) >= 1  # Confidence + alternative explanations
     assert any("may be too high" in warn for warn in report.warnings)
+
+
+def test_confidence_justification_graduated_60s_threshold():
+    """0.95 confidence with 61s delta should warn (new graduated threshold)."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test exfil",
+        category="data_exfiltration",
+        confidence=0.95,
+        evidence={
+            "time_delta_seconds": 61,
+        },
+    )
+
+    check = validator._check_confidence_justification(finding)
+    assert not check.passed
+    assert "may be too high" in check.issues[0]
+
+
+def test_confidence_justification_graduated_180s_threshold():
+    """0.90 confidence with 181s delta should warn (new graduated threshold)."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test exfil",
+        category="data_exfiltration",
+        confidence=0.90,
+        evidence={
+            "time_delta_seconds": 181,
+        },
+    )
+
+    check = validator._check_confidence_justification(finding)
+    assert not check.passed
+    assert "may be too high" in check.issues[0]
+
+
+def test_confidence_justification_graduated_valid_90():
+    """0.90 confidence with 120s delta passes (valid for 60-180s range)."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test exfil",
+        category="data_exfiltration",
+        confidence=0.90,
+        evidence={
+            "time_delta_seconds": 120,
+        },
+    )
+
+    check = validator._check_confidence_justification(finding)
+    assert check.passed
+
+
+def test_confidence_justification_graduated_valid_85():
+    """0.85 confidence with 250s delta passes (valid for 180-300s range)."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test exfil",
+        category="data_exfiltration",
+        confidence=0.85,
+        evidence={
+            "time_delta_seconds": 250,
+        },
+    )
+
+    check = validator._check_confidence_justification(finding)
+    assert check.passed

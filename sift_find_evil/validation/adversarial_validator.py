@@ -204,18 +204,23 @@ class AdversarialValidator:
         if hasattr(finding, "evidence"):
             evidence = finding.evidence or {}
 
-        if confidence >= 0.95:
-            # Very High confidence requires exceptional evidence
-            category = getattr(finding, "category", None)
+        category = getattr(finding, "category", None)
 
-            if category and str(category) == "data_exfiltration":
-                # Check time delta
-                time_delta = evidence.get("time_delta_seconds")
+        if category and str(category) == "data_exfiltration":
+            # Check time delta alignment with graduated confidence
+            time_delta = evidence.get("time_delta_seconds")
 
-                if time_delta is not None and time_delta > 60:
+            if time_delta is not None:
+                # Validate confidence matches time delta threshold
+                if confidence >= 0.95 and time_delta > 60:
                     issues.append(
                         f"Confidence 0.95 with {time_delta}s delta may be too high. "
-                        f"Time windows >60s suggest 0.90 more appropriate for Very High confidence."
+                        f"Time windows >60s suggest 0.90 more appropriate."
+                    )
+                elif confidence >= 0.90 and time_delta > 180:
+                    issues.append(
+                        f"Confidence 0.90 with {time_delta}s delta may be too high. "
+                        f"Time windows >180s suggest 0.85 more appropriate."
                     )
 
         return ValidationCheck("confidence_justification", issues)
