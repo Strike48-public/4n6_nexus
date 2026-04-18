@@ -148,6 +148,49 @@ python -m sift_find_evil analyze \
 
 See [docs/CLI_USAGE.md](docs/CLI_USAGE.md) for detailed CLI documentation.
 
+### Optional: NSRL Integration (Recommended)
+
+**NSRL (National Software Reference Library)** provides hash sets for known-good software, enabling filtering of legitimate system files during carved file analysis.
+
+**Benefits:**
+- 90%+ noise reduction when analyzing carved files
+- Instant identification of Windows/Office/Adobe system files
+- Focuses investigation on unknown executables
+
+**Storage requirements:**
+- Modern RDS: 2-3 GB download, 8-12 GB extracted (recommended)
+- Full RDS: 5-10 GB download, 30-50 GB extracted (comprehensive)
+
+**Installation (one-time setup):**
+
+```bash
+# Download Modern RDS (recommended for most users)
+./scripts/download-nsrl.sh modern
+
+# Or download Full RDS (comprehensive but large)
+./scripts/download-nsrl.sh full
+```
+
+**Usage:**
+
+```bash
+# Analysis WITHOUT NSRL filtering (default)
+sift-find-evil analyze --image disk.E01 --pst email.pst
+
+# Analysis WITH NSRL filtering (filters known-good files)
+sift-find-evil analyze --image disk.E01 --pst email.pst --use-nsrl
+```
+
+**Example output with NSRL:**
+```
+[*] Using NSRL database for known-good filtering
+[*] Carved 403 executables from wiped disk
+[*] Filtered 368 known-good files (NSRL matches)
+[*] Analyzing 35 unknown executables for malware/tools...
+```
+
+More information: https://www.nist.gov/itl/ssd/software-quality-group/national-software-reference-library-nsrl
+
 ---
 
 ## Documentation
