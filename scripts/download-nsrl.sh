@@ -20,6 +20,11 @@ NSRL_VERSION="${NSRL_VERSION:-modern}"  # "modern" or "full"
 # NIST provides RDS releases quarterly
 # These URLs need to be updated when new releases are published
 # Check https://www.nist.gov/itl/ssd/software-quality-group/national-software-reference-library-nsrl for latest
+#
+# KNOWN ISSUE (2026-04-18): NIST S3 URLs may return 403 Forbidden
+# If download fails, manually download from:
+#   https://www.nist.gov/itl/ssd/software-quality-group/national-software-reference-library-nsrl-download
+# Then place NSRLFile.txt in ~/.sift_find_evil/nsrl/
 MODERN_RDS_URL="https://s3.amazonaws.com/rds.nsrl.nist.gov/RDS/rds_modernm/RDS_modern.iso"
 MODERN_RDS_SHA256_URL="https://s3.amazonaws.com/rds.nsrl.nist.gov/RDS/rds_modernm/RDS_modern.iso.sha256"
 
@@ -148,7 +153,9 @@ download_modern_rds() {
   local iso_file="$dest/RDS_modern.iso"
 
   # Download ISO
-  download_file "$MODERN_RDS_URL" "$iso_file"
+  if ! download_file "$MODERN_RDS_URL" "$iso_file"; then
+    error "Download failed. NIST S3 URLs may have changed. Manual workaround:\n  1. Visit: https://www.nist.gov/itl/ssd/software-quality-group/national-software-reference-library-nsrl-download\n  2. Download Modern RDS ISO\n  3. Extract NSRLFile.txt to: $dest/"
+  fi
 
   # Verify checksum
   verify_checksum "$iso_file" "$MODERN_RDS_SHA256_URL"

@@ -1,0 +1,84 @@
+{
+  "analysis_date": "2026-04-18",
+  "image": "scenarios/circl-2023-wiped/wiped_disk.E01",
+  "total_executables": 5,
+  "known_good_count": 0,
+  "unknown_count": 5,
+  "nsrl_enabled": false,
+  "all_hashes": [
+    {
+      "file": "exe_001.exe",
+      "sha256": "81a18823e36e96baf91450e46a5627d07762d5c455c2eedb3abbff9aabf31f74",
+      "sha1": "ee54d95c586398ab5b41ab09cc7a84a4d3bd6e30",
+      "size_bytes": 10485760
+    },
+    {
+      "file": "exe_002.exe",
+      "sha256": "b1265beba6e4bf7d4182827f17b8573deddf531da1e77602251de8c67428dc17",
+      "sha1": "6edb87773d8d2a286c6cf624d58339aaca6e37c8",
+      "size_bytes": 10485760
+    },
+    {
+      "file": "exe_003.exe",
+      "sha256": "fa59166fe0cc9d93874794c8a48c97bfe1632d9f6be0e8ad6f3bbbbea3f59a79",
+      "sha1": "3e494c594f6b09fdff9d9ddbf8d226db985c909e",
+      "size_bytes": 10485760
+    },
+    {
+      "file": "exe_004.exe",
+      "sha256": "586c0e772839fec6a0e0bb9b4d38e3d3901863955756da2485ee8ae14257ef9e",
+      "sha1": "305ad4ecb13ae085e6279a903b6389b1c878698c",
+      "size_bytes": 10485760
+    },
+    {
+      "file": "exe_005.exe",
+      "sha256": "5dbd711730234e4c0c7763323ad5015b3a5717c668971d71a76e077127f43470",
+      "sha1": "bd5253b302a862b9cb0571f366d18a210a7aa3d1",
+      "size_bytes": 8686491
+    }
+  ],
+  "known_good": [],
+  "unknown": [
+    {
+      "file": "exe_001.exe",
+      "sha256": "81a18823e36e96baf91450e46a5627d07762d5c455c2eedb3abbff9aabf31f74",
+      "sha1": "ee54d95c586398ab5b41ab09cc7a84a4d3bd6e30",
+      "classification": "unknown (requires investigation)",
+      "virustotal_url": "https://www.virustotal.com/gui/file/81a18823e36e96baf91450e46a5627d07762d5c455c2eedb3abbff9aabf31f74"
+    },
+    {
+      "file": "exe_002.exe",
+      "sha256": "b1265beba6e4bf7d4182827f17b8573deddf531da1e77602251de8c67428dc17",
+      "sha1": "6edb87773d8d2a286c6cf624d58339aaca6e37c8",
+      "classification": "unknown (requires investigation)",
+      "virustotal_url": "https://www.virustotal.com/gui/file/b1265beba6e4bf7d4182827f17b8573deddf531da1e77602251de8c67428dc17"
+    },
+    {
+      "file": "exe_003.exe",
+      "sha256": "fa59166fe0cc9d93874794c8a48c97bfe1632d9f6be0e8ad6f3bbbbea3f59a79",
+      "sha1": "3e494c594f6b09fdff9d9ddbf8d226db985c909e",
+      "classification": "unknown (requires investigation)",
+      "virustotal_url": "https://www.virustotal.com/gui/file/fa59166fe0cc9d93874794c8a48c97bfe1632d9f6be0e8ad6f3bbbbea3f59a79"
+    },
+    {
+      "file": "exe_004.exe",
+      "sha256": "586c0e772839fec6a0e0bb9b4d38e3d3901863955756da2485ee8ae14257ef9e",
+      "sha1": "305ad4ecb13ae085e6279a903b6389b1c878698c",
+      "classification": "unknown (requires investigation)",
+      "virustotal_url": "https://www.virustotal.com/gui/file/586c0e772839fec6a0e0bb9b4d38e3d3901863955756da2485ee8ae14257ef9e"
+    },
+    {
+      "file": "exe_005.exe",
+      "sha256": "5dbd711730234e4c0c7763323ad5015b3a5717c668971d71a76e077127f43470",
+      "sha1": "bd5253b302a862b9cb0571f366d18a210a7aa3d1",
+      "classification": "unknown (requires investigation)",
+      "virustotal_url": "https://www.virustotal.com/gui/file/5dbd711730234e4c0c7763323ad5015b3a5717c668971d71a76e077127f43470"
+    }
+  ],
+  "recommendations": [
+    "Submit unknown hashes to VirusTotal for malware identification",
+    "Deep strings analysis on unknown executables for IOCs",
+    "Check for known attacker tools (mimikatz, psexec, etc.)",
+    "Correlate unknown files with incident timeline if available"
+  ]
+}
