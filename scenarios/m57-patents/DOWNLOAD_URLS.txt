@@ -1,0 +1,124 @@
+M57 Patents Scenario - Download URLs
+Digital Corpora: https://digitalcorpora.org/corpora/scenarios/m57-patents-scenario/
+Base Download URL: https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/
+
+===============================================================================
+JEAN'S EVIDENCE
+===============================================================================
+
+Laptop Images:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2008-jean/nps-2008-jean.E01
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2008-jean/nps-2008-jean.E02
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2008-jean/nps-2008-jean.E03
+
+USB Drive:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/usb-drives/jean-usb-2009-12-11.E01
+
+===============================================================================
+PAT'S EVIDENCE
+===============================================================================
+
+Desktop Images:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-pat/nps-2009-pat.E01
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-pat/nps-2009-pat.E02
+
+USB Drive:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/usb-drives/pat-usb-2009-12-11.E01
+
+===============================================================================
+TERRY'S EVIDENCE
+===============================================================================
+
+Laptop Images:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-terry/nps-2009-terry.E01
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-terry/nps-2009-terry.E02
+
+USB Drive:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/usb-drives/terry-usb-2009-12-11.E01
+
+===============================================================================
+CHARLIE'S EVIDENCE
+===============================================================================
+
+Laptop Images:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-charlie/nps-2009-charlie.E01
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-charlie/nps-2009-charlie.E02
+
+USB Drive:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/usb-drives/charlie-usb-2009-12-11.E01
+
+===============================================================================
+JO'S EVIDENCE
+===============================================================================
+
+Laptop Images:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-jo/nps-2009-jo.E01
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-jo/nps-2009-jo.E02
+
+USB Drive:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/usb-drives/jo-usb-2009-12-11.E01
+
+===============================================================================
+NETWORK CAPTURES
+===============================================================================
+
+Network Traffic (PCAP files):
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/net/
+
+Browse directory for individual PCAP files:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/net/
+
+===============================================================================
+MEMORY DUMPS
+===============================================================================
+
+RAM Images (if available):
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/ram/
+
+===============================================================================
+TEACHING MATERIALS
+===============================================================================
+
+Scenario Description:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/scenario.pdf
+
+Investigation Guide:
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/guide.pdf
+
+Solution Guide (Password Protected - Faculty Only):
+https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/solution.pdf
+
+Password Information:
+https://digitalcorpora.org/corpora/scenarios/obtaining-solutions/
+
+===============================================================================
+DOWNLOAD NOTES
+===============================================================================
+
+1. All files use Expert Witness Format (.E01, .E02, .E03)
+2. Large files may take significant time to download
+3. Verify file integrity using MD5/SHA1/SHA256 hashes
+4. Total download size: ~50-100 GB for complete scenario
+5. Use wget or curl with resume capability for large files
+6. Network captures may be split into multiple files
+
+Example download command:
+  wget -c https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2008-jean/nps-2008-jean.E01
+
+Example with all files in a directory:
+  wget -r -np -nc https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2008-jean/
+
+===============================================================================
+QUICK START
+===============================================================================
+
+To download just Jean's laptop (primary suspect):
+./download_all.sh jean
+
+To download everything:
+./download_all.sh all
+
+To download specific character:
+./download_all.sh [jean|pat|terry|charlie|jo]
+
+===============================================================================

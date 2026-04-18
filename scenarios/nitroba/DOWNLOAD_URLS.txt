@@ -1,0 +1,74 @@
+NITROBA UNIVERSITY HARASSMENT SCENARIO - DOWNLOAD URLS
+Digital Corpora - https://digitalcorpora.org/
+
+==============================================================================
+PRIMARY EVIDENCE
+==============================================================================
+
+PCAP File (53.6 MB):
+https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/nitroba.pcap
+
+MD5:    9981827f11968773ff815e39f5458ec8
+SHA1:   65656392412add15f93f8585197a8998aaeb50a1
+SHA256: 2b77a9eaefc1d6af163d1ba793c96dbccacb04e6befdf1a0b01f8c67553ec2fb
+
+==============================================================================
+TEACHING MATERIALS - SLIDES
+==============================================================================
+
+PDF:
+https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/slides.pdf
+
+PowerPoint:
+https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/slides.ppt
+
+Keynote:
+https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/slides.key
+
+==============================================================================
+SOLUTIONS (PASSWORD PROTECTED - FACULTY ONLY)
+==============================================================================
+
+Teacher's Solution:
+https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/nitroba-solution.pdf
+
+Expanded Lab Scenarios:
+https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/Nitroba%20Harassment%20Lab%20scenarios.pdf
+
+Expanded Lab Scenarios with Solutions:
+https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/Nitroba%20Harassment%20Lab%20scenarios%20with%20Solution.pdf
+
+Password Information:
+https://digitalcorpora.org/corpora/scenarios/obtaining-solutions/
+
+==============================================================================
+SCENARIO PAGE
+==============================================================================
+
+Main Scenario Page:
+https://digitalcorpora.org/corpora/scenarios/nitroba-university-harassment-scenario/
+
+==============================================================================
+QUICK DOWNLOAD COMMANDS
+==============================================================================
+
+# Download PCAP file only
+curl -O https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/nitroba.pcap
+
+# Verify with MD5
+md5sum nitroba.pcap
+# Expected: 9981827f11968773ff815e39f5458ec8
+
+# Verify with SHA256
+sha256sum nitroba.pcap
+# Expected: 2b77a9eaefc1d6af163d1ba793c96dbccacb04e6befdf1a0b01f8c67553ec2fb
+
+# Download all teaching materials
+curl -O https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/slides.pdf
+curl -O https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/slides.ppt
+curl -O https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/slides.key
+
+# Or use the automated script
+./download_all.sh
+
+==============================================================================
