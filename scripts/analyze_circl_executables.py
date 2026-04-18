@@ -280,6 +280,7 @@ def generate_report(
 
 
 def main():
+    """Analyze CIRCL carved executables and hash them against NSRL and VirusTotal."""
     parser = argparse.ArgumentParser(
         description="Analyze CIRCL carved executables",
         epilog="""

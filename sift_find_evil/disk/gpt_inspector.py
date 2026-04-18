@@ -51,9 +51,19 @@ class GPTHeader:
 
     @property
     def is_efi_part(self) -> bool:
+        """Check if this header has the valid EFI PART signature.
+
+        Returns:
+            True if signature matches the UEFI GPT magic bytes.
+        """
         return self.signature == GPT_HEADER_SIGNATURE
 
     def to_dict(self) -> dict:
+        """Convert GPT header fields to a dictionary.
+
+        Returns:
+            Dictionary with all header fields suitable for JSON serialization.
+        """
         return {
             "signature": self.signature.decode("ascii", errors="replace"),
             "revision": f"0x{self.revision:08x}",
@@ -71,6 +81,11 @@ class GPTHeader:
 
 @dataclass(frozen=True)
 class GPTEntry:
+    """A single entry from the GPT partition array (UEFI 2.9 Table 22).
+
+    Represents one partition definition including its type, boundaries, and name.
+    """
+
     index: int
     type_guid: uuid.UUID
     unique_guid: uuid.UUID
@@ -81,13 +96,28 @@ class GPTEntry:
 
     @property
     def size_sectors(self) -> int:
+        """Calculate partition size in 512-byte sectors.
+
+        Returns:
+            Number of sectors from first_lba to last_lba (inclusive).
+        """
         return self.last_lba - self.first_lba + 1
 
     @property
     def size_bytes(self) -> int:
+        """Calculate partition size in bytes.
+
+        Returns:
+            Total bytes (size_sectors * 512).
+        """
         return self.size_sectors * SECTOR
 
     def to_dict(self) -> dict:
+        """Convert partition entry to a dictionary.
+
+        Returns:
+            Dictionary with all partition fields suitable for JSON serialization.
+        """
         return {
             "index": self.index,
             "name": self.name,
@@ -118,9 +148,19 @@ class GPTInspection:
 
     @property
     def secondary_valid(self) -> bool:
+        """Check if the secondary (backup) GPT header is intact.
+
+        Returns:
+            True if secondary_header exists and has the EFI PART signature.
+        """
         return self.secondary_header is not None and self.secondary_header.is_efi_part
 
     def to_dict(self) -> dict:
+        """Convert inspection results to a dictionary.
+
+        Returns:
+            Dictionary with both primary and secondary header info, plus entries.
+        """
         return {
             "total_sectors": self.total_sectors,
             "primary_mbr_zeroed": self.primary_mbr_zeroed,

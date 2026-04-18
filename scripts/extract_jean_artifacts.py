@@ -61,23 +61,46 @@ TARGET_DIRS: tuple[tuple[str, str], ...] = (
 
 
 class EWFImg(pytsk3.Img_Info):
+    """Adapter that wraps a pyewf handle for pytsk3."""
+
     def __init__(self, ewf) -> None:
+        """Initialize the adapter with a pyewf handle.
+
+        Args:
+            ewf: An opened pyewf handle.
+        """
         self._ewf = ewf
         super().__init__(url="", type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
 
     def read(self, off: int, size: int) -> bytes:
+        """Read bytes from the EWF image at a given offset.
+
+        Args:
+            off: Byte offset in the image.
+            size: Number of bytes to read.
+
+        Returns:
+            Bytes read from the image.
+        """
         self._ewf.seek(off)
         return self._ewf.read(size)
 
     def get_size(self) -> int:
+        """Get the total size of the EWF image in bytes.
+
+        Returns:
+            Total media size in bytes.
+        """
         return self._ewf.get_media_size()
 
-    def close(self) -> None:  # pragma: no cover - required by pytsk3
+    def close(self) -> None:
+        """Close the adapter (stub for pytsk3 compatibility)."""
         pass
 
 
 @dataclass(frozen=True)
 class ExtractedFile:
+    """Metadata for an extracted file."""
     src: str
     dst: Path
     size: int
@@ -145,7 +168,7 @@ def _extract_dir(
 
 
 def _maybe_extract_usnjrnl(fs: pytsk3.FS_Info, dst: Path) -> ExtractedFile | None:
-    """$UsnJrnl:$J is an ADS on $Extend\\$UsnJrnl, not reachable via fs.open()."""
+    r"""$UsnJrnl:$J is an ADS on $Extend\$UsnJrnl, not reachable via fs.open()."""
     try:
         usn_dir = fs.open_dir("/$Extend")
     except OSError:
@@ -191,6 +214,11 @@ def _maybe_extract_usnjrnl(fs: pytsk3.FS_Info, dst: Path) -> ExtractedFile | Non
 
 
 def main() -> int:
+    """Extract forensic artifacts from the nps-2008-jean E01 image.
+
+    Returns:
+        Exit code (0 = success, 2 = image not found).
+    """
     if not IMAGE.exists():
         print(f"ERROR: {IMAGE} not found", file=sys.stderr)
         return 2

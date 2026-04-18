@@ -49,6 +49,12 @@ class WipedDiskFinding:
     detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict:
+        """Convert finding to a dictionary for serialization.
+
+        Returns:
+            Dictionary with all finding details in a structure matching the
+            engine Finding format for CLI/report rendering.
+        """
         return {
             "title": self.title,
             "description": self.description,

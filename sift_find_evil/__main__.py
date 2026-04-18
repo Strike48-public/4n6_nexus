@@ -1,5 +1,4 @@
-"""
-Make sift_find_evil package executable as a module.
+"""Make sift_find_evil package executable as a module.
 
 Usage:
     python -m sift_find_evil demo

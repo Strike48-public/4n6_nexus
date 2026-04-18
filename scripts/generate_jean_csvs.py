@@ -33,6 +33,7 @@ MFTECMD_DLL = Path.home() / "tools/ezt/MFTECmd/MFTECmd.dll"
 
 
 def run_mftecmd() -> None:
+    """Run MFTECmd to parse the $MFT and generate MFT.csv."""
     if not MFTECMD_DLL.exists():
         raise FileNotFoundError(f"MFTECmd.dll not found at {MFTECMD_DLL}")
     LOGS.mkdir(parents=True, exist_ok=True)
@@ -59,6 +60,7 @@ def run_mftecmd() -> None:
 
 
 def run_pyscca() -> None:
+    """Run pyscca to parse Prefetch files and generate Prefetch.csv."""
     import pyscca  # local import: libscca-python is optional
 
     pf_dir = EXTRACT / "prefetch"
@@ -129,6 +131,7 @@ def run_pyscca() -> None:
 
 
 def run_evt() -> None:
+    """Run EvtParser to parse legacy .Evt files and generate EventLog.csv."""
     evt_dir = EXTRACT / "evtlog"
     if not evt_dir.exists():
         raise FileNotFoundError(f"evtlog dir missing at {evt_dir}")
@@ -188,6 +191,11 @@ def run_evt() -> None:
 
 
 def main() -> int:
+    """Run all parsers to generate CSVs from extracted artifacts.
+
+    Returns:
+        Exit code (0 = success).
+    """
     run_mftecmd()
     run_pyscca()
     run_evt()

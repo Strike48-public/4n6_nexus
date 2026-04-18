@@ -25,17 +25,37 @@ class EwfImgInfo(pytsk3.Img_Info):
     """
 
     def __init__(self, ewf_handle):
+        """Initialize the adapter with a pyewf file handle.
+
+        Args:
+            ewf_handle: An opened pyewf handle (result of pyewf.handle().open()).
+        """
         self._ewf_handle = ewf_handle
         super().__init__(url="", type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
 
     def close(self):
+        """Close the underlying EWF handle to release resources."""
         self._ewf_handle.close()
 
     def read(self, offset: int, size: int) -> bytes:
+        """Read bytes from the EWF image at a given offset.
+
+        Args:
+            offset: Byte offset in the image.
+            size: Number of bytes to read.
+
+        Returns:
+            Bytes read from the image.
+        """
         self._ewf_handle.seek(offset)
         return self._ewf_handle.read(size)
 
     def get_size(self) -> int:
+        """Get the total size of the EWF image in bytes.
+
+        Returns:
+            Total media size in bytes.
+        """
         return self._ewf_handle.get_media_size()
 
 
@@ -112,9 +132,21 @@ class ImageContentReader:
         return 0
 
     def __enter__(self):
+        """Enter context manager.
+
+        Returns:
+            Self for use in with statement.
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager and clean up resources.
+
+        Args:
+            exc_type: Exception type if an exception occurred.
+            exc_val: Exception value if an exception occurred.
+            exc_tb: Exception traceback if an exception occurred.
+        """
         self.close()
 
     def close(self):
@@ -176,6 +208,12 @@ def make_content_reader(image_path: Path):
         # Each entry now has entry.content_reader(entry) -> bytes
 
     The returned callable opens the image on first use and caches the handle.
+
+    Args:
+        image_path: Path to the E01 image file.
+
+    Returns:
+        A callable that accepts an MFTEntry and returns its file content (bytes).
     """
     _reader: ImageContentReader | None = None
 

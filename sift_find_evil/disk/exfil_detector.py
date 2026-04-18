@@ -65,6 +65,11 @@ class ExfilMatch:
     is_primary: bool = False  # Shortest delta = primary evidence
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert ExfilMatch to dictionary representation.
+
+        Returns:
+            Dictionary with all match fields serialized for JSON output.
+        """
         return {
             "file_path": self.file_path,
             "file_size": self.file_size,
@@ -101,6 +106,11 @@ class ExfilFinding:
     detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict:
+        """Convert ExfilFinding to dictionary representation.
+
+        Returns:
+            Dictionary with all finding fields serialized for JSON output.
+        """
         return {
             "title": self.title,
             "description": self.description,

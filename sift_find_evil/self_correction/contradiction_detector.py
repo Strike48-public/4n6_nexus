@@ -1,5 +1,4 @@
-"""
-Contradiction Detector - Detect inconsistencies across forensic artifacts.
+"""Contradiction Detector - Detect inconsistencies across forensic artifacts.
 
 This is the core of the self-correction mechanism.
 """
@@ -33,9 +32,7 @@ class Severity(Enum):
 
 @dataclass
 class Contradiction:
-    """
-    Represents a detected contradiction between artifacts.
-    """
+    """Represents a detected contradiction between artifacts."""
     type: ContradictionType
     severity: Severity
     description: str
@@ -63,13 +60,10 @@ class Contradiction:
 
 
 class ContradictionDetector:
-    """
-    Detects contradictions between MFT, Prefetch, and Event Log artifacts.
-    """
+    """Detects contradictions between MFT, Prefetch, and Event Log artifacts."""
 
     def __init__(self, comparator: Optional[TimestampComparator] = None):
-        """
-        Initialize detector.
+        """Initialize detector.
 
         Args:
             comparator: TimestampComparator instance (creates new if None)
@@ -81,8 +75,7 @@ class ContradictionDetector:
         mft_entry: Any,
         prefetch_entry: Any
     ) -> Optional[Contradiction]:
-        """
-        Detect if file was modified AFTER it was executed (causality violation).
+        """Detect if file was modified AFTER it was executed (causality violation).
 
         Args:
             mft_entry: MFTEntry with file timestamps
@@ -141,8 +134,7 @@ class ContradictionDetector:
         self,
         mft_entry: Any
     ) -> Optional[Contradiction]:
-        """
-        Detect timestamp manipulation ($SI vs $FN discrepancy).
+        """Detect timestamp manipulation ($SI vs $FN discrepancy).
 
         Args:
             mft_entry: MFTEntry with both $SI and $FN timestamps
@@ -186,8 +178,7 @@ class ContradictionDetector:
         mft_entry: Any,
         prefetch_entries: List[Any]
     ) -> Optional[Contradiction]:
-        """
-        Detect if executable exists in MFT but has no Prefetch evidence.
+        """Detect if executable exists in MFT but has no Prefetch evidence.
 
         This is suspicious for executables that should have Prefetch.
 
@@ -232,8 +223,7 @@ class ContradictionDetector:
         event_log_entries: List[Any],
         tolerance_seconds: int = 300
     ) -> Optional[Contradiction]:
-        """
-        Detect if Prefetch execution time doesn't match any Event ID 4688.
+        """Detect if Prefetch execution time doesn't match any Event ID 4688.
 
         Args:
             prefetch_entry: PrefetchEntry with execution time
@@ -290,8 +280,7 @@ class ContradictionDetector:
         prefetch_entries: List[Any],
         event_log_entries: List[Any]
     ) -> List[Contradiction]:
-        """
-        Run all contradiction detection checks.
+        """Run all contradiction detection checks.
 
         Args:
             mft_entries: List of MFTEntry objects

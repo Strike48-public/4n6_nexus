@@ -37,16 +37,19 @@ class ScenarioResult:
 
     @property
     def precision(self) -> float:
+        """Return precision metric (TP / (TP + FP))."""
         denom = len(self.true_positives) + len(self.false_positives)
         return len(self.true_positives) / denom if denom else 1.0
 
     @property
     def recall(self) -> float:
+        """Return recall metric (TP / (TP + FN))."""
         denom = len(self.true_positives) + len(self.false_negatives)
         return len(self.true_positives) / denom if denom else 1.0
 
     @property
     def f1(self) -> float:
+        """Calculate F1 score (2 * precision * recall / (precision + recall))."""
         p, r = self.precision, self.recall
         return 2 * p * r / (p + r) if (p + r) else 0.0
 
@@ -92,8 +95,15 @@ SCENARIOS: tuple[ScenarioExpectation, ...] = (
 
 
 def run_scenario(expectation: ScenarioExpectation, repo_root: Path) -> ScenarioResult:
-    """Execute the engine for one scenario and compare to ground truth."""
+    """Execute the engine for one scenario and compare to ground truth.
 
+    Args:
+        expectation: Scenario expectation with ground truth executables.
+        repo_root: Root directory of the repository.
+
+    Returns:
+        ScenarioResult with findings and metrics.
+    """
     directory = repo_root / expectation.directory
     mft = MFTParser().parse_csv(directory / "mft.csv")
     prefetch = PrefetchParser().parse_csv(directory / "prefetch.csv")
@@ -124,8 +134,14 @@ def run_scenario(expectation: ScenarioExpectation, repo_root: Path) -> ScenarioR
 
 
 def aggregate(results: list[ScenarioResult]) -> dict[str, Any]:
-    """Compute micro-averaged precision/recall/F1 across all scenarios."""
+    """Compute micro-averaged precision/recall/F1 across all scenarios.
 
+    Args:
+        results: List of ScenarioResult objects.
+
+    Returns:
+        Dict with aggregated metrics.
+    """
     tp = sum(len(r.true_positives) for r in results)
     fp = sum(len(r.false_positives) for r in results)
     fn = sum(len(r.false_negatives) for r in results)
@@ -145,6 +161,7 @@ def aggregate(results: list[ScenarioResult]) -> dict[str, Any]:
 
 
 def main() -> None:
+    """Run all scenarios and print aggregated metrics."""
     repo_root = Path(__file__).resolve().parent.parent
     results = [run_scenario(s, repo_root) for s in SCENARIOS]
 

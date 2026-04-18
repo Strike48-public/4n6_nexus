@@ -1,5 +1,4 @@
-"""
-Confidence Scorer - Calculate and adjust confidence scores based on evidence.
+"""Confidence Scorer - Calculate and adjust confidence scores based on evidence.
 
 This module provides confidence scoring with adjustments based on
 contradictions detected and resolutions applied.
@@ -13,9 +12,7 @@ from .contradiction_detector import Contradiction
 
 @dataclass
 class Resolution:
-    """
-    Represents a resolution of a contradiction.
-    """
+    """Represents a resolution of a contradiction."""
     contradiction_type: str
     resolution_method: str
     confidence_recovery: float  # Positive value (how much to recover confidence)
@@ -23,8 +20,7 @@ class Resolution:
 
 
 class ConfidenceScorer:
-    """
-    Calculates confidence scores (0.0-1.0) for forensic findings.
+    """Calculates confidence scores (0.0-1.0) for forensic findings.
 
     Confidence starts at a base value and is adjusted based on:
     - Contradictions detected (reduce confidence)
@@ -32,8 +28,7 @@ class ConfidenceScorer:
     """
 
     def __init__(self, base_confidence: float = 0.85):
-        """
-        Initialize confidence scorer.
+        """Initialize confidence scorer.
 
         Args:
             base_confidence: Starting confidence (default 0.85)
@@ -48,8 +43,7 @@ class ConfidenceScorer:
         artifact_count: int,
         artifact_types: List[str]
     ) -> float:
-        """
-        Calculate initial confidence based on available artifacts.
+        """Calculate initial confidence based on available artifacts.
 
         More artifacts and diverse types increase confidence.
 
@@ -81,8 +75,7 @@ class ConfidenceScorer:
         confidence: float,
         contradiction: Contradiction
     ) -> float:
-        """
-        Apply a contradiction's confidence impact.
+        """Apply a contradiction's confidence impact.
 
         Args:
             confidence: Current confidence score
@@ -102,8 +95,7 @@ class ConfidenceScorer:
         confidence: float,
         contradictions: List[Contradiction]
     ) -> float:
-        """
-        Apply multiple contradictions sequentially.
+        """Apply multiple contradictions sequentially.
 
         Args:
             confidence: Current confidence score
@@ -122,8 +114,7 @@ class ConfidenceScorer:
         confidence: float,
         resolution: Resolution
     ) -> float:
-        """
-        Apply a resolution's confidence recovery.
+        """Apply a resolution's confidence recovery.
 
         Args:
             confidence: Current confidence score
@@ -143,8 +134,7 @@ class ConfidenceScorer:
         confidence: float,
         resolutions: List[Resolution]
     ) -> float:
-        """
-        Apply multiple resolutions sequentially.
+        """Apply multiple resolutions sequentially.
 
         Args:
             confidence: Current confidence score
@@ -165,8 +155,7 @@ class ConfidenceScorer:
         contradictions: List[Contradiction],
         resolutions: List[Resolution]
     ) -> tuple[float, dict]:
-        """
-        Calculate final confidence with full audit trail.
+        """Calculate final confidence with full audit trail.
 
         Args:
             artifact_count: Number of artifacts
@@ -226,8 +215,7 @@ class ConfidenceScorer:
         return current, details
 
     def get_confidence_label(self, confidence: float) -> str:
-        """
-        Convert confidence score to human-readable label.
+        """Convert confidence score to human-readable label.
 
         Args:
             confidence: Confidence score (0.0-1.0)

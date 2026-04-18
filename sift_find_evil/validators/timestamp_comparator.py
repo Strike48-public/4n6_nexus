@@ -1,5 +1,4 @@
-"""
-Timestamp comparison and validation utilities.
+"""Timestamp comparison and validation utilities.
 
 Handles timestamp parsing from multiple forensic tools with different formats,
 precision levels, and timezone handling.
@@ -12,9 +11,10 @@ from typing import Optional
 
 
 class TimestampComparator:
-    """
-    Utility class for comparing timestamps from forensic tools
-    with tolerance windows and null handling.
+    """Utility class for comparing timestamps from forensic tools.
+
+    Supports tolerance windows and null value handling for cross-artifact
+    validation of timestamps from MFT, Prefetch, Event Logs, and PST.
     """
 
     # Windows FILETIME epoch (1601-01-01 00:00:00 UTC)
@@ -24,17 +24,15 @@ class TimestampComparator:
     UNIX_EPOCH = datetime(1970, 1, 1, tzinfo=pytz.utc)
 
     def __init__(self, default_tolerance_seconds: int = 300):
-        """
-        Initialize comparator with default tolerance window.
+        """Initialize comparator with default tolerance window.
 
         Args:
-            default_tolerance_seconds: Default tolerance for timestamp comparison (5 minutes)
+            default_tolerance_seconds: Default tolerance for timestamp comparison (5 minutes).
         """
         self.default_tolerance = default_tolerance_seconds
 
     def parse_iso8601(self, timestamp_str: str) -> datetime:
-        """
-        Parse any ISO 8601 timestamp to UTC datetime.
+        """Parse any ISO 8601 timestamp to UTC datetime.
 
         Handles various precision levels:
         - 2025-03-15T14:23:45Z
@@ -64,8 +62,7 @@ class TimestampComparator:
             raise ValueError(f"Failed to parse timestamp '{timestamp_str}': {e}")
 
     def is_null(self, dt: datetime) -> bool:
-        """
-        Check if timestamp is null/epoch.
+        """Check if timestamp is null/epoch.
 
         Args:
             dt: Datetime to check
@@ -81,8 +78,7 @@ class TimestampComparator:
         dt2: datetime,
         tolerance_seconds: Optional[int] = None
     ) -> Optional[int]:
-        """
-        Compare two timestamps with tolerance window.
+        """Compare two timestamps with tolerance window.
 
         Args:
             dt1: First datetime
@@ -109,8 +105,7 @@ class TimestampComparator:
             return +1
 
     def time_delta_seconds(self, dt1: datetime, dt2: datetime) -> Optional[float]:
-        """
-        Calculate time difference in seconds.
+        """Calculate time difference in seconds.
 
         Args:
             dt1: First datetime
@@ -130,8 +125,7 @@ class TimestampComparator:
         process_executed: datetime,
         tolerance_seconds: int = 300
     ) -> Optional[dict]:
-        """
-        Detect if file was modified AFTER it was executed.
+        """Detect if file was modified AFTER it was executed.
 
         This is a causality violation - you cannot run a file that doesn't exist yet.
 
@@ -168,8 +162,7 @@ class TimestampComparator:
         fn_modified: datetime,
         tolerance_seconds: int = 60
     ) -> Optional[dict]:
-        """
-        Detect timestamp manipulation by comparing $STANDARD_INFORMATION vs $FILE_NAME.
+        """Detect timestamp manipulation by comparing $STANDARD_INFORMATION vs $FILE_NAME.
 
         $SI timestamps can be modified with SetFileTime API.
         $FN timestamps require MFT record modification (harder to tamper).
@@ -203,8 +196,7 @@ class TimestampComparator:
         return None  # No timestomping detected
 
     def format_timestamp(self, dt: datetime, include_microseconds: bool = True) -> str:
-        """
-        Format datetime for logging and output.
+        """Format datetime for logging and output.
 
         Args:
             dt: Datetime to format

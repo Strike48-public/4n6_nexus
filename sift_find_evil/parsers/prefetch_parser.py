@@ -1,5 +1,4 @@
-"""
-Prefetch Parser - Parse PECmd CSV output.
+"""Prefetch Parser - Parse PECmd CSV output.
 
 Extracts program execution evidence from Windows Prefetch files.
 """
@@ -18,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PrefetchEntry:
-    """
-    Represents a single Prefetch file with execution timestamps.
-    """
+    """Represents a single Prefetch file with execution timestamps."""
     source_filename: str  # Prefetch file name (e.g., MALWARE.EXE-ABCD1234.pf)
     executable: str  # Executable name (e.g., MALWARE.EXE)
     run_count: int
@@ -32,8 +29,7 @@ class PrefetchEntry:
     hash_value: Optional[str] = None
 
     def get_all_run_times(self) -> List[datetime]:
-        """
-        Get all execution timestamps, sorted newest to oldest.
+        """Get all execution timestamps, sorted newest to oldest.
 
         Returns:
             List of execution datetimes
@@ -45,8 +41,7 @@ class PrefetchEntry:
         return times
 
     def get_first_run_time(self) -> Optional[datetime]:
-        """
-        Get earliest execution time.
+        """Get earliest execution time.
 
         Returns:
             Oldest execution datetime, or None if no timestamps
@@ -56,8 +51,7 @@ class PrefetchEntry:
 
     def was_executed_at(self, target_time: datetime,
                        tolerance_seconds: int = 5) -> bool:
-        """
-        Check if executable was run within tolerance window of target time.
+        """Check if executable was run within tolerance window of target time.
 
         Args:
             target_time: Time to check against
@@ -77,18 +71,17 @@ class PrefetchEntry:
 
 
 class PrefetchParser:
-    """
-    Parser for PECmd CSV output.
+    """Parser for PECmd CSV output.
 
     Reads Prefetch entries and extracts execution evidence.
     """
 
     def __init__(self):
+        """Initialize the parser with a timestamp comparator."""
         self.comparator = TimestampComparator()
 
     def parse_csv(self, csv_path: str) -> List[PrefetchEntry]:
-        """
-        Parse PECmd CSV file.
+        """Parse PECmd CSV file.
 
         Args:
             csv_path: Path to prefetch_parsed.csv
@@ -117,8 +110,7 @@ class PrefetchParser:
         return entries
 
     def _parse_row(self, row: dict) -> Optional[PrefetchEntry]:
-        """
-        Parse a single CSV row into a PrefetchEntry.
+        """Parse a single CSV row into a PrefetchEntry.
 
         Args:
             row: Dictionary of CSV column values
@@ -167,8 +159,7 @@ class PrefetchParser:
             return None
 
     def _parse_timestamp(self, timestamp_str: Optional[str]) -> Optional[datetime]:
-        """
-        Parse timestamp string to datetime.
+        """Parse timestamp string to datetime.
 
         Args:
             timestamp_str: ISO 8601 timestamp string
@@ -192,8 +183,7 @@ class PrefetchParser:
 
     def find_by_executable(self, entries: List[PrefetchEntry], executable_name: str,
                           case_sensitive: bool = False) -> List[PrefetchEntry]:
-        """
-        Find Prefetch entries by executable name.
+        """Find Prefetch entries by executable name.
 
         Args:
             entries: List of Prefetch entries to search
@@ -211,8 +201,7 @@ class PrefetchParser:
 
     def find_by_dll_loaded(self, entries: List[PrefetchEntry], dll_name: str,
                           case_sensitive: bool = False) -> List[PrefetchEntry]:
-        """
-        Find executables that loaded a specific DLL.
+        """Find executables that loaded a specific DLL.
 
         Args:
             entries: List of Prefetch entries to search
@@ -237,8 +226,7 @@ class PrefetchParser:
 
     def get_most_recent_executions(self, entries: List[PrefetchEntry],
                                   limit: int = 10) -> List[PrefetchEntry]:
-        """
-        Get most recently executed programs.
+        """Get most recently executed programs.
 
         Args:
             entries: List of Prefetch entries
@@ -259,8 +247,7 @@ class PrefetchParser:
 
     def get_frequently_run(self, entries: List[PrefetchEntry],
                           min_run_count: int = 10) -> List[PrefetchEntry]:
-        """
-        Get frequently executed programs.
+        """Get frequently executed programs.
 
         Args:
             entries: List of Prefetch entries
@@ -277,8 +264,7 @@ class PrefetchParser:
     def correlate_with_mft(self, prefetch_entry: PrefetchEntry,
                           mft_entries: List,
                           comparator: TimestampComparator) -> Optional[dict]:
-        """
-        Correlate Prefetch execution with MFT file timestamps.
+        """Correlate Prefetch execution with MFT file timestamps.
 
         Args:
             prefetch_entry: Prefetch entry to correlate

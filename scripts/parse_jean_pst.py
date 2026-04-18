@@ -51,6 +51,11 @@ def _safe(obj, attr: str) -> str:
 
 
 def main() -> int:
+    """Parse the nps-2008-jean PST file and extract email metadata to CSV.
+
+    Returns:
+        Exit code (0 = success, 2 = PST file not found).
+    """
     if not PST.exists():
         print(f"ERROR: {PST} not found", file=sys.stderr)
         return 2

@@ -1,5 +1,4 @@
-"""
-Event Log Parser - Parse EvtxECmd CSV output.
+"""Event Log Parser - Parse EvtxECmd CSV output.
 
 Extracts security events for tiebreaker validation.
 """
@@ -18,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class EventLogEntry:
-    """
-    Represents a single Windows Event Log entry.
-    """
+    """Represents a single Windows Event Log entry."""
     time_created: datetime
     event_id: int
     record_id: int
@@ -44,35 +41,40 @@ class EventLogEntry:
     PROCESS_CREATION_EVENT_IDS = (4688, 592)
 
     def is_process_creation(self) -> bool:
+        """Check if this is a process creation event.
+
+        Returns:
+            True if event_id is 4688 (Vista+) or 592 (Windows XP/Server 2003).
+        """
         return self.event_id in self.PROCESS_CREATION_EVENT_IDS
 
     def get_process_name(self) -> Optional[str]:
-        """
-        Extract process name for a process-creation event (4688 / 592).
+        """Extract process name for a process-creation event (4688 / 592).
 
         Returns:
-            Full process path, or None if not available
+            Full process path, or None if not available.
         """
         if self.is_process_creation() and self.payload_data1:
             return self.payload_data1
         return None
 
     def get_command_line(self) -> Optional[str]:
-        """
-        Extract command line for a process-creation event.
+        """Extract command line for a process-creation event.
 
         Windows XP Event 592 does not include a command line; only 4688 does.
+
+        Returns:
+            Command line string, or None if not available.
         """
         if self.is_process_creation() and self.payload_data6:
             return self.payload_data6
         return None
 
     def get_executable_name(self) -> Optional[str]:
-        """
-        Extract just the executable filename from process path.
+        """Extract just the executable filename from process path.
 
         Returns:
-            Executable name (e.g., "malware.exe"), or None
+            Executable name (e.g., "malware.exe"), or None.
         """
         process_path = self.get_process_name()
         if not process_path:
@@ -88,18 +90,17 @@ class EventLogEntry:
 
 
 class EventLogParser:
-    """
-    Parser for EvtxECmd CSV output.
+    """Parser for EvtxECmd CSV output.
 
     Reads Event Log entries for validation and tiebreaker analysis.
     """
 
     def __init__(self):
+        """Initialize the parser with a timestamp comparator."""
         self.comparator = TimestampComparator()
 
     def parse_csv(self, csv_path: str, filter_event_ids: Optional[List[int]] = None) -> List[EventLogEntry]:
-        """
-        Parse EvtxECmd CSV file.
+        """Parse EvtxECmd CSV file.
 
         Args:
             csv_path: Path to parsed event log CSV
@@ -131,8 +132,7 @@ class EventLogParser:
         return entries
 
     def _parse_row(self, row: dict) -> Optional[EventLogEntry]:
-        """
-        Parse a single CSV row into an EventLogEntry.
+        """Parse a single CSV row into an EventLogEntry.
 
         Args:
             row: Dictionary of CSV column values
@@ -187,8 +187,7 @@ class EventLogParser:
             return None
 
     def _parse_timestamp(self, timestamp_str: Optional[str]) -> Optional[datetime]:
-        """
-        Parse timestamp string to datetime.
+        """Parse timestamp string to datetime.
 
         Args:
             timestamp_str: ISO 8601 timestamp string
@@ -211,17 +210,21 @@ class EventLogParser:
             return None
 
     def get_process_creation_events(self, entries: List[EventLogEntry]) -> List[EventLogEntry]:
-        """
-        Filter to process-creation events across Windows generations.
+        """Filter to process-creation events across Windows generations.
 
         Matches Event ID 4688 (Vista+) and 592 (XP / Server 2003).
+
+        Args:
+            entries: List of event log entries to filter.
+
+        Returns:
+            Filtered list containing only process creation events.
         """
         return [e for e in entries if e.is_process_creation()]
 
     def find_by_executable(self, entries: List[EventLogEntry], executable_name: str,
                           case_sensitive: bool = False) -> List[EventLogEntry]:
-        """
-        Find events for a specific executable.
+        """Find events for a specific executable.
 
         Args:
             entries: List of event log entries
@@ -250,8 +253,7 @@ class EventLogParser:
     def find_by_time_window(self, entries: List[EventLogEntry],
                            target_time: datetime,
                            tolerance_seconds: int = 300) -> List[EventLogEntry]:
-        """
-        Find events within a time window.
+        """Find events within a time window.
 
         Args:
             entries: List of event log entries
@@ -280,8 +282,7 @@ class EventLogParser:
                             mft_time: datetime,
                             entries: List[EventLogEntry],
                             tolerance_seconds: int = 300) -> dict:
-        """
-        Use process-creation events (4688 or 592) as MFT vs Prefetch tiebreaker.
+        """Use process-creation events (4688 or 592) as MFT vs Prefetch tiebreaker.
 
         Args:
             executable_name: Name of executable to search for
@@ -345,8 +346,7 @@ class EventLogParser:
             }
 
     def get_events_by_id(self, entries: List[EventLogEntry], event_id: int) -> List[EventLogEntry]:
-        """
-        Filter events by Event ID.
+        """Filter events by Event ID.
 
         Args:
             entries: List of event log entries
@@ -360,8 +360,7 @@ class EventLogParser:
     def get_timeline(self, entries: List[EventLogEntry],
                     start_time: Optional[datetime] = None,
                     end_time: Optional[datetime] = None) -> List[EventLogEntry]:
-        """
-        Get events within a time range.
+        """Get events within a time range.
 
         Args:
             entries: List of event log entries

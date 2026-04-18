@@ -38,7 +38,7 @@ class ValidationReport:
 
     @property
     def passed(self) -> bool:
-        """Validation passed (no critical issues)."""
+        """Check if validation passed with no critical issues."""
         return len(self.critical_issues) == 0
 
     @property

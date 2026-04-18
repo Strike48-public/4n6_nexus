@@ -1,5 +1,4 @@
-"""
-MFT Parser - Parse MFTECmd CSV output.
+"""MFT Parser - Parse MFTECmd CSV output.
 
 Extracts file metadata and timestamps from Master File Table analysis.
 """
@@ -18,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MFTEntry:
-    """
-    Represents a single MFT entry with timestamps.
-    """
+    """Represents a single MFT entry with timestamps."""
     entry_number: int
     file_name: str
     parent_path: str
@@ -52,8 +49,7 @@ class MFTEntry:
             self.file_path = f"{parent}\\{self.file_name}"
 
     def has_timestomping(self, comparator: TimestampComparator) -> Optional[dict]:
-        """
-        Check if this entry shows signs of timestomping.
+        """Check if this entry shows signs of timestomping.
 
         Returns:
             Dict with timestomping details, or None if no tampering detected
@@ -63,8 +59,7 @@ class MFTEntry:
         return None
 
     def get_creation_time(self, prefer_fn: bool = True) -> Optional[datetime]:
-        """
-        Get creation time, preferring $FILE_NAME over $STANDARD_INFORMATION.
+        """Get creation time, preferring $FILE_NAME over $STANDARD_INFORMATION.
 
         Args:
             prefer_fn: If True, prefer $FN over $SI (more reliable)
@@ -77,8 +72,7 @@ class MFTEntry:
         return self.si_created or self.fn_created
 
     def get_modification_time(self, prefer_fn: bool = True) -> Optional[datetime]:
-        """
-        Get modification time, preferring $FILE_NAME over $STANDARD_INFORMATION.
+        """Get modification time, preferring $FILE_NAME over $STANDARD_INFORMATION.
 
         Args:
             prefer_fn: If True, prefer $FN over $SI (more reliable)
@@ -92,13 +86,13 @@ class MFTEntry:
 
 
 class MFTParser:
-    """
-    Parser for MFTECmd CSV output.
+    """Parser for MFTECmd CSV output.
 
     Reads MFT entries and extracts file metadata with timestamps.
     """
 
     def __init__(self):
+        """Initialize the parser with a timestamp comparator."""
         self.comparator = TimestampComparator()
 
     def parse_csv(
@@ -106,8 +100,7 @@ class MFTParser:
         csv_path: str,
         content_reader: Optional[Callable[[MFTEntry], bytes]] = None,
     ) -> List[MFTEntry]:
-        """
-        Parse MFTECmd CSV file.
+        """Parse MFTECmd CSV file.
 
         Args:
             csv_path: Path to mft_parsed.csv
@@ -141,8 +134,7 @@ class MFTParser:
     def _parse_row(
         self, row: dict, content_reader: Optional[Callable[[MFTEntry], bytes]] = None
     ) -> Optional[MFTEntry]:
-        """
-        Parse a single CSV row into an MFTEntry.
+        """Parse a single CSV row into an MFTEntry.
 
         Args:
             row: Dictionary of CSV column values
@@ -216,8 +208,7 @@ class MFTParser:
             return None
 
     def _parse_timestamp(self, timestamp_str: Optional[str]) -> Optional[datetime]:
-        """
-        Parse timestamp string to datetime.
+        """Parse timestamp string to datetime.
 
         Args:
             timestamp_str: ISO 8601 timestamp string
@@ -246,8 +237,7 @@ class MFTParser:
 
     def find_by_filename(self, entries: List[MFTEntry], filename: str,
                         case_sensitive: bool = False) -> List[MFTEntry]:
-        """
-        Find MFT entries by filename.
+        """Find MFT entries by filename.
 
         Args:
             entries: List of MFT entries to search
@@ -265,12 +255,11 @@ class MFTParser:
 
     def find_by_path(self, entries: List[MFTEntry], path_pattern: str,
                     case_sensitive: bool = False) -> List[MFTEntry]:
-        """
-        Find MFT entries by path pattern.
+        r"""Find MFT entries by path pattern.
 
         Args:
             entries: List of MFT entries to search
-            path_pattern: Path pattern to search (e.g., "C:\\Temp\\")
+            path_pattern: Path pattern to search (e.g., r"C:\Temp\")
             case_sensitive: Whether search should be case-sensitive
 
         Returns:
@@ -283,8 +272,7 @@ class MFTParser:
             return [e for e in entries if pattern_lower in e.file_path.lower()]
 
     def find_timestomped_files(self, entries: List[MFTEntry]) -> List[tuple]:
-        """
-        Find all files with timestomping indicators.
+        """Find all files with timestomping indicators.
 
         Args:
             entries: List of MFT entries to check
@@ -303,8 +291,7 @@ class MFTParser:
 
     def get_recently_modified(self, entries: List[MFTEntry],
                              within_hours: int = 24) -> List[MFTEntry]:
-        """
-        Get files modified within a time window.
+        """Get files modified within a time window.
 
         Args:
             entries: List of MFT entries

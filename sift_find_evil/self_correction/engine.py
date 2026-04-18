@@ -1,5 +1,4 @@
-"""
-Self-Correction Engine - Orchestrate contradiction detection and resolution.
+"""Self-Correction Engine - Orchestrate contradiction detection and resolution.
 
 This is the main orchestrator for the autonomous self-correction system.
 """
@@ -47,9 +46,7 @@ def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
 
 @dataclass
 class Finding:
-    """
-    Represents a forensic finding with confidence and reasoning.
-    """
+    """Represents a forensic finding with confidence and reasoning."""
     # Core finding information
     title: str
     description: str
@@ -102,8 +99,7 @@ class Finding:
 
 
 class SelfCorrectionEngine:
-    """
-    Main orchestrator for autonomous self-correction.
+    """Main orchestrator for autonomous self-correction.
 
     Workflow:
     1. Load artifacts (MFT, Prefetch, Event Logs)
@@ -118,8 +114,7 @@ class SelfCorrectionEngine:
         comparator: Optional[TimestampComparator] = None,
         base_confidence: float = 0.85
     ):
-        """
-        Initialize self-correction engine.
+        """Initialize self-correction engine.
 
         Args:
             comparator: TimestampComparator instance (creates new if None)
@@ -137,8 +132,7 @@ class SelfCorrectionEngine:
         content_reader: Optional[Callable[[Any], bytes]] = None,
         emails: Optional[List[Any]] = None,
     ) -> List[Finding]:
-        """
-        Run full self-correction analysis.
+        """Run full self-correction analysis.
 
         Args:
             mft_entries: List of MFTEntry objects
@@ -192,8 +186,7 @@ class SelfCorrectionEngine:
         self,
         contradictions: List[Contradiction]
     ) -> dict:
-        """
-        Group contradictions by executable name.
+        """Group contradictions by executable name.
 
         Args:
             contradictions: List of all contradictions
@@ -230,8 +223,7 @@ class SelfCorrectionEngine:
         prefetch_entries: List[Any],
         event_log_entries: List[Any]
     ) -> Finding:
-        """
-        Generate a finding with self-correction applied.
+        """Generate a finding with self-correction applied.
 
         Args:
             executable: Executable name
@@ -426,8 +418,7 @@ class SelfCorrectionEngine:
         prefetch_entries: List[Any],
         event_log_entries: List[Any]
     ) -> Optional[Resolution]:
-        """
-        Attempt to resolve causality violation using Event Log tiebreaker.
+        """Attempt to resolve causality violation using Event Log tiebreaker.
 
         Args:
             executable: Executable name
@@ -485,8 +476,7 @@ class SelfCorrectionEngine:
         return None
 
     def _determine_severity(self, contradictions: List[Contradiction]) -> str:
-        """
-        Determine overall severity based on contradictions.
+        """Determine overall severity based on contradictions.
 
         Args:
             contradictions: List of contradictions
@@ -514,8 +504,7 @@ class SelfCorrectionEngine:
         contradictions: List[Contradiction],
         resolutions: List[Resolution]
     ) -> str:
-        """
-        Generate human-readable description of finding.
+        """Generate human-readable description of finding.
 
         Args:
             executable: Executable name

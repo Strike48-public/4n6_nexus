@@ -1,5 +1,4 @@
-"""
-Command-line interface for SIFT Find Evil DFIR Agent.
+"""Command-line interface for SIFT Find Evil DFIR Agent.
 
 Usage:
     python -m sift_find_evil.cli analyze --mft <path> --prefetch <path> --evtx <path>
@@ -92,8 +91,7 @@ def analyze_artifacts(
     pst_path: Optional[Path] = None,
     image_path: Optional[Path] = None,
 ) -> list:
-    """
-    Analyze forensic artifacts and detect contradictions.
+    """Analyze forensic artifacts and detect contradictions.
 
     Args:
         mft_path: Path to MFT CSV file

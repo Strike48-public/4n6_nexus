@@ -47,6 +47,22 @@ class EvtParser:
     def parse_file(
         self, path: str | Path, filter_event_ids: list[int] | None = None
     ) -> list[EventLogEntry]:
+        """Parse a legacy .Evt file and extract event log entries.
+
+        Reads the circular event log file format used on Windows XP / 2003,
+        navigating the linked record chain without modifying evidence.
+
+        Args:
+            path: Path to the .Evt file.
+            filter_event_ids: Optional list of event IDs to include (others are
+                skipped). If None, all events are included.
+
+        Returns:
+            List of EventLogEntry objects extracted from the file.
+
+        Raises:
+            ValueError: If the file is not a valid .Evt file (bad magic or size).
+        """
         data = Path(path).read_bytes()
         if len(data) < EVT_HEADER_SIZE or data[4:8] != EVT_FILE_MAGIC:
             raise ValueError(f"Not a classic .Evt file: {path}")

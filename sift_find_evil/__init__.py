@@ -1,5 +1,4 @@
-"""
-SIFT Find Evil - Autonomous DFIR Agent with Self-Correction
+"""SIFT Find Evil - Autonomous DFIR Agent with Self-Correction.
 
 A Claude Code + Protocol SIFT integration that demonstrates architectural
 self-correction through cross-artifact validation.
