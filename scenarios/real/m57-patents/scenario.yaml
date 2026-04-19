@@ -1,0 +1,72 @@
+name: m57-patents
+tier: real
+category: corporate_espionage
+difficulty: advanced
+description: >
+  M57.biz — full multi-character scenario (Jean, Pat, Terry, Charlie,
+  Jo + network/memory). Intellectual-property theft investigation
+  across ~50-100 GB of evidence. Use scenarios/real/m57-jean for
+  Jean's laptop alone.
+
+source:
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/m57-patents-scenario/
+  date_published: 2009-12-11
+  license: academic_use
+  attribution: >
+    M57-Patents scenario (Digital Corpora / NPS, 2009). Redistributed
+    under the academic use terms stated on digitalcorpora.org.
+
+evidence:
+  # Evidence pieces per-character. Not yet downloaded — see
+  # download_all.sh for the full set (~50-100 GB).
+  # SHA-256 values come from the published manifest once downloaded.
+  - path: evidence/pat/nps-2009-pat.E01
+    kind: e01
+    size_bytes: null
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-pat/nps-2009-pat.E01
+    description: Pat's desktop, segment 1
+    required: false
+
+  - path: evidence/terry/nps-2009-terry.E01
+    kind: e01
+    size_bytes: null
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-terry/nps-2009-terry.E01
+    description: Terry's laptop, segment 1
+    required: false
+
+  - path: evidence/charlie/nps-2009-charlie.E01
+    kind: e01
+    size_bytes: null
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-charlie/nps-2009-charlie.E01
+    description: Charlie's laptop, segment 1
+    required: false
+
+  - path: evidence/jo/nps-2009-jo.E01
+    kind: e01
+    size_bytes: null
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-jo/nps-2009-jo.E01
+    description: Jo's laptop, segment 1
+    required: false
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0
+
+questions:
+  - Who leaked the patent spreadsheet?
+  - What channel was used to exfiltrate the data?
+  - What role did each character play?
+
+notes: |
+  Full file manifest with per-character details is in
+  files_manifest.json. Download via ./download_all.sh.
+  SHA-256 hashes will be populated after first successful download
+  by a verify_files.sh run.

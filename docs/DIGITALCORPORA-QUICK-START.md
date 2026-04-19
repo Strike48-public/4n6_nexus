@@ -14,7 +14,7 @@ cd /home/jtomek/Code/sift_find_evil/scripts/download-corpora
 ./verify-downloads.sh
 
 # Extract and start learning
-cd ../../practice_images/scenarios/nitroba
+cd ../../scenarios/nitroba
 # Begin analysis with smallest scenario
 ```
 
@@ -126,7 +126,7 @@ cd /home/jtomek/Code/sift_find_evil/scripts/download-corpora
 
 ### Extract Archives
 ```bash
-cd ../../practice_images
+cd ../../scenarios
 
 # ZIP files
 cd mobile/android
@@ -221,7 +221,7 @@ rm failed_file.zip              # Delete corrupt file
 df -h .
 
 # Delete individual datasets if needed
-rm -rf practice_images/mobile/android/android_12.zip  # 42 GB freed
+rm -rf scenarios/reference/mobile/android/android_12.zip  # 42 GB freed
 ```
 
 ## Pro Tips

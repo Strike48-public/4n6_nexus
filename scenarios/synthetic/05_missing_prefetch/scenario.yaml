@@ -1,0 +1,33 @@
+name: 05_missing_prefetch
+tier: synthetic
+category: insider_threat
+difficulty: intermediate
+description: >
+  Insider threat pattern where attacker deletes Prefetch artifacts.
+  Detection is via MFT/Event Log gap — files in MFT and Event Log with
+  no corresponding Prefetch entry are flagged as missing-artifact
+  findings.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables:
+    - data_exfil.exe
+    - zip_tool.exe
+    - cleaner.exe
+  finding_counts:
+    missing_artifact: 3
+    total: 3
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  cleaner.exe ran `--wipe-prefetch` in Event Log — proving the gap
+  is adversarial, not a benign collection issue.

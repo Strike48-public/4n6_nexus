@@ -1,0 +1,38 @@
+name: national_gallery_2012
+tier: real
+category: corporate
+difficulty: advanced
+description: >
+  National Gallery 2012 (NGDC) scenario — multi-device corporate
+  forensics challenge. Currently metadata-only — evidence not
+  downloaded.
+
+source:
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/2012-ngdc/
+  date_published: 2012-01-01
+  license: academic_use
+  attribution: >
+    National Gallery DC 2012 scenario (Digital Corpora).
+
+evidence:
+  # Placeholder entries. Populate after first download.
+  - path: evidence/PLACEHOLDER
+    kind: e01
+    size_bytes: null
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/
+    description: Full NGDC image set (see provider URL for listing)
+    required: false
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Evidence not downloaded yet. Total size ~5 GB. Fetch via
+  download-corpora/download-phase1-critical.sh (will land in
+  scenarios/real/national_gallery_2012/evidence/).

@@ -19,7 +19,7 @@ Successfully implemented browser history parser (complete) and registry parser (
 **Files Created:**
 - `sift_find_evil/parsers/browser_history_parser.py` (86 lines)
 - `tests/test_browser_history_parser.py` (420+ lines)
-- `test_data/scenarios/06_webmail_exfiltration/` (4 CSV files)
+- `scenarios/synthetic/06_webmail_exfiltration/` (4 CSV files)
 
 **Features:**
 - Chrome History SQLite parser (WebKit timestamp conversion)
@@ -283,10 +283,10 @@ class RunKeyEntry:
 1. sift_find_evil/parsers/browser_history_parser.py
 2. sift_find_evil/parsers/registry_parser.py
 3. tests/test_browser_history_parser.py
-4. test_data/scenarios/06_webmail_exfiltration/browser_history.csv
-5. test_data/scenarios/06_webmail_exfiltration/mft.csv
-6. test_data/scenarios/06_webmail_exfiltration/prefetch.csv
-7. test_data/scenarios/06_webmail_exfiltration/evtx.csv
+4. scenarios/synthetic/06_webmail_exfiltration/browser_history.csv
+5. scenarios/synthetic/06_webmail_exfiltration/mft.csv
+6. scenarios/synthetic/06_webmail_exfiltration/prefetch.csv
+7. scenarios/synthetic/06_webmail_exfiltration/evtx.csv
 8. docs/PHASE1_SESSION1_CHECKPOINT.md (this file)
 9. .beads/issues.jsonl (tracking)
 

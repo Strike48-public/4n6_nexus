@@ -41,6 +41,7 @@ venv.bak/
 # Testing
 .pytest_cache/
 .coverage
+coverage.json
 htmlcov/
 *.cover
 .hypothesis/
@@ -52,13 +53,27 @@ evidence/*
 # Scenario harness outputs (regenerated on every run)
 analysis/scenario_*.json
 
-# Real-example extracted artifacts (derived from practice_images/, not shipped)
-analysis/real_examples/*/extracted/
-analysis/real_examples/*/csv/
-analysis/real_examples/*/logs/
+# Scenario analysis outputs (derived from evidence, not shipped)
+analysis/*/extracted/
+analysis/*/csv/
+analysis/*/logs/
 
-# Practice images - ALL binary evidence files (multi-GB, downloadable via scripts)
-practice_images/
+# Scenario evidence - downloaded binary files live under scenarios/**/evidence/
+# and reference corpora, never in git.
+scenarios/**/evidence/
+!scenarios/**/evidence/.gitkeep
+scenarios/reference/mobile/
+scenarios/reference/nist-nps/
+scenarios/reference/circl-drives/
+scenarios/reference/network-pcaps/
+scenarios/reference/govdocs/
+scenarios/reference/sql/
+scenarios/reference/cfreds/*/*.zip
+scenarios/reference/cfreds/*/*.dd
+scenarios/reference/cfreds/*/*.sha1
+scenarios/reference/safedocs/
+scenarios/reference/unsafe_docs/
+
 *.E0[0-9]
 *.Ex[0-9]
 *.e0[0-9]

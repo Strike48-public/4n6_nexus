@@ -125,47 +125,44 @@ Verifies file integrity using MD5/SHA1/SHA256 checksums.
 
 ## Directory Structure
 
-Downloads are organized as follows:
+Downloads are organized under the consolidated `scenarios/` tree:
 
 ```
-practice_images/
-├── mobile/
-│   ├── android/
-│   │   ├── android_10/
-│   │   ├── android_11/
-│   │   ├── android_12/
-│   │   └── android_13/
-│   ├── ios/
-│   │   ├── ios_13_3_1/
-│   │   └── ios_13_4_1/
-│   └── legacy/
-├── disk_images/
-│   ├── nps_test_images/
-│   │   ├── canon2/
-│   │   ├── casper-rw/
-│   │   ├── hfsjtest1/
-│   │   ├── ntfs1/
-│   │   └── domexusers/
-│   └── circl/
-├── scenarios/
-│   ├── nitroba/
-│   ├── m57-jean/
-│   ├── m57-patents/
-│   ├── national_gallery_2012/
-│   ├── lone_wolf_2018/
-│   ├── narcos_2019/
-│   ├── owl_2019/
-│   └── tuck_2019/
-├── files/
-│   ├── govdocs1/
-│   │   ├── subsets/
-│   │   └── jpeg/
-│   └── safedocs/
-├── network/
-│   ├── pcaps/
-│   └── scenarios/
-└── sql/
-    └── sqlite_corpus/
+scenarios/
+├── real/                              # Downloaded evidence for public cases
+│   ├── nitroba/evidence/
+│   ├── m57-jean/evidence/
+│   ├── m57-patents/evidence/
+│   ├── national_gallery_2012/evidence/
+│   ├── circl-2023-wiped/evidence/
+│   ├── lone_wolf_2018/evidence/
+│   ├── narcos_2019/evidence/
+│   ├── owl_2019/evidence/
+│   ├── tuck_2019/evidence/
+│   └── nps_language_2011/evidence/
+└── reference/                         # Raw corpora for parser input
+    ├── mobile/
+    │   ├── android/
+    │   │   ├── android_10/
+    │   │   ├── android_11.zip
+    │   │   ├── android_12.zip
+    │   │   └── android_13/
+    │   ├── ios/
+    │   │   ├── ios_13_3_1/
+    │   │   └── ios_13_4_1/
+    │   └── legacy/
+    ├── nist-nps/
+    │   ├── canon2/
+    │   ├── casper-rw/
+    │   ├── hfsjtest1/
+    │   ├── ntfs1/
+    │   └── domexusers/
+    ├── circl-drives/
+    ├── network-pcaps/
+    ├── govdocs/
+    │   └── subsets/
+    └── sql/
+        └── sqlite_corpus/
 ```
 
 ## Troubleshooting
@@ -231,8 +228,10 @@ aria2c -x 4 -s 4 https://downloads.digitalcorpora.org/corpora/mobile/android_12.
 Modify scripts to use different destination:
 
 ```bash
-# Edit script and change DEST_DIR
-DEST_DIR="/mnt/external/forensics/practice_images"
+# Edit script and change SCENARIOS_DIR / REAL_DIR / REF_DIR
+SCENARIOS_DIR="/mnt/external/forensics/scenarios"
+REAL_DIR="$SCENARIOS_DIR/real"
+REF_DIR="$SCENARIOS_DIR/reference"
 ```
 
 ### Selective Scenario Downloads
@@ -241,11 +240,11 @@ To download only specific scenarios, extract the relevant `download_directory` c
 
 ```bash
 BASE_URL="https://downloads.digitalcorpora.org/corpora"
-DEST_DIR="./practice_images"
+REAL_DIR="./scenarios/real"
 
 # Just Nitroba
 wget -r -np -nH --cut-dirs=3 -R "index.html*" \
-  "$BASE_URL/scenarios/nitroba/" -P "$DEST_DIR/scenarios/nitroba/"
+  "$BASE_URL/scenarios/2008-nitroba/" -P "$REAL_DIR/nitroba/evidence/"
 ```
 
 ## Post-Download Steps
@@ -258,7 +257,7 @@ wget -r -np -nH --cut-dirs=3 -R "index.html*" \
 2. **Extract archives:**
    ```bash
    # ZIP files
-   cd practice_images/mobile/android
+   cd scenarios/reference/mobile/android
    unzip android_12.zip
 
    # TAR.GZ files

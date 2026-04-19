@@ -26,8 +26,8 @@ Real-world examples demonstrating SIFT Find Evil capabilities on published foren
 wget http://digitalcorpora.org/corpora/disk-images/nps-2008-jean/nps-2008-jean.E01
 
 # Create working directory
-mkdir -p analysis/real_examples/nps-2008-jean
-cd analysis/real_examples/nps-2008-jean
+mkdir -p analysis/m57-jean
+cd analysis/m57-jean
 ```
 
 ### Step-by-Step Analysis
@@ -148,7 +148,7 @@ cat jean_exfil_findings.json | jq
 
 ### Complete Report
 
-See [JEAN_EXFILTRATION_REPORT.md](../analysis/real_examples/nps-2008-jean/JEAN_EXFILTRATION_REPORT.md) for full analysis.
+See [JEAN_EXFILTRATION_REPORT.md](../analysis/m57-jean/JEAN_EXFILTRATION_REPORT.md) for full analysis.
 
 ---
 
@@ -167,8 +167,8 @@ See [JEAN_EXFILTRATION_REPORT.md](../analysis/real_examples/nps-2008-jean/JEAN_E
 wget https://www.circl.lu/opendata/forensic-challenge/circl-wiped-disk.E01
 
 # Create working directory
-mkdir -p analysis/real_examples/circl-wiped-disk
-cd analysis/real_examples/circl-wiped-disk
+mkdir -p analysis/circl-2023-wiped
+cd analysis/circl-2023-wiped
 ```
 
 ### Step-by-Step Analysis
@@ -306,7 +306,7 @@ Unknown files (4):
 
 ### Complete Report
 
-See [CIRCL_WIPE_ANALYSIS.md](../analysis/real_examples/circl-wiped-disk/CIRCL_WIPE_ANALYSIS.md) for full analysis.
+See [CIRCL_WIPE_ANALYSIS.md](../analysis/circl-2023-wiped/CIRCL_WIPE_ANALYSIS.md) for full analysis.
 
 ---
 
@@ -322,8 +322,8 @@ See [CIRCL_WIPE_ANALYSIS.md](../analysis/real_examples/circl-wiped-disk/CIRCL_WI
 
 ```bash
 # Create working directory
-mkdir -p analysis/real_examples/nitroba-harassment
-cd analysis/real_examples/nitroba-harassment
+mkdir -p analysis/nitroba
+cd analysis/nitroba
 
 # Download PCAP (54 MB)
 # Note: Example PCAP, actual dataset may vary

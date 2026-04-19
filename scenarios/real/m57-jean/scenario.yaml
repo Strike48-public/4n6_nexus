@@ -1,0 +1,54 @@
+name: m57-jean
+tier: real
+category: insider_threat
+difficulty: advanced
+description: >
+  M57.biz — Jean's laptop image from the M57-Jean exercise (a subset of
+  the larger M57 Patents scenario). Jean is a primary suspect for
+  leaking proprietary spreadsheets. Windows XP workstation with IE,
+  Firefox, AIM, Outlook/Thunderbird, and removable media activity.
+
+source:
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/m57-jean/
+  date_published: 2008-07-21
+  license: academic_use
+  attribution: >
+    M57-Jean scenario (Digital Corpora / NPS, 2008). Redistributed
+    under the academic use terms stated on digitalcorpora.org.
+
+evidence:
+  - path: evidence/nps-2008-jean.E01
+    kind: e01
+    size_bytes: 1572860321
+    sha256: df3a995c7a594e0ba6d95b9aae735a444313fae435a87e7536f9dad3db2769ce
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2008-jean/nps-2008-jean.E01
+    description: Jean's laptop image, segment 1
+    required: true
+
+  - path: evidence/nps-2008-jean.E02
+    kind: e01
+    size_bytes: 1466890611
+    sha256: 07f1f78c857d5b5809ac7a68e1467d36872fa74f047ee2c799d37b18aad4f5aa
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2008-jean/nps-2008-jean.E02
+    description: Jean's laptop image, segment 2
+    required: true
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0
+
+questions:
+  - What proprietary documents were exfiltrated from Jean's machine?
+  - What channel was used (email, AIM, removable media, webmail)?
+  - Who was the recipient?
+  - Was Jean the attacker, or was the account compromised?
+
+notes: |
+  Existing case-study docs live alongside this manifest
+  (case_brief.md, inventory.md, findings.md, grading.md,
+  validator_notes.md, engine_pass.md). references/ contains the
+  original exercise slides.

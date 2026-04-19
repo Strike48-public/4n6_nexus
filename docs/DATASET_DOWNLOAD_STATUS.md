@@ -9,7 +9,7 @@
 
 | Dataset | Status | Size | Location | Notes |
 |---------|--------|------|----------|-------|
-| M57 Jean laptop | Downloaded | 2.9 GB | practice_images/m57-patents/jean/ | E01, E02 segments |
+| M57 Jean laptop | Downloaded | 2.9 GB | scenarios/real/m57-jean/evidence/ | E01, E02 segments |
 | M57 Jean USB | Not Downloaded | ~500 MB | - | USB drive missing |
 | M57 Pat | Failed (404) | ~4 GB | - | URLs return 404 errors |
 | M57 Terry | Not Attempted | ~4 GB | - | - |
@@ -17,7 +17,7 @@
 | M57 Jo | Not Attempted | ~4 GB | - | - |
 | M57 Network | Not Attempted | Variable | - | PCAP files |
 | M57 Memory | Not Attempted | 20-80 GB | - | RAM dumps |
-| Nitroba PCAP | Downloaded | 54 MB | practice_images/nitroba/ | Network capture |
+| Nitroba PCAP | Downloaded | 54 MB | scenarios/real/nitroba/evidence/ | Network capture |
 | CIRCL Wiped | Downloaded | 52 MB | scenarios/circl-2023-wiped/ | Disk wipe challenge |
 | CFReDS data_leakage | Not Available | - | - | HTML stubs only |
 
@@ -31,7 +31,7 @@
 
 ### 1. M57 Jean's Laptop
 ```
-Location: practice_images/m57-patents/jean/
+Location: scenarios/real/m57-jean/evidence/
 Files:
   - nps-2008-jean.E01 (1.5 GB)
   - nps-2008-jean.E02 (1.4 GB)
@@ -41,7 +41,7 @@ Purpose: Primary suspect in corporate espionage scenario
 
 ### 2. Nitroba Network Capture
 ```
-Location: practice_images/nitroba/
+Location: scenarios/real/nitroba/evidence/
 Files:
   - nitroba.pcap (53.6 MB)
 Status: COMPLETE
@@ -128,7 +128,7 @@ a zipfile, or it constitutes one disk of a multi-part archive.
 
 ### Current Usage
 ```bash
-practice_images/
+scenarios/
 ├── m57-patents/     2.9 GB (Jean only)
 ├── nitroba/         54 MB
 ├── scenarios/       empty placeholders

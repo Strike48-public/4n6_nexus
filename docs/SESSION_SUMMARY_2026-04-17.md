@@ -66,7 +66,7 @@
 - **Rank**: #1 of 857 findings
 - **Category**: data_exfiltration
 
-**Report**: `docs/real_examples/nps-2008-jean/engine_pass.md`
+**Report**: `scenarios/real/m57-jean/engine_pass.md`
 
 ### Case 2: Nitroba University Harassment (SFE-ipm)
 **Type**: Network forensics, harassment investigation
@@ -93,8 +93,8 @@
 - Consistent browser fingerprint (MSIE 6.0, Windows XP SP1)
 
 **Reports**:
-- `analysis/real_examples/nitroba/FORENSICS_REPORT.md` (15 KB)
-- `analysis/real_examples/nitroba/INVESTIGATION_SUMMARY.md` (4.4 KB)
+- `analysis/nitroba/FORENSICS_REPORT.md` (15 KB)
+- `analysis/nitroba/INVESTIGATION_SUMMARY.md` (4.4 KB)
 
 ## Architecture Decisions
 
@@ -161,9 +161,9 @@ sift_find_evil/
 ### New Files
 - `sift_find_evil/parsers/pcap_parser.py` (405 lines)
 - `~/.claude/agents/network-investigator/AGENT.md` (agent definition)
-- `docs/real_examples/nps-2008-jean/engine_pass.md` (Jean acceptance test)
-- `analysis/real_examples/nitroba/FORENSICS_REPORT.md` (15 KB)
-- `analysis/real_examples/nitroba/INVESTIGATION_SUMMARY.md` (4.4 KB)
+- `scenarios/real/m57-jean/engine_pass.md` (Jean acceptance test)
+- `analysis/nitroba/FORENSICS_REPORT.md` (15 KB)
+- `analysis/nitroba/INVESTIGATION_SUMMARY.md` (4.4 KB)
 
 ### Modified Files
 - `sift_find_evil/parsers/image_content_reader.py` (auto-detect partition offset)

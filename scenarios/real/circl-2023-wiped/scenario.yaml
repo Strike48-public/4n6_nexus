@@ -1,0 +1,53 @@
+name: circl-2023-wiped
+tier: real
+category: wiped_disk
+difficulty: advanced
+description: >
+  CIRCL "Recovering data from a wiped disk" (2023-01-31). Insider
+  wiped the primary GPT partition table and overwrote partition NTFS
+  metadata. Recovery requires parsing the backup GPT at end-of-disk
+  and recovering whatever can be carved from the NTFS partition.
+  Partition 2 is LUKS-encrypted.
+
+source:
+  provider: circl
+  url: https://www.circl.lu/pub/tr-80/
+  date_published: 2023-01-31
+  license: public
+  attribution: CIRCL TR-80 (2023)
+
+evidence:
+  - path: evidence/wiped_disk.E01
+    kind: e01
+    size_bytes: 54459115
+    sha256: c4a8145bcbfd5485cd7b36a0603bdec68674c2f27e6c2dcf3ef25aa7a4f4ef15
+    download_url: https://www.circl.lu/pub/tr-80/wiped_disk.E01
+    description: 52 MB EWF container, 8.18 GB logical image
+    required: true
+
+  - path: evidence/wiped_disk.pdf
+    kind: other
+    size_bytes: 240579
+    sha256: 92f81beb0f4c9641d1d6267dae3c66734845c42c13db458a67ea1ec4d3323bda
+    download_url: https://www.circl.lu/pub/tr-80/wiped_disk.pdf
+    description: 20-slide walkthrough accompanying the image
+    required: false
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    # CRITICAL finding at partition-table layer (0.95 confidence)
+    partition_table_destroyed: 1
+    total: 1
+  min_precision: 1.0
+  min_recall: 1.0
+
+questions:
+  - Can the primary GPT be recovered from the backup?
+  - What filesystems are present in the recoverable partition(s)?
+  - Is there an insider indicator for the wipe (e.g., tool signatures)?
+
+notes: |
+  Partition 2 is LUKS; no MFT/Prefetch/EVTX findings will be produced
+  for it. Partition 1's NTFS metadata is also destroyed — any
+  recoverable content is via carving.

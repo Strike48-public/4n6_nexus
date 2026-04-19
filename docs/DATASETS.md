@@ -10,7 +10,7 @@ This document describes all forensic datasets used for testing, validation, and 
 ## Dataset Strategy
 
 **Hybrid approach:**
-1. **Synthetic scenarios** (`test_data/scenarios/`) - Deterministic CSV fixtures covering the five core detection paths; used by the automated harness and CI.
+1. **Synthetic scenarios** (`scenarios/synthetic/`) - Deterministic CSV fixtures covering the five core detection paths; used by the automated harness and CI.
 2. **NIST CFReDS datasets** - Ground truth for accuracy report (Precision/Recall)
 3. **SANS starter datasets** - Realistic cases with multiple artifact types
 4. **Synthetic ransomware case** - Custom-built for demo video with known self-correction triggers
@@ -19,7 +19,7 @@ This document describes all forensic datasets used for testing, validation, and 
 
 ## 0. Synthetic Scenario Fixtures
 
-Location: [`test_data/scenarios/`](../test_data/scenarios/README.md)
+Location: [`scenarios/synthetic/`](../scenarios/synthetic/README.md)
 
 Five small CSV triples that exercise the self-correction engine deterministically:
 

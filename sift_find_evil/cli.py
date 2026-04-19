@@ -381,13 +381,13 @@ def cmd_demo(args):
     """Handle demo command with synthetic test data."""
     print_banner()
 
-    # Find test data directory
+    # Find test fixtures directory (consolidated under tests/fixtures/).
     module_dir = Path(__file__).parent.parent
-    test_data_dir = module_dir / 'test_data'
+    test_data_dir = module_dir / 'tests' / 'fixtures'
 
     if not test_data_dir.exists():
-        print(f"Error: Test data directory not found: {test_data_dir}", file=sys.stderr)
-        print("Expected structure: sift_find_evil/test_data/", file=sys.stderr)
+        print(f"Error: Test fixtures directory not found: {test_data_dir}", file=sys.stderr)
+        print("Expected structure: tests/fixtures/synthetic_*.csv", file=sys.stderr)
         sys.exit(1)
 
     mft_path = test_data_dir / 'synthetic_mft.csv'

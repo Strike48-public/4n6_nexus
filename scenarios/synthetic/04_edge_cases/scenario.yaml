@@ -1,0 +1,30 @@
+name: 04_edge_cases
+tier: synthetic
+category: edge_cases
+difficulty: intermediate
+description: >
+  Boundary conditions for tolerance and null handling. Verifies the
+  engine's 5-minute tolerance, Windows epoch skip behavior, and
+  future-timestamp causality detection.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables:
+    - just_over_tolerance.exe
+    - future_timestamp.exe
+  finding_counts:
+    total: 2
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  just_under_tolerance.exe (4 min delta) must NOT be flagged.
+  null_timestamps.exe (Windows epoch) must be skipped.

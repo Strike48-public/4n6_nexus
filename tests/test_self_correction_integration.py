@@ -20,7 +20,7 @@ from sift_find_evil.self_correction.contradiction_detector import ContradictionT
 
 
 # Test data directory
-TEST_DATA_DIR = Path(__file__).parent.parent / 'test_data'
+TEST_DATA_DIR = Path(__file__).parent / 'fixtures'
 
 
 @pytest.fixture

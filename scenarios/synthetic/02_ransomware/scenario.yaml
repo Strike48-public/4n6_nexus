@@ -1,0 +1,33 @@
+name: 02_ransomware
+tier: synthetic
+category: ransomware
+difficulty: beginner
+description: >
+  Three causality violations resolvable via Event ID 4688. Ransom note,
+  crypt engine, and persistence executable all show MFT modify
+  timestamps after their Prefetch execution times. cmd.exe invokes
+  `vssadmin delete shadows /all`.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables:
+    - ransom_note.exe
+    - crypt_engine.exe
+    - persist.exe
+  finding_counts:
+    causality_violation: 3
+    total: 3
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Confidence should rebound above 0.60 once Event Log resolves the
+  causality violations (see test_ransomware_confidence_recovers_via_event_log).

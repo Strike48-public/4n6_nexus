@@ -169,7 +169,7 @@ def test_real_jean_evt_fixtures() -> None:
     Only runs if artifacts have been extracted. Nothing is asserted about the
     timeline; we just confirm structural compatibility with real-world data.
     """
-    base = Path("analysis/real_examples/nps-2008-jean/extracted/evtlog")
+    base = Path("analysis/m57-jean/extracted/evtlog")
     if not base.exists():
         pytest.skip("Jean artifacts not extracted; run scripts/extract_jean_artifacts.py")
 

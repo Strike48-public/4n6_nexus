@@ -110,7 +110,7 @@ The verification script is detecting that CFReDS URLs return HTML instead of bin
 - Access policies
 
 **Similar Issues:**
-- NSRL downloads (see `analysis/real_examples/wiped_disk/EXECUTABLE_ANALYSIS_ADDENDUM.md`)
+- NSRL downloads (see `analysis/circl-2023-wiped/EXECUTABLE_ANALYSIS_ADDENDUM.md`)
 - Other NIST resources
 
 **Solution:** Update script URLs from current CFReDS site

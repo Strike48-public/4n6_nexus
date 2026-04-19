@@ -1,8 +1,8 @@
 """Read-only extraction of forensic artifacts from nps-2008-jean.E01.
 
-Writes to analysis/real_examples/nps-2008-jean/extracted/. That directory is
-gitignored; nothing carved from the image is committed. The image itself is
-opened via pyewf in read-only mode and never mounted on the host.
+Writes to analysis/m57-jean/extracted/. That directory is gitignored;
+nothing carved from the image is committed. The image itself is opened
+via pyewf in read-only mode and never mounted on the host.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from pathlib import Path
 import pyewf
 import pytsk3
 
-IMAGE = Path("practice_images/nps-2008-jean.E01")
-OUT_ROOT = Path("analysis/real_examples/nps-2008-jean/extracted")
+IMAGE = Path("scenarios/real/m57-jean/evidence/nps-2008-jean.E01")
+OUT_ROOT = Path("analysis/m57-jean/extracted")
 NTFS_PART_OFFSET_SECTORS = 63
 SECTOR = 512
 

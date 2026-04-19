@@ -172,7 +172,7 @@ def test_pst_parser_rejects_missing_file():
 
 
 @pytest.mark.skipif(
-    not Path("analysis/real_examples/nps-2008-jean/extracted/email/outlook.pst").exists(),
+    not Path("analysis/m57-jean/extracted/email/outlook.pst").exists(),
     reason="Jean PST not extracted",
 )
 def test_parse_jean_pst_critical_message():
@@ -184,7 +184,7 @@ def test_parse_jean_pst_critical_message():
     the information now" reply.
     """
     parser = PstParser()
-    pst_path = Path("analysis/real_examples/nps-2008-jean/extracted/email/outlook.pst")
+    pst_path = Path("analysis/m57-jean/extracted/email/outlook.pst")
     messages = parser.parse_file(pst_path)
 
     # Find the Sent Items reply

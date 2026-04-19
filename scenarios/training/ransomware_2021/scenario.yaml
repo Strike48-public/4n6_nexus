@@ -1,0 +1,41 @@
+name: ransomware_2021
+tier: training
+category: ransomware
+difficulty: intermediate
+description: >
+  Ransomware deployment via phishing. Windows 10 host. Focus areas:
+  phishing email analysis, encryption artifacts, filesystem timeline,
+  attribution indicators.
+
+source:
+  provider: dfir_training
+  url: https://www.dfir.training/downloads/test-images
+  license: dfir_training_terms
+  attribution: >
+    DFIR.training community test images.
+
+evidence:
+  - path: evidence/ransomware_investigation.E01
+    kind: e01
+    size_bytes: null
+    sha256: null
+    download_url: https://www.dfir.training/downloads/test-images
+    description: Ransomware investigation E01 (~8 GB)
+    required: true
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0
+
+questions:
+  - What was the phishing vector?
+  - Which ransomware family is present?
+  - What is the scope of encrypted files?
+  - What persistence or lateral-movement indicators exist?
+
+notes: |
+  Evidence not downloaded yet. Exact filename depends on the
+  DFIR.training listing at fetch time.

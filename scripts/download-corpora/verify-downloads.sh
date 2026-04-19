@@ -8,7 +8,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEST_DIR="$REPO_ROOT/practice_images"
+DEST_DIR="$REPO_ROOT/scenarios"
 
 # Colors for output
 RED='\033[0;31m'

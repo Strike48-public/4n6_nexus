@@ -3,17 +3,19 @@
 # Selective download of specialized/large datasets from Digital Corpora
 #
 # Phase 3: Selective datasets (variable size, 3 GB - 800 GB)
-# - Legacy mobile devices
-# - Android 7
-# - Full Govdocs1 corpus (WARNING: ~250 GB)
-# - DEFCON CTF PCAPs (WARNING: ~50 GB)
-# - SAFEDOCS PDF corpus (WARNING: ~500 GB)
+# - Legacy mobile devices (reference/mobile/legacy)
+# - Android 7 (reference/mobile/android)
+# - Full Govdocs1 corpus (WARNING: ~250 GB) (reference/govdocs/full)
+# - DEFCON CTF PCAPs (WARNING: ~50 GB) (reference/network-pcaps/defcon_ctf)
+# - SAFEDOCS PDF corpus (WARNING: ~500 GB) (reference/safedocs)
+# - UNSAFE-DOCS malicious PDFs (~50 GB) (reference/unsafe_docs)
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BASE_URL="https://downloads.digitalcorpora.org/corpora"
-DEST_DIR="$REPO_ROOT/practice_images"
+SCENARIOS_DIR="$REPO_ROOT/scenarios"
+REF_DIR="$SCENARIOS_DIR/reference"
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,7 +40,6 @@ error() {
   echo -e "${RED}[ERROR]${NC} $*" >&2
 }
 
-# Download with resume support
 download_file() {
   local url="$1"
   local dest="$2"
@@ -54,7 +55,6 @@ download_file() {
   fi
 }
 
-# Download directory recursively
 download_directory() {
   local url="$1"
   local dest="$2"
@@ -70,13 +70,13 @@ download_directory() {
   fi
 }
 
-# Individual download functions
 download_android7() {
   warn "Android 7 is an older version - consider if still needed"
   echo "Size: ~3 GB"
   read -p "Continue? (yes/no): " confirm
   if [[ "$confirm" == "yes" ]]; then
-    download_file "$BASE_URL/mobile/android_7.tar.gz" "$DEST_DIR/mobile/android" "Downloading Android 7"
+    mkdir -p "$REF_DIR/mobile/android"
+    download_file "$BASE_URL/mobile/android_7.tar.gz" "$REF_DIR/mobile/android" "Downloading Android 7"
   fi
 }
 
@@ -89,9 +89,9 @@ download_legacy_mobile() {
   echo "Total: ~560 MB"
   read -p "Continue? (yes/no): " confirm
   if [[ "$confirm" == "yes" ]]; then
-    mkdir -p "$DEST_DIR/mobile/legacy"
+    mkdir -p "$REF_DIR/mobile/legacy"
     for device in Nokia_6230 SE_P800 SE_T68i SE_T630; do
-      download_file "$BASE_URL/mobile/$device.zip" "$DEST_DIR/mobile/legacy" "  Downloading $device"
+      download_file "$BASE_URL/mobile/$device.zip" "$REF_DIR/mobile/legacy" "  Downloading $device"
     done
     success "Legacy mobile devices downloaded"
   fi
@@ -111,8 +111,8 @@ download_full_govdocs1() {
   if [[ "$confirm" == "yes" ]]; then
     read -p "Type 'CONFIRM' to proceed: " double_confirm
     if [[ "$double_confirm" == "CONFIRM" ]]; then
-      mkdir -p "$DEST_DIR/files/govdocs1/full"
-      download_directory "$BASE_URL/files/govdocs1/" "$DEST_DIR/files/govdocs1/full" "Downloading full Govdocs1 corpus"
+      mkdir -p "$REF_DIR/govdocs/full"
+      download_directory "$BASE_URL/files/govdocs1/" "$REF_DIR/govdocs/full" "Downloading full Govdocs1 corpus"
     else
       warn "Download cancelled - confirmation failed"
     fi
@@ -125,8 +125,8 @@ download_defcon_ctf() {
   echo ""
   read -p "Continue? (yes/no): " confirm
   if [[ "$confirm" == "yes" ]]; then
-    mkdir -p "$DEST_DIR/network/pcaps/defcon_ctf"
-    download_directory "$BASE_URL/packets/2012-defcon/" "$DEST_DIR/network/pcaps/defcon_ctf" "Downloading DEFCON 20 CTF"
+    mkdir -p "$REF_DIR/network-pcaps/defcon_ctf"
+    download_directory "$BASE_URL/packets/2012-defcon/" "$REF_DIR/network-pcaps/defcon_ctf" "Downloading DEFCON 20 CTF"
   fi
 }
 
@@ -143,8 +143,8 @@ download_safedocs() {
   if [[ "$confirm" == "yes" ]]; then
     read -p "Type 'CONFIRM' to proceed: " double_confirm
     if [[ "$double_confirm" == "CONFIRM" ]]; then
-      mkdir -p "$DEST_DIR/files/safedocs"
-      download_directory "$BASE_URL/files/cc-main-2021-31-pdf-untruncated/" "$DEST_DIR/files/safedocs" "Downloading SAFEDOCS corpus"
+      mkdir -p "$REF_DIR/safedocs"
+      download_directory "$BASE_URL/files/cc-main-2021-31-pdf-untruncated/" "$REF_DIR/safedocs" "Downloading SAFEDOCS corpus"
     else
       warn "Download cancelled - confirmation failed"
     fi
@@ -158,8 +158,8 @@ download_unsafe_docs() {
   echo ""
   read -p "Continue? (yes/no): " confirm
   if [[ "$confirm" == "yes" ]]; then
-    mkdir -p "$DEST_DIR/files/unsafe_docs"
-    download_directory "$BASE_URL/files/cc-main-2021-31-unsafe/" "$DEST_DIR/files/unsafe_docs" "Downloading UNSAFE-DOCS corpus"
+    mkdir -p "$REF_DIR/unsafe_docs"
+    download_directory "$BASE_URL/files/cc-main-2021-31-unsafe/" "$REF_DIR/unsafe_docs" "Downloading UNSAFE-DOCS corpus"
   fi
 }
 
@@ -173,8 +173,8 @@ main() {
   warn "Some datasets are very large (50-500 GB)"
   echo ""
 
-  if [[ ! -d "$DEST_DIR/mobile" ]]; then
-    error "Phase 1 destination directory not found: $DEST_DIR"
+  if [[ ! -d "$REF_DIR/mobile" ]]; then
+    error "Phase 1 reference directory not found: $REF_DIR/mobile"
     error "Please run download-phase1-critical.sh first"
     exit 1
   fi

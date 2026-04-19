@@ -1,0 +1,85 @@
+# scenario.yaml — manifest schema for every scenario in this repo
+#
+# One manifest lives at scenarios/<tier>/<name>/scenario.yaml
+# The test harness discovers scenarios by globbing scenarios/**/scenario.yaml
+#
+# Tiers:
+#   synthetic  — tracked CSV fixtures, run in CI
+#   real       — full-evidence cases, downloaded locally
+#   training   — provider-hosted training exercises (dfir.training)
+#   reference  — raw corpora used as test inputs, not run as scenarios
+
+# ─── Identity ─────────────────────────────────────────────────────────────────
+
+name: example_scenario               # unique, matches directory name
+tier: synthetic                      # synthetic | real | training | reference
+category: ransomware                 # free-form tag (ransomware, insider_threat, network, wiped_disk, etc.)
+difficulty: beginner                 # beginner | intermediate | advanced
+description: >
+  One-paragraph summary of what this scenario contains and what it
+  is designed to exercise.
+
+# ─── Source (where evidence came from; URLs are backup, not runtime deps) ────
+
+source:
+  provider: digital_corpora          # digital_corpora | dfir_training | nist | cfreds | synthetic | custom
+  url: https://downloads.digitalcorpora.org/corpora/scenarios/example/
+  date_published: 2008-07-21         # ISO date of incident or publication
+  license: public_domain             # license/terms identifier
+  attribution: >
+    Free-text attribution string reproduced in reports that use this data.
+
+# ─── Evidence (the actual files; all paths are repo-relative) ─────────────────
+
+evidence:
+  # Each entry describes one binary artifact. Files live under ./evidence/
+  # which is gitignored. `sha256` is the source-of-truth integrity check.
+  - path: evidence/capture.pcap
+    kind: pcap                       # pcap | e01 | dd | raw | mem | dmp | zip | other
+    size_bytes: 56180821
+    sha256: 2b77a9eaefc1d6af163d1ba793c96dbccacb04e6befdf1a0b01f8c67553ec2fb
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/example/capture.pcap
+    description: Network tap capture from student dorm
+    required: true                   # required for this scenario to run at all
+
+# ─── Derived artifacts (CSVs / JSON emitted by parsers for the engine) ───────
+# Only populated for synthetic tier (where fixtures ARE the scenario).
+# Real-tier scenarios produce these at runtime into analysis/<scenario>/.
+
+fixtures:
+  mft: mft.csv                       # optional, relative to scenario dir
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+  browser_history: browser_history.csv   # optional
+
+# ─── Ground truth (what the engine is expected to find) ──────────────────────
+
+expected:
+  # Executables the engine must flag as malicious
+  malicious_executables:
+    - ransom_note.exe
+    - crypt_engine.exe
+
+  # Expected finding counts by category (for aggregate assertions)
+  finding_counts:
+    causality_violation: 3
+    timestomping: 0
+    missing_artifact: 0
+    total: 3
+
+  # Minimum aggregate metrics for this scenario (CI gate)
+  min_precision: 1.0
+  min_recall: 1.0
+
+# ─── Investigative questions this scenario answers ───────────────────────────
+
+questions:
+  - Which accounts had elevated activity on the day of the incident?
+  - What was the initial access vector?
+  - What persistence mechanism was installed?
+
+# ─── Provenance / notes ──────────────────────────────────────────────────────
+
+notes: |
+  Free-form notes. Known gotchas, related CVEs, solution documents,
+  instructor passwords needed, etc.

@@ -30,8 +30,8 @@ from sift_find_evil.carving import NSRLFilter, find_nsrl_database, detect_file_t
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-CIRCL_IMAGE = "scenarios/circl-2023-wiped/wiped_disk.E01"
-OUTPUT_DIR = Path("analysis/real_examples/wiped_disk")
+CIRCL_IMAGE = "scenarios/real/circl-2023-wiped/evidence/wiped_disk.E01"
+OUTPUT_DIR = Path("analysis/circl-2023-wiped")
 CARVED_DIR = OUTPUT_DIR / "carved_executables"
 
 
@@ -309,7 +309,7 @@ Examples:
     parser.add_argument(
         "--skip-carving",
         action="store_true",
-        help="Skip carving step (use existing carved files in analysis/real_examples/wiped_disk/carved_executables/)",
+        help="Skip carving step (use existing carved files in analysis/circl-2023-wiped/carved_executables/)",
     )
 
     args = parser.parse_args()

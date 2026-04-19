@@ -1,0 +1,24 @@
+name: 01_clean_baseline
+tier: synthetic
+category: baseline
+difficulty: beginner
+description: >
+  Legitimate activity only (chrome, firefox, notepad, calc). All MFT
+  timestamps align with Prefetch and Event Log evidence. Must produce
+  zero findings.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0

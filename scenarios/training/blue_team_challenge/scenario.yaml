@@ -1,0 +1,47 @@
+name: blue_team_challenge
+tier: training
+category: compromise_investigation
+difficulty: advanced
+description: >
+  Compromised Windows 10 workstation with lateral movement indicators.
+  Combined disk + memory investigation. Focus areas: memory forensics,
+  cross-artifact timeline, lateral movement, persistence mechanisms.
+
+source:
+  provider: dfir_training
+  url: https://www.dfir.training/downloads/test-images
+  license: dfir_training_terms
+  attribution: DFIR.training community test images.
+
+evidence:
+  - path: evidence/compromised_system.E01
+    kind: e01
+    size_bytes: null
+    sha256: null
+    download_url: https://www.dfir.training/downloads/test-images
+    description: Compromised Windows 10 disk image
+    required: true
+  - path: evidence/memory_dump.raw
+    kind: memory
+    size_bytes: null
+    sha256: null
+    download_url: https://www.dfir.training/downloads/test-images
+    description: Memory dump captured during incident
+    required: true
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0
+
+questions:
+  - What was the initial access vector?
+  - What persistence mechanisms are present?
+  - What lateral movement indicators exist in memory and on disk?
+  - Which processes were malicious at capture time?
+
+notes: |
+  Evidence not downloaded yet. Expected combined size ~10 GB.
+  Requires Volatility 3 for memory analysis alongside disk parsing.

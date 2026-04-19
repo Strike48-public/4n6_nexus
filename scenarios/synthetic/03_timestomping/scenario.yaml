@@ -1,0 +1,31 @@
+name: 03_timestomping
+tier: synthetic
+category: timestomping
+difficulty: intermediate
+description: >
+  Three files with $SI timestamps backdated years before $FN timestamps.
+  Detection pivots on Prefetch executables — DLLs are not currently
+  checked. svchost.exe aligned as legitimate control.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables:
+    - backdoor.exe
+    - keylogger.exe
+  finding_counts:
+    timestomping: 2
+    total: 2
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  stolen_creds.dll is also timestomped but not currently flagged
+  (engine pivots on Prefetch executables only).

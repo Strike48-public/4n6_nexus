@@ -1,0 +1,47 @@
+name: network_intrusion
+tier: training
+category: network_intrusion
+difficulty: intermediate
+description: >
+  Network-based attack with C2 communications. Combined PCAP + memory
+  investigation. Focus areas: protocol analysis, C2 detection, malware
+  network behavior, data exfiltration.
+
+source:
+  provider: dfir_training
+  url: https://www.dfir.training/downloads/test-images
+  license: dfir_training_terms
+  attribution: DFIR.training community test images.
+
+evidence:
+  - path: evidence/network_capture.pcap
+    kind: pcap
+    size_bytes: null
+    sha256: null
+    download_url: https://www.dfir.training/downloads/test-images
+    description: Network packet capture covering the intrusion window
+    required: true
+  - path: evidence/memory.raw
+    kind: memory
+    size_bytes: null
+    sha256: null
+    download_url: https://www.dfir.training/downloads/test-images
+    description: Memory dump from the compromised host
+    required: true
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0
+
+questions:
+  - What C2 channel(s) were used?
+  - What data exfiltration occurred over the network?
+  - Which process(es) in memory correspond to the network activity?
+  - What network-based IOCs should be recorded?
+
+notes: |
+  Evidence not downloaded yet. Expected combined size ~4 GB.
+  Correlate PCAP flows with Volatility 3 netscan/netstat output.

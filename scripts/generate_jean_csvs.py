@@ -8,7 +8,7 @@ Runs three parsers:
 3. `sift_find_evil.parsers.evt_parser.EvtParser` for legacy XP `.Evt`
    files, which EvtxECmd does not understand.
 
-The three CSVs land under `analysis/real_examples/nps-2008-jean/csv/` and
+The three CSVs land under `analysis/m57-jean/csv/` and
 use column names compatible with EvtxECmd / MFTECmd / PECmd so the engine
 does not need special-casing.
 """
@@ -24,7 +24,7 @@ from pathlib import Path
 
 from sift_find_evil.parsers.evt_parser import EvtParser
 
-CASE_ROOT = Path("analysis/real_examples/nps-2008-jean")
+CASE_ROOT = Path("analysis/m57-jean")
 EXTRACT = CASE_ROOT / "extracted"
 CSV_OUT = CASE_ROOT / "csv"
 LOGS = CASE_ROOT / "logs"

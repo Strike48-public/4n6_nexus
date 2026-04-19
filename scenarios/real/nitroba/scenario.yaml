@@ -1,0 +1,41 @@
+name: nitroba
+tier: real
+category: network_forensics
+difficulty: intermediate
+description: >
+  Nitroba University Harassment Scenario. Harassing emails traced to a
+  dorm-room IP shared by three students plus an open Wi-Fi router.
+  Network tap captured traffic on the Monday a new email was sent.
+
+source:
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/nitroba-university-harassment-scenario/
+  date_published: 2008-07-21
+  license: academic_use
+  attribution: >
+    Nitroba University Harassment Scenario (Digital Corpora, 2008).
+
+evidence:
+  - path: evidence/nitroba.pcap
+    kind: pcap
+    size_bytes: 56180821
+    sha256: 2b77a9eaefc1d6af163d1ba793c96dbccacb04e6befdf1a0b01f8c67553ec2fb
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2008-nitroba/nitroba.pcap
+    description: Network tap capture from the dorm Ethernet port
+    required: true
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    total: 0
+  min_precision: 1.0
+  min_recall: 1.0
+
+questions:
+  - Who sent the harassing email on 2008-07-21?
+  - What device (MAC / hostname) was used?
+  - What web-based email service was the email sent through?
+
+notes: |
+  Manifest detail (slides, solution PDFs, MD5/SHA1) lives in
+  files_manifest.json and NITROBA_SCENARIO_INFO.md alongside this file.

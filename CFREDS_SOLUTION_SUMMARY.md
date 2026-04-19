@@ -15,7 +15,7 @@ The original download script (`scripts/download-cfreds.sh`) was attempting to do
 - S3 bucket restructuring
 - Access policy changes
 
-Similar issues have occurred with NSRL downloads (documented in `analysis/real_examples/wiped_disk/EXECUTABLE_ANALYSIS_ADDENDUM.md`).
+Similar issues have occurred with NSRL downloads (documented in `analysis/circl-2023-wiped/EXECUTABLE_ANALYSIS_ADDENDUM.md`).
 
 ---
 
@@ -278,7 +278,7 @@ Potential enhancements if needed:
 - `ADDITIONAL_SOURCES_RESEARCH.md` - Comprehensive source analysis
 - `DOWNLOAD_PRIORITY_QUICK_REFERENCE.md` - Quick command reference
 - `docs/DATASETS.md` - Dataset catalog
-- `analysis/real_examples/wiped_disk/EXECUTABLE_ANALYSIS_ADDENDUM.md` - NSRL URL issues (similar problem)
+- `analysis/circl-2023-wiped/EXECUTABLE_ANALYSIS_ADDENDUM.md` - NSRL URL issues (similar problem)
 
 ---
 

@@ -1,4 +1,11 @@
-"""Run all scenarios and compute precision / recall / F1 metrics."""
+"""Run all scenarios and compute precision / recall / F1 metrics.
+
+Scenarios are discovered automatically from ``scenarios/**/scenario.yaml``
+manifests that declare ``fixtures.mft``, ``fixtures.prefetch``, and
+``fixtures.evtx`` inputs. Manifests without those fixtures (for example E01
+or PCAP scenarios in ``real/`` and ``training/``) are skipped here because
+they require disk-level parsing outside this harness.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +13,8 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 from sift_find_evil.parsers.evtx_parser import EventLogParser
 from sift_find_evil.parsers.mft_parser import MFTParser
@@ -18,9 +27,12 @@ class ScenarioExpectation:
     """Expected ground truth for a scenario."""
 
     name: str
-    directory: str
+    directory: Path
     malicious_executables: frozenset[str]
     description: str
+    mft_fixture: str
+    prefetch_fixture: str
+    evtx_fixture: str
 
 
 @dataclass
@@ -54,65 +66,70 @@ class ScenarioResult:
         return 2 * p * r / (p + r) if (p + r) else 0.0
 
 
-SCENARIOS: tuple[ScenarioExpectation, ...] = (
-    ScenarioExpectation(
-        name="01_clean_baseline",
-        directory="test_data/scenarios/01_clean_baseline",
-        malicious_executables=frozenset(),
-        description="Legitimate activity only - expect zero findings.",
-    ),
-    ScenarioExpectation(
-        name="02_ransomware",
-        directory="test_data/scenarios/02_ransomware",
-        malicious_executables=frozenset(
-            {"ransom_note.exe", "crypt_engine.exe", "persist.exe"}
-        ),
-        description="Three causality violations resolvable via Event ID 4688.",
-    ),
-    ScenarioExpectation(
-        name="03_timestomping",
-        directory="test_data/scenarios/03_timestomping",
-        malicious_executables=frozenset({"backdoor.exe", "keylogger.exe"}),
-        description="$SI backdated relative to $FN (timestomping).",
-    ),
-    ScenarioExpectation(
-        name="04_edge_cases",
-        directory="test_data/scenarios/04_edge_cases",
-        malicious_executables=frozenset(
-            {"just_over_tolerance.exe", "future_timestamp.exe"}
-        ),
-        description="Boundary tolerance and null/future timestamp handling.",
-    ),
-    ScenarioExpectation(
-        name="05_missing_prefetch",
-        directory="test_data/scenarios/05_missing_prefetch",
-        malicious_executables=frozenset(
-            {"data_exfil.exe", "zip_tool.exe", "cleaner.exe"}
-        ),
-        description="Insider with deleted Prefetch - detected via MFT/Event Log gap.",
-    ),
-)
+def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
+    """Discover scenarios by loading every ``scenario.yaml`` under ``scenarios/``.
 
-
-def run_scenario(expectation: ScenarioExpectation, repo_root: Path) -> ScenarioResult:
-    """Execute the engine for one scenario and compare to ground truth.
-
-    Args:
-        expectation: Scenario expectation with ground truth executables.
-        repo_root: Root directory of the repository.
-
-    Returns:
-        ScenarioResult with findings and metrics.
+    Only scenarios that expose ``fixtures.mft``, ``fixtures.prefetch`` and
+    ``fixtures.evtx`` (i.e. CSV-driven synthetic fixtures) are returned; disk
+    image-based scenarios need a different runner.
     """
-    directory = repo_root / expectation.directory
-    mft = MFTParser().parse_csv(directory / "mft.csv")
-    prefetch = PrefetchParser().parse_csv(directory / "prefetch.csv")
-    evtx = EventLogParser().parse_csv(directory / "evtx.csv", filter_event_ids=[4688])
+    scenarios_dir = repo_root / "scenarios"
+    expectations: list[ScenarioExpectation] = []
+
+    for manifest_path in sorted(scenarios_dir.glob("**/scenario.yaml")):
+        # Skip schema reference file (scenarios/_schemas/scenario.yaml)
+        if "_schemas" in manifest_path.parts:
+            continue
+
+        with manifest_path.open(encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
+
+        fixtures = data.get("fixtures") or {}
+        mft_fixture = fixtures.get("mft")
+        prefetch_fixture = fixtures.get("prefetch")
+        evtx_fixture = fixtures.get("evtx")
+        if not (mft_fixture and prefetch_fixture and evtx_fixture):
+            continue
+
+        expected = data.get("expected") or {}
+        malicious = expected.get("malicious_executables") or []
+
+        # Skip scenarios whose ground truth is non-executable (e.g. webmail
+        # exfiltration) — those need a dedicated harness that inspects other
+        # finding categories.
+        finding_counts = expected.get("finding_counts") or {}
+        total_expected = finding_counts.get("total", 0)
+        if total_expected and not malicious:
+            continue
+
+        expectations.append(
+            ScenarioExpectation(
+                name=data.get("name") or manifest_path.parent.name,
+                directory=manifest_path.parent,
+                malicious_executables=frozenset(str(m).lower() for m in malicious),
+                description=str(data.get("description") or "").strip(),
+                mft_fixture=str(mft_fixture),
+                prefetch_fixture=str(prefetch_fixture),
+                evtx_fixture=str(evtx_fixture),
+            )
+        )
+
+    return expectations
+
+
+def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
+    """Execute the engine for one scenario and compare to ground truth."""
+    directory = expectation.directory
+    mft = MFTParser().parse_csv(directory / expectation.mft_fixture)
+    prefetch = PrefetchParser().parse_csv(directory / expectation.prefetch_fixture)
+    evtx = EventLogParser().parse_csv(
+        directory / expectation.evtx_fixture, filter_event_ids=[4688]
+    )
 
     findings = SelfCorrectionEngine().analyze(mft, prefetch, evtx)
 
     detected = [f.evidence.get("executable", "").lower() for f in findings]
-    expected = {e.lower() for e in expectation.malicious_executables}
+    expected = set(expectation.malicious_executables)
 
     tp = [name for name in detected if name in expected]
     fp = [name for name in detected if name not in expected]
@@ -134,14 +151,7 @@ def run_scenario(expectation: ScenarioExpectation, repo_root: Path) -> ScenarioR
 
 
 def aggregate(results: list[ScenarioResult]) -> dict[str, Any]:
-    """Compute micro-averaged precision/recall/F1 across all scenarios.
-
-    Args:
-        results: List of ScenarioResult objects.
-
-    Returns:
-        Dict with aggregated metrics.
-    """
+    """Compute micro-averaged precision/recall/F1 across all scenarios."""
     tp = sum(len(r.true_positives) for r in results)
     fp = sum(len(r.false_positives) for r in results)
     fn = sum(len(r.false_negatives) for r in results)
@@ -163,13 +173,17 @@ def aggregate(results: list[ScenarioResult]) -> dict[str, Any]:
 def main() -> None:
     """Run all scenarios and print aggregated metrics."""
     repo_root = Path(__file__).resolve().parent.parent
-    results = [run_scenario(s, repo_root) for s in SCENARIOS]
+    scenarios = discover_scenarios(repo_root)
+    results = [run_scenario(s) for s in scenarios]
 
-    print(f"\n{'Scenario':<22}{'TP':>4}{'FP':>4}{'FN':>4}{'Prec':>8}{'Rec':>8}{'F1':>8}{'AvgConf':>10}")
-    print("-" * 78)
+    print(
+        f"\n{'Scenario':<26}{'TP':>4}{'FP':>4}{'FN':>4}"
+        f"{'Prec':>8}{'Rec':>8}{'F1':>8}{'AvgConf':>10}"
+    )
+    print("-" * 82)
     for r in results:
         print(
-            f"{r.name:<22}"
+            f"{r.name:<26}"
             f"{len(r.true_positives):>4}"
             f"{len(r.false_positives):>4}"
             f"{len(r.false_negatives):>4}"
@@ -177,9 +191,9 @@ def main() -> None:
         )
 
     agg = aggregate(results)
-    print("-" * 78)
+    print("-" * 82)
     print(
-        f"{'TOTAL':<22}{agg['true_positives']:>4}{agg['false_positives']:>4}"
+        f"{'TOTAL':<26}{agg['true_positives']:>4}{agg['false_positives']:>4}"
         f"{agg['false_negatives']:>4}{agg['precision']:>8.2f}"
         f"{agg['recall']:>8.2f}{agg['f1']:>8.2f}"
     )

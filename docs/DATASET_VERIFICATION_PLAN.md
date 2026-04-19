@@ -12,7 +12,7 @@
 ### Verified Datasets (3/3)
 
 #### 1. M57 Jean Laptop ✅
-**Location**: `practice_images/m57-patents/jean/`  
+**Location**: `scenarios/real/m57-jean/evidence/`  
 **Size**: 2.9 GB  
 **Files**: 
 - nps-2008-jean.E01 (1.5 GB)
@@ -20,7 +20,7 @@
 
 **Status**: ✅ **VERIFIED - PASSING**  
 **Result**: Exfiltration detection with 0.95 confidence (2/2 files detected)  
-**Analysis**: `analysis/real_examples/nps-2008-jean/`
+**Analysis**: `analysis/m57-jean/`
 
 **What Was Tested:**
 - MFT parser (91,459 entries)
@@ -39,13 +39,13 @@
 ---
 
 #### 2. Nitroba Harassment Investigation ✅
-**Location**: `practice_images/nitroba/`  
+**Location**: `scenarios/real/nitroba/evidence/`  
 **Size**: 54 MB  
 **Files**: nitroba.pcap
 
 **Status**: ✅ **VERIFIED - PASSING**  
 **Result**: Harassment suspect identified with 0.95 confidence (Beth via Facebook auth)  
-**Analysis**: `analysis/real_examples/nitroba/`
+**Analysis**: `analysis/nitroba/`
 
 **What Was Tested:**
 - PCAP parser (tshark-based)
@@ -66,7 +66,7 @@
 
 **Status**: ✅ **VERIFIED - PASSING**  
 **Result**: GPT analysis successful, 403 executables carved  
-**Analysis**: `analysis/real_examples/wiped_disk/`
+**Analysis**: `analysis/circl-2023-wiped/`
 
 **What Was Tested:**
 - E01 mounting
@@ -91,7 +91,7 @@
 ### M57 Patents - Additional Characters
 
 #### Pat's Desktop ⏳
-**Location**: Download to `practice_images/m57-patents/pat/`  
+**Location**: Download to `scenarios/real/m57-patents/evidence/pat/`  
 **Estimated Size**: ~4 GB  
 **Status**: ⏳ **NOT DOWNLOADED**
 
@@ -115,7 +115,7 @@
 ---
 
 #### Terry's Laptop ⏳
-**Location**: Download to `practice_images/m57-patents/terry/`  
+**Location**: Download to `scenarios/real/m57-patents/evidence/terry/`  
 **Estimated Size**: ~4 GB  
 **Status**: ⏳ **NOT DOWNLOADED**
 
@@ -129,7 +129,7 @@
 ---
 
 #### Charlie's Laptop ⏳
-**Location**: Download to `practice_images/m57-patents/charlie/`  
+**Location**: Download to `scenarios/real/m57-patents/evidence/charlie/`  
 **Estimated Size**: ~4 GB  
 **Status**: ⏳ **NOT DOWNLOADED**
 
@@ -143,7 +143,7 @@
 ---
 
 #### Jo's Laptop ⏳
-**Location**: Download to `practice_images/m57-patents/jo/`  
+**Location**: Download to `scenarios/real/m57-patents/evidence/jo/`  
 **Estimated Size**: ~4 GB  
 **Status**: ⏳ **NOT DOWNLOADED**
 
@@ -158,7 +158,7 @@
 
 ### M57 Patents - Network Traffic ⏳
 
-**Location**: Download to `practice_images/m57-patents/network/`  
+**Location**: Download to `scenarios/real/m57-patents/evidence/network/`  
 **Estimated Size**: TBD (likely 1-5 GB)  
 **Status**: ⏳ **NOT DOWNLOADED**
 
@@ -183,7 +183,7 @@
 
 ### M57 Patents - Memory Dumps ⏳
 
-**Location**: Download to `practice_images/m57-patents/memory/`  
+**Location**: Download to `scenarios/real/m57-patents/evidence/memory/`  
 **Estimated Size**: 4-16 GB per dump (potentially 20-80 GB total)  
 **Status**: ⏳ **NOT DOWNLOADED - CHECK AVAILABILITY**
 
@@ -213,12 +213,12 @@
 
 ### Mobile Forensics Datasets ⏳
 
-**Location**: `practice_images/mobile/`  
+**Location**: `scenarios/reference/mobile/`  
 **Size**: 50 GB (already present!)  
 **Status**: ⏳ **PRESENT BUT NOT INVENTORIED**
 
 **Test Plan:**
-1. Inventory what's in `practice_images/mobile/`
+1. Inventory what's in `scenarios/reference/mobile/`
 2. Identify file types (Android images? iOS backups? Call logs?)
 3. Assess compatibility with current parsers
 4. Determine if mobile forensics is in scope for SIFT competition
@@ -233,7 +233,7 @@
 ### Phase 1 Preparation (This Session)
 **Goal**: Verify what we have, plan downloads
 
-1. ✅ Inventory practice_images/ contents
+1. ✅ Inventory scenarios/ contents
 2. ⏳ Check M57 memory dump availability on Digital Corpora
 3. ⏳ Inventory mobile/ directory (50 GB - what's in there?)
 4. ⏳ Estimate total storage needed
@@ -331,8 +331,8 @@ echo "Downloaded from: <URL>" > <image_file>.provenance
 echo "Download date: $(date)" >> <image_file>.provenance
 
 # Create analysis directory
-mkdir -p analysis/real_examples/<scenario_name>
-cd analysis/real_examples/<scenario_name>
+mkdir -p analysis/<scenario_name>
+cd analysis/<scenario_name>
 ```
 
 ### 2. Artifact Extraction
@@ -431,7 +431,7 @@ tar -czf findings_$(date +%Y%m%d).tar.gz *.csv *.json ANALYSIS_REPORT.md
 
 ### Current Usage
 ```bash
-du -sh practice_images/*
+du -sh scenarios/*
 ```
 
 **Output:**
@@ -463,7 +463,7 @@ du -sh practice_images/*
 ### Cleanup Strategy
 ```bash
 # Remove after analysis complete
-rm -rf practice_images/m57-patents/<character>/
+rm -rf scenarios/real/m57-patents/<character>/
 
 # Can always re-download via:
 cd scenarios/m57-patents
@@ -530,8 +530,8 @@ cd scenarios/m57-patents
    - Check: https://digitalcorpora.org/corpora/scenarios/m57-patents-scenario/
    - If not: Find alternative memory forensics datasets
 
-2. **Mobile Forensics**: What's in `practice_images/mobile/` (50 GB)?
-   - Inventory: `ls -lah practice_images/mobile/`
+2. **Mobile Forensics**: What's in `scenarios/reference/mobile/` (50 GB)?
+   - Inventory: `ls -lah scenarios/reference/mobile/`
    - Determine: Android? iOS? Call logs? Messages?
    - Decision: In scope for SIFT competition?
 

@@ -11,7 +11,11 @@
 set -euo pipefail
 
 # Configuration
-CFREDS_DEST="${CFREDS_DEST:-/cases/cfreds}"
+# Default destination is the repository's reference corpora tier so downloads
+# live alongside other CFReDS material. Override with CFREDS_DEST env var for
+# e.g. /cases/cfreds when working offline from the repo tree.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CFREDS_DEST="${CFREDS_DEST:-$REPO_ROOT/scenarios/reference/cfreds}"
 CFREDS_BASE="https://cfreds.nist.gov"
 
 # Color codes

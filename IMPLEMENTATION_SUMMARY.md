@@ -58,9 +58,9 @@ When MFT timestamps conflict with Prefetch execution times, the system:
 ### Phase 2.5: Synthetic Test Data ✅
 
 **Files:**
-- `test_data/synthetic_mft.csv` - 3 MFT entries
-- `test_data/synthetic_prefetch.csv` - 3 Prefetch entries
-- `test_data/synthetic_evtx.csv` - 5 Event ID 4688 entries
+- `tests/fixtures/synthetic_mft.csv` - 3 MFT entries
+- `tests/fixtures/synthetic_prefetch.csv` - 3 Prefetch entries
+- `tests/fixtures/synthetic_evtx.csv` - 5 Event ID 4688 entries
 - `test_data/README.md` - Documentation of planted contradictions
 
 **Test Scenario:**

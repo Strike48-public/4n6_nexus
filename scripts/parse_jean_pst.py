@@ -2,7 +2,7 @@
 
 Walks the PST tree, records every message with headers, subject, sender,
 recipients, timestamps, and body preview. Output goes to
-`analysis/real_examples/nps-2008-jean/csv/Email.csv`.
+`analysis/m57-jean/csv/Email.csv`.
 
 We care specifically about messages in "Sent Items" around 2008-07-20/21,
 the window bracketed by the AIM chat with alisonm57.
@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pypff
 
-PST = Path("analysis/real_examples/nps-2008-jean/extracted/email/outlook.pst")
-OUT = Path("analysis/real_examples/nps-2008-jean/csv/Email.csv")
+PST = Path("analysis/m57-jean/extracted/email/outlook.pst")
+OUT = Path("analysis/m57-jean/csv/Email.csv")
 
 
 def _walk(folder, parents: tuple[str, ...]):

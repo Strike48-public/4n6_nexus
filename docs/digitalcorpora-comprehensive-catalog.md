@@ -389,7 +389,7 @@ Comprehensive multi-evidence scenarios with narratives and expected findings.
 
 ```
 /home/jtomek/Code/sift_find_evil/
-├── practice_images/
+├── scenarios/
 │   ├── mobile/
 │   │   ├── android/
 │   │   │   ├── android_10/
@@ -432,7 +432,7 @@ Comprehensive multi-evidence scenarios with narratives and expected findings.
 │   └── sql/
 │       └── sqlite_corpus/
 └── analysis/
-    └── real_examples/  # Existing structure
+    └── # (deprecated; see scenarios/real/)
 ```
 
 ### Phased Download Plan
@@ -519,7 +519,7 @@ Comprehensive multi-evidence scenarios with narratives and expected findings.
 set -euo pipefail
 
 BASE_URL="https://downloads.digitalcorpora.org/corpora"
-DEST_DIR="/home/jtomek/Code/sift_find_evil/practice_images"
+DEST_DIR="/home/jtomek/Code/sift_find_evil/scenarios"
 
 mkdir -p "$DEST_DIR"/{mobile/{android,ios},disk_images/nps_test_images,scenarios,files/govdocs1/subsets,network/pcaps,sql}
 
@@ -619,7 +619,7 @@ echo "4. Run download-phase2-high.sh for additional datasets"
 set -euo pipefail
 
 BASE_URL="https://downloads.digitalcorpora.org/corpora"
-DEST_DIR="/home/jtomek/Code/sift_find_evil/practice_images"
+DEST_DIR="/home/jtomek/Code/sift_find_evil/scenarios"
 
 echo "=== Phase 2: High Priority Datasets ==="
 echo "Total size: ~100 GB"
@@ -676,7 +676,7 @@ echo "[10/10] Phase 2 complete!"
 set -euo pipefail
 
 BASE_URL="https://downloads.digitalcorpora.org/corpora"
-DEST_DIR="/home/jtomek/Code/sift_find_evil/practice_images"
+DEST_DIR="/home/jtomek/Code/sift_find_evil/scenarios"
 
 echo "=== Phase 3: Selective Download ==="
 echo "This script allows selective download of large/specialized datasets"
@@ -750,7 +750,7 @@ done
 
 set -euo pipefail
 
-DEST_DIR="/home/jtomek/Code/sift_find_evil/practice_images"
+DEST_DIR="/home/jtomek/Code/sift_find_evil/scenarios"
 
 echo "=== Verifying Downloads ==="
 echo ""

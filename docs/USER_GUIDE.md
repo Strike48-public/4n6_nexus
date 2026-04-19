@@ -305,8 +305,8 @@ python -m sift_find_evil analyze \
 **Analysis**:
 
 ```bash
-# Extract artifacts (already done in analysis/real_examples/nps-2008-jean/)
-cd analysis/real_examples/nps-2008-jean
+# Extract artifacts (already done in analysis/m57-jean/)
+cd analysis/m57-jean
 
 # Run exfiltration detector
 python ../../../scripts/extract_jean_artifacts.py
@@ -320,7 +320,7 @@ cat jean_exfil_findings.json | jq
 - File-to-email correlation confidence: 0.95
 - Time deltas: 30s and 45s (very high confidence)
 
-See [JEAN_EXFILTRATION_REPORT.md](../analysis/real_examples/nps-2008-jean/JEAN_EXFILTRATION_REPORT.md) for complete analysis.
+See [JEAN_EXFILTRATION_REPORT.md](../analysis/m57-jean/JEAN_EXFILTRATION_REPORT.md) for complete analysis.
 
 ### CIRCL Wiped Disk (Real Dataset)
 
@@ -331,7 +331,7 @@ See [JEAN_EXFILTRATION_REPORT.md](../analysis/real_examples/nps-2008-jean/JEAN_E
 **Analysis**:
 
 ```bash
-cd analysis/real_examples/circl-wiped-disk
+cd analysis/circl-2023-wiped
 
 # Analyze GPT wipe
 python -m sift_find_evil analyze \
@@ -347,7 +347,7 @@ python ../../../scripts/analyze_circl_executables.py --use-nsrl
 - 5 executables carved (4 unknown, 1 NSRL match)
 - Wipe detection confidence: 0.90
 
-See [CIRCL_WIPE_ANALYSIS.md](../analysis/real_examples/circl-wiped-disk/CIRCL_WIPE_ANALYSIS.md) for complete analysis.
+See [CIRCL_WIPE_ANALYSIS.md](../analysis/circl-2023-wiped/CIRCL_WIPE_ANALYSIS.md) for complete analysis.
 
 ---
 
