@@ -66,6 +66,9 @@ The CI harness (`tests/scenario_harness.py`) discovers scenarios by globbing
 
 ## Downloading evidence
 
+See [`DOWNLOADS.md`](DOWNLOADS.md) for a per-scenario list of the exact
+files each `evidence/` directory needs, with sizes and current presence.
+
 Use the orchestration scripts under `scripts/download-corpora/`:
 
 ```bash
