@@ -85,14 +85,34 @@ no files are missing yet because the download targets are not yet decided.
 
 ## How to fetch
 
-Once `scenario.yaml` has a real URL, the per-file pattern is:
+The generic scenario downloader reads `scenario.yaml` and fetches every
+`download_url` in its `evidence:` block. It resumes partial downloads,
+skips files already on disk, and verifies `sha256` when the manifest
+has one (and logs the computed hash when it doesn't, so it can be
+pinned back into the manifest).
 
 ```bash
-cd scenarios/real/<name>/evidence/
-curl -fLO <download_url>
+# Preview what would be downloaded, no network writes
+scripts/download-corpora/download-scenario.sh scenarios/real/m57-patents --dry-run
+
+# Fetch every evidence file
+scripts/download-corpora/download-scenario.sh scenarios/real/m57-patents
+scripts/download-corpora/download-scenario.sh scenarios/real/national_gallery_2012
+
+# Only required evidence (skips entries marked required: false)
+scripts/download-corpora/download-scenario.sh scenarios/real/m57-jean --required-only
 ```
 
-Orchestration scripts that batch these downloads and verify sizes/hashes
+Per-scenario convenience wrappers exist where useful and delegate to
+the generic downloader:
+
+```bash
+scenarios/real/m57-patents/download_all.sh
+scenarios/real/national_gallery_2012/download_all.sh
+scenarios/real/nitroba/download_all.sh   # pre-generic; still works
+```
+
+Broader orchestration scripts (multi-scenario phases, reference corpora)
 live under `scripts/download-corpora/`:
 
 ```bash
@@ -102,5 +122,5 @@ scripts/download-corpora/download-phase3-selective.sh
 scripts/download-corpora/verify-downloads.sh
 ```
 
-After the first successful download, populate the `sha256:` field in the
-scenario manifest so future runs can verify integrity.
+After the first successful download, populate the `sha256:` field in
+the scenario manifest so future runs can verify integrity.
