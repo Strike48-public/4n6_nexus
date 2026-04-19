@@ -22,7 +22,7 @@ evidence:
     kind: e01
     size_bytes: 1572860321
     sha256: df3a995c7a594e0ba6d95b9aae735a444313fae435a87e7536f9dad3db2769ce
-    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2008-jean/nps-2008-jean.E01
+    download_url: https://downloads.digitalcorpora.org/corpora/drives/nps-2008-m57-jean/nps-2008-jean.E01
     description: Jean's laptop image, segment 1
     required: true
 
@@ -30,7 +30,7 @@ evidence:
     kind: e01
     size_bytes: 1466890611
     sha256: 07f1f78c857d5b5809ac7a68e1467d36872fa74f047ee2c799d37b18aad4f5aa
-    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2008-jean/nps-2008-jean.E02
+    download_url: https://downloads.digitalcorpora.org/corpora/drives/nps-2008-m57-jean/nps-2008-jean.E02
     description: Jean's laptop image, segment 2
     required: true
 

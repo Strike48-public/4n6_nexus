@@ -3,26 +3,91 @@ tier: real
 category: corporate
 difficulty: advanced
 description: >
-  National Gallery 2012 (NGDC) scenario — multi-device corporate
-  forensics challenge. Currently metadata-only — evidence not
-  downloaded.
+  National Gallery DC 2012 scenario — multi-device corporate forensics
+  challenge. Custodians: Tracy (home laptop, external workstation,
+  Android phone) and Carry (Android phone, Android tablet). Includes
+  PCAP and email capture. Full corpus spans daily snapshots 2012-07-03
+  through 2012-07-16-final; we pin the final-day images here.
 
 source:
   provider: digital_corpora
   url: https://digitalcorpora.org/corpora/scenarios/2012-ngdc/
-  date_published: 2012-01-01
+  date_published: 2012-07-16
   license: academic_use
   attribution: >
     National Gallery DC 2012 scenario (Digital Corpora).
 
 evidence:
-  # Placeholder entries. Populate after first download.
-  - path: evidence/PLACEHOLDER
+  - path: evidence/tracy-home/tracy-home-2012-07-16-final.E01
     kind: e01
-    size_bytes: null
+    size_bytes: 4294974464
     sha256: null
-    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/
-    description: Full NGDC image set (see provider URL for listing)
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/tracy-home/tracy-home-2012-07-16-final.E01
+    description: Tracy's home laptop, final snapshot segment 1 (~4.3 GB)
+    required: false
+
+  - path: evidence/tracy-home/tracy-home-2012-07-16-final.E02
+    kind: e01
+    size_bytes: 1571651584
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/tracy-home/tracy-home-2012-07-16-final.E02
+    description: Tracy's home laptop, final snapshot segment 2 (~1.5 GB)
+    required: false
+
+  - path: evidence/tracy-external/tracy-external-2012-07-16-final.E01
+    kind: e01
+    size_bytes: 3942645760
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/tracy-external/tracy-external-2012-07-16-final.E01
+    description: Tracy's external Windows workstation, final snapshot (~3.8 GB)
+    required: false
+
+  - path: evidence/tracy-phone/tracy-phone-2012-07-15-final.E01
+    kind: e01
+    size_bytes: 826703872
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/tracy-phone/tracy-phone-2012-07-15-final.E01
+    description: Tracy's Android phone, final snapshot (~788 MB)
+    required: false
+
+  - path: evidence/carry-phone/carry-phone-2012-07-15-final.zip
+    kind: archive
+    size_bytes: 209456128
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/carry-phone/carry-phone-2012-07-15-final.zip
+    description: Carry's Android phone, final snapshot (~200 MB)
+    required: false
+
+  - path: evidence/carry-tablet/carry-tablet-2012-07-16-final.E01
+    kind: e01
+    size_bytes: 1224736768
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/carry-tablet/carry-tablet-2012-07-16-final.E01
+    description: Carry's Android tablet, final snapshot (~1.2 GB)
+    required: false
+
+  - path: evidence/net/ngdc-exterior-2012-07-10.pcap
+    kind: pcap
+    size_bytes: 38104285
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/net/ngdc-exterior-2012-07-10.pcap
+    description: Exterior network capture (38 MB)
+    required: false
+
+  - path: evidence/email.zip
+    kind: archive
+    size_bytes: 16146
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/email.zip
+    description: Email archive for the scenario
+    required: false
+
+  - path: evidence/answers.zip
+    kind: archive
+    size_bytes: 8549409
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/answers.zip
+    description: Scenario answer key / ground truth
     required: false
 
 expected:
@@ -33,6 +98,6 @@ expected:
   min_recall: 1.0
 
 notes: |
-  Evidence not downloaded yet. Total size ~5 GB. Fetch via
-  download-corpora/download-phase1-critical.sh (will land in
-  scenarios/real/national_gallery_2012/evidence/).
+  Final-day-only subset (~12 GB). The full 9-snapshot corpus lives
+  under https://downloads.digitalcorpora.org/corpora/scenarios/2012-ngdc/
+  (~100+ GB). SHA-256 hashes populate after first successful download.

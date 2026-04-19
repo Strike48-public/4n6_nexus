@@ -18,39 +18,56 @@ source:
     under the academic use terms stated on digitalcorpora.org.
 
 evidence:
-  # Evidence pieces per-character. Not yet downloaded — see
-  # download_all.sh for the full set (~50-100 GB).
-  # SHA-256 values come from the published manifest once downloaded.
-  - path: evidence/pat/nps-2009-pat.E01
+  # Final-day redacted disks from the 19-day scenario (2009-12-11). See
+  # DOWNLOAD_URLS.txt for the full corpus (50+ snapshots per custodian,
+  # raw and redacted variants, USB drives, PCAPs, memory). Hashes will
+  # be populated after first successful download.
+  - path: evidence/pat/pat-2009-12-11.E01
     kind: e01
-    size_bytes: null
+    size_bytes: 6446194688
     sha256: null
-    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-pat/nps-2009-pat.E01
-    description: Pat's desktop, segment 1
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/pat-2009-12-11.E01
+    description: Pat's desktop, final day (redacted)
     required: false
 
-  - path: evidence/terry/nps-2009-terry.E01
+  - path: evidence/terry/terry-2009-12-11-001.E01
     kind: e01
-    size_bytes: null
+    size_bytes: 11106222080
     sha256: null
-    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-terry/nps-2009-terry.E01
-    description: Terry's laptop, segment 1
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/terry-2009-12-11-001.E01
+    description: Terry's workstation, final day part 1 (redacted)
     required: false
 
-  - path: evidence/charlie/nps-2009-charlie.E01
+  - path: evidence/terry/terry-2009-12-11-002.E01
     kind: e01
-    size_bytes: null
+    size_bytes: 11088216064
     sha256: null
-    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-charlie/nps-2009-charlie.E01
-    description: Charlie's laptop, segment 1
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/terry-2009-12-11-002.E01
+    description: Terry's workstation, final day part 2 (redacted)
     required: false
 
-  - path: evidence/jo/nps-2009-jo.E01
+  - path: evidence/charlie/charlie-2009-12-11.E01
     kind: e01
-    size_bytes: null
+    size_bytes: 4059095040
     sha256: null
-    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/nps-2009-jo/nps-2009-jo.E01
-    description: Jo's laptop, segment 1
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/charlie-2009-12-11.E01
+    description: Charlie's laptop, final day (redacted)
+    required: false
+
+  - path: evidence/jo/jo-2009-12-11-001.E01
+    kind: e01
+    size_bytes: 6234374144
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/jo-2009-12-11-001.E01
+    description: Jo's laptop, final day part 1 (redacted)
+    required: false
+
+  - path: evidence/jo/jo-2009-12-11-002.E01
+    kind: e01
+    size_bytes: 6227623936
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/jo-2009-12-11-002.E01
+    description: Jo's laptop, final day part 2 (redacted)
     required: false
 
 expected:
@@ -67,6 +84,7 @@ questions:
 
 notes: |
   Full file manifest with per-character details is in
-  files_manifest.json. Download via ./download_all.sh.
-  SHA-256 hashes will be populated after first successful download
-  by a verify_files.sh run.
+  files_manifest.json. download_all.sh fetches the redacted subset;
+  see DOWNLOAD_URLS.txt for the 50-snapshot series. SHA-256 hashes
+  will be populated after first successful download by a
+  verify_files.sh run.
