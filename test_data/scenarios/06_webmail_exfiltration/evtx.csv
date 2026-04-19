@@ -1,0 +1,3 @@
+TimeCreated,EventId,Computer,ProcessName,CommandLine
+2025-03-15 10:25:00,4688,DESKTOP-ABC123,chrome.exe,"C:\Program Files\Google\Chrome\Application\chrome.exe"
+2025-03-15 11:00:00,4688,DESKTOP-ABC123,calc.exe,C:\Windows\System32\calc.exe

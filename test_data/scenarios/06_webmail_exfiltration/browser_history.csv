@@ -1,0 +1,5 @@
+timestamp,url,title,visit_count,browser,profile
+2025-03-15T10:25:00Z,https://gmail.com/,Gmail,1,chrome,Default
+2025-03-15T10:25:05Z,https://mail.google.com/mail/u/0/#inbox,Gmail Inbox,1,chrome,Default
+2025-03-15T10:25:10Z,https://mail.google.com/mail/u/0/#compose,Compose - Gmail,1,chrome,Default
+2025-03-15T10:30:00Z,https://mail.google.com/mail/u/0/#sent,Sent Mail - Gmail,1,chrome,Default
