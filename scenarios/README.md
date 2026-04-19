@@ -82,6 +82,12 @@ scenarios/real/nitroba/download_all.sh
 scenarios/real/m57-patents/download_all.sh
 ```
 
+## Validating the engine
+
+Use [`VALIDATION.md`](VALIDATION.md) to track 1st/2nd/3rd-pass engine runs
+against every scenario's `expected:` block. Tick a box only when the
+actual output matches the manifest.
+
 ## Resources
 
 - Digital Corpora: https://digitalcorpora.org/
