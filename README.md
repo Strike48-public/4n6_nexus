@@ -204,9 +204,11 @@ More information: https://www.nist.gov/itl/ssd/software-quality-group/national-s
 
 | Document | Description |
 |----------|-------------|
+| [USER_GUIDE.md](docs/USER_GUIDE.md) | Complete user guide with workflows and troubleshooting |
+| [EXAMPLES.md](docs/EXAMPLES.md) | Real-world examples (M57 Jean, CIRCL, Nitroba) |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, data flows |
 | [CLI_USAGE.md](docs/CLI_USAGE.md) | Command-line interface guide |
 | [PRD.md](docs/PRD.md) | Complete Product Requirements Document |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, components, data flows |
 | [SELF_CORRECTION.md](docs/SELF_CORRECTION.md) | Self-correction scenarios and logic |
 | [TIMESTAMP_FORMATS.md](docs/TIMESTAMP_FORMATS.md) | Windows timestamp parsing reference |
 | [TOOL_INVENTORY.md](docs/TOOL_INVENTORY.md) | Available SIFT tools and MCP wrappers |
