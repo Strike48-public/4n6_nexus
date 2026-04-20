@@ -24,48 +24,48 @@ evidence:
   # be populated after first successful download.
   - path: evidence/pat/pat-2009-12-11.E01
     kind: e01
-    size_bytes: 6446194688
-    sha256: null
+    size_bytes: 6146409989
+    sha256: e5a1a0697302414d6b90edc298383ea970b9581c7c5bd51c7db85024c83c51b0
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/pat-2009-12-11.E01
     description: Pat's desktop, final day (redacted)
     required: false
 
   - path: evidence/terry/terry-2009-12-11-001.E01
     kind: e01
-    size_bytes: 11106222080
-    sha256: null
+    size_bytes: 10593607311
+    sha256: 5be54232f220cccd991884422fa88bce0642e5d4d4e08b73abd65b29a68e7d19
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/terry-2009-12-11-001.E01
     description: Terry's workstation, final day part 1 (redacted)
     required: false
 
   - path: evidence/terry/terry-2009-12-11-002.E01
     kind: e01
-    size_bytes: 11088216064
-    sha256: null
+    size_bytes: 10576418278
+    sha256: 7c35b523ee3e0c4600ccdcc00b35b5b2725b29758026aad6857fa09909da4944
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/terry-2009-12-11-002.E01
     description: Terry's workstation, final day part 2 (redacted)
     required: false
 
   - path: evidence/charlie/charlie-2009-12-11.E01
     kind: e01
-    size_bytes: 4059095040
-    sha256: null
+    size_bytes: 3874203396
+    sha256: 7f4ae8676e28ed76034392c68831a0948b4b40788070ad2ed660f32b045e2b5b
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/charlie-2009-12-11.E01
     description: Charlie's laptop, final day (redacted)
     required: false
 
   - path: evidence/jo/jo-2009-12-11-001.E01
     kind: e01
-    size_bytes: 6234374144
-    sha256: null
+    size_bytes: 5945571099
+    sha256: 8e5035afa164d89d69c7d6316a4f0ac0e995e4b9a00e558000ffde2e8238dded
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/jo-2009-12-11-001.E01
     description: Jo's laptop, final day part 1 (redacted)
     required: false
 
   - path: evidence/jo/jo-2009-12-11-002.E01
     kind: e01
-    size_bytes: 6227623936
-    sha256: null
+    size_bytes: 5939239364
+    sha256: 6efd385e39f63c4e9e7b5e4306ec1336886df22eba983037075e1c78b53058b7
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2009-m57-patents/drives-redacted/jo-2009-12-11-002.E01
     description: Jo's laptop, final day part 2 (redacted)
     required: false
