@@ -56,7 +56,7 @@ Pass legend: **[ ]** not run -- **[x]** matches expected -- **[!]** divergence (
 | 1 | [`ransomware_2021`](training/ransomware_2021/) | [ ] | [ ] | [ ] | dfir.training ransomware corpus. |
 | 2 | [`insider_threat_2022`](training/insider_threat_2022/) | [ ] | [ ] | [ ] | dfir.training insider threat. |
 | 3 | [`blue_team_challenge`](training/blue_team_challenge/) | [ ] | [ ] | [ ] | Memory + disk; advanced. |
-| 4 | [`network_intrusion`](training/network_intrusion/) | [ ] | [ ] | [ ] | PCAP + memory. |
+| 4 | [`network_intrusion`](training/network_intrusion/) | [!] | [ ] | [ ] | Evidence present + hashes match; no CLI path for PCAP/memory. See analysis/scenario_testing/network_intrusion/. |
 
 ---
 

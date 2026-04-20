@@ -13,9 +13,11 @@ concrete updates/changes required.
 | Tier       | Scenarios | Passing | Skipped | Blocked |
 |------------|-----------|---------|---------|---------|
 | synthetic  | 6         | 5       | 1       | 0       |
-| real       | 5         | 2       | 0       | 3       |
-| training   | 4         | 0       | 4       | 0       |
+| real       | 5         | 1       | 0       | 4       |
+| training   | 4         | 0       | 3       | 1*      |
 | reference  | 0         | —       | —       | —       |
+
+\* `network_intrusion` has full evidence but CLI has no PCAP/memory path.
 
 - CSV-driven CI gate is green: **TP=10, FP=0, FN=0, Precision=1.00, Recall=1.00, F1=1.00**.
 - Real scenarios with downloaded evidence (CIRCL, m57-jean) run end-to-end.
@@ -152,15 +154,45 @@ future passes don't repeatedly attempt it.
 
 ## Tier 3: training (external community images)
 
-| Scenario              | Evidence present | Runnable |
-|-----------------------|------------------|----------|
-| ransomware_2021       | No (empty dir)   | No       |
-| insider_threat_2022   | No (empty dir)   | No       |
-| blue_team_challenge   | No (empty dir)   | No       |
-| network_intrusion     | No (empty dir)   | No       |
+| Scenario              | Evidence present | Runnable | Status |
+|-----------------------|------------------|----------|--------|
+| ransomware_2021       | No (empty dir)   | No       | [ ]    |
+| insider_threat_2022   | No (empty dir)   | No       | [ ]    |
+| blue_team_challenge   | No (empty dir)   | No       | [ ]    |
+| network_intrusion     | **Yes** (1.2 GB PCAP + 4.3 GB memory) | Partial | [!] |
 
-All four training scenarios ship only `scenario.yaml` + `README.md` and an
-empty `evidence/` directory. They are practice material and expected to be
+### 3.4 `network_intrusion` — **DIVERGENCE** (evidence present, no CLI path)
+
+- Evidence on disk:
+  - `Day_1_Capture.7z` (925 MB, sha256 `3f75a2f7...ef7c31a`, matches manifest)
+  - `ggmemday1.7z` (552 MB, sha256 `6d1f09d0...f87d0f`, matches manifest)
+  - Extracted: `Day 1 Capture [20-09].pcap` (1.2 GB, 1,544k packets)
+  - Extracted: `ggmemday1.dmp` (4.29 GB Linux memory dump)
+- Manual `PcapParser` invocation succeeds:
+  - 3,548 HTTP requests (2,556 CONNECT / 756 POST / 233 GET)
+  - 12,072 DNS queries
+  - 0 SMTP messages (exfil likely over TLS, not plaintext)
+- Memory dump untouched: **Volatility 3 is not installed** on this
+  workstation (CLAUDE.md references `/opt/volatility3-2.20.0/vol.py` but
+  path does not exist; no `vol`/`volatility` on PATH).
+- Scenario expects `total: 0` (Q&A investigative scenario, four open
+  questions about C2/exfil/processes/IOCs). Engine silence technically
+  matches but no question is answered.
+
+Artifacts persisted to `analysis/scenario_testing/network_intrusion/`
+(`http_requests.json`, `dns_queries.json`, `README.md` with findings).
+
+**Changes needed**:
+
+- Wire `PcapParser` into CLI (already filed).
+- Install Volatility 3 on this workstation or ship a Docker wrapper
+  (covers SFE-ig6 "Phase 2: Volatility 3 Memory Forensics Integration").
+- Add C2/beaconing/exfil detectors that consume HTTP+DNS artifacts.
+
+### Other training scenarios
+
+Three remaining training scenarios ship only `scenario.yaml` + `README.md` and
+an empty `evidence/` directory. They are practice material and expected to be
 hydrated on demand — today they are **not exercised**.
 
 **Changes needed**:
