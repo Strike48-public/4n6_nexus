@@ -151,6 +151,41 @@ def test_offensive_package_ignores_benign_packages():
     assert findings == []
 
 
+def test_offensive_package_mirror_match_with_port():
+    # Regression: `host.lower().rstrip(":0123456789")` would strip trailing
+    # digits from any hostname, not just port suffixes — so "downloads.meta
+    # sploit.com:443" used to become "downloads.metasploit.com" but also
+    # "mirror1.example.com" would become "mirror.example.com". Verify the
+    # port-only strip is correct.
+    findings = OffensivePackageInstallDetector().analyze(
+        http_requests=[
+            _http(
+                "downloads.metasploit.com:80",
+                uri="/pool/main/metasploit-framework_6.0.8_amd64.deb",
+            )
+        ],
+    )
+    assert len(findings) == 1
+    assert findings[0].evidence["matched_mirror"] is True
+
+
+def test_offensive_package_does_not_truncate_numeric_hostnames():
+    # Hostname ending in a digit must NOT match mirror list via digit-strip.
+    findings = OffensivePackageInstallDetector(
+        offensive_mirrors=("example.com",),
+        package_names=("nonexistentpkg",),
+    ).analyze(
+        http_requests=[
+            _http(
+                "mirror1.example.com9",
+                uri="/some/path.deb",
+            )
+        ],
+    )
+    # No package match AND the mirror match must not succeed by stripping "9".
+    assert findings == []
+
+
 # --- CleartextProtocolDetector ----------------------------------------------
 
 

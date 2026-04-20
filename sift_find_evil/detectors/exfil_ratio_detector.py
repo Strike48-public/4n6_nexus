@@ -206,8 +206,9 @@ class ExfilRatioDetector:
 
     @staticmethod
     def _fmt_bytes(n: int) -> str:
+        value = float(n)
         for unit in ("B", "kB", "MB", "GB"):
-            if n < 1024:
-                return f"{n:.1f} {unit}"
-            n = n / 1024  # type: ignore[assignment]
-        return f"{n:.1f} TB"
+            if value < 1024:
+                return f"{value:.1f} {unit}"
+            value /= 1024
+        return f"{value:.1f} TB"

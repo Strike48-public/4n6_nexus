@@ -27,7 +27,7 @@ escape hatch.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterable, Optional
 
 from ..findings import FindingCategory
@@ -255,7 +255,9 @@ class OffensivePackageInstallDetector:
         return None
 
     def _match_mirror(self, host: str) -> bool:
-        lowered = host.lower().rstrip(":0123456789")
+        lowered = host.lower()
+        if ":" in lowered:
+            lowered = lowered.split(":", 1)[0]
         return any(
             lowered == m or lowered.endswith("." + m) for m in self.offensive_mirrors
         )

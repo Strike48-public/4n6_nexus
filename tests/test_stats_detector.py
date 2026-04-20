@@ -99,7 +99,7 @@ def test_beaconing_detector_skips_non_configured_methods():
 
 def test_beaconing_detector_normalizes_host_with_port():
     requests = [
-        _http(f"evil.example.com:443", offset_seconds=i * 300.0)
+        _http("evil.example.com:443", offset_seconds=i * 300.0)
         for i in range(6)
     ]
     findings = BeaconingDetector().analyze(http_requests=requests)
