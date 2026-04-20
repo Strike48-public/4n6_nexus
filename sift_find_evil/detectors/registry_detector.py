@@ -82,6 +82,10 @@ _HIDDEN_POWERSHELL_FLAGS = re.compile(
 # don't want to spend regex time on it.
 _MAX_COMMAND_LENGTH = 4096
 
+_PAYLOAD_EXTENSIONS: frozenset[str] = frozenset(
+    {"exe", "dll", "scr", "com", "bat", "vbs", "js", "jse", "wsf", "ps1", "lnk"}
+)
+
 _DOUBLE_EXT_RE = re.compile(
     r"\.(?:doc|docx|xls|xlsx|pdf|txt|jpg|png|mp3|mp4)\.(?:exe|scr|com|bat|vbs|js|jse|wsf|lnk|ps1)$",
     re.IGNORECASE,
@@ -254,6 +258,27 @@ class RegistryDetector:
             return 0.50, "Low", "medium"
         return 0.65, "Medium", "medium"
 
+    def _run_key_target_basename(self, command: str, launcher: str) -> str:
+        """Pick the basename that best identifies the persisted payload.
+
+        When the launcher itself is a LOLBAS/script host (powershell.exe,
+        rundll32.exe, ...), the meaningful artifact for case-level accounting
+        is the payload token, not the interpreter. Scan remaining tokens for
+        the first path-like basename with an executable/script extension.
+        Fall back to the launcher when no payload token is present (bare
+        ``regsvr32.exe /s /u scrobj.dll`` style commands where the payload is
+        an argument without a recognisable extension).
+        """
+        tokens = _command_path_tokens(command)
+        if launcher in self.lolbas_launchers and len(tokens) > 1:
+            for token in tokens[1:]:
+                name = _basename(token).lower()
+                if name and name != launcher and "." in name:
+                    suffix = name.rsplit(".", 1)[-1]
+                    if suffix in _PAYLOAD_EXTENSIONS:
+                        return name
+        return launcher
+
     @staticmethod
     def _launcher_basename(command: str) -> Optional[str]:
         """Extract the executable basename from a Run key command line."""
@@ -273,6 +298,7 @@ class RegistryDetector:
         self, entry: RunKeyEntry, reasons: list[str]
     ) -> Finding:
         launcher = self._launcher_basename(entry.command) or "(unknown)"
+        target_basename = self._run_key_target_basename(entry.command, launcher)
         confidence, label, severity = self._score_run_key(reasons)
         return Finding(
             title=(
@@ -294,6 +320,7 @@ class RegistryDetector:
                 "value_name": entry.value_name,
                 "command": entry.command,
                 "launcher": launcher,
+                "executable": target_basename,
                 "last_write_time": entry.last_write_time.isoformat(),
                 "reasons": reasons,
             },
@@ -437,6 +464,7 @@ class RegistryDetector:
             category=FindingCategory.PERSISTENCE,
             evidence={
                 "file_path": file_path,
+                "executable": _basename(file_path).lower(),
                 "sources": sources,
                 "first_seen": first_seen,
                 "last_seen": last_seen,
@@ -483,6 +511,7 @@ class RegistryDetector:
             category=FindingCategory.PERSISTENCE,
             evidence={
                 "program_name": entry.program_name,
+                "executable": _basename(entry.program_name).lower(),
                 "run_count": entry.run_count,
                 "focus_count": entry.focus_count,
                 "focus_time_ms": entry.focus_time_ms,

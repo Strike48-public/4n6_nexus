@@ -47,9 +47,19 @@ Insider threat where attacker deletes Prefetch. Expected findings: 3.
 ### 06_webmail_exfiltration
 Webmail-based data exfiltration detection (browser history). Adds `browser_history.csv` alongside the standard triple.
 
+### 08_persistence_run_keys
+Persistence via HKCU Run key launching `powershell.exe -enc` against `beacon.ps1`. Adds `run_keys.csv`, `amcache.csv`, `bam.csv`. Expected findings: 2 (Run key persistence + attacker-writable-path execution of `beacon.exe`). Exercises the LOLBAS-aware payload-basename extraction in `RegistryDetector`.
+
+### 09_shimcache_only
+Attacker wiped Prefetch; only Shimcache still records staging binaries. Adds `shimcache.csv`. Expected findings: 2 (`stage1.exe` in ProgramData, double-extension `report.pdf.exe` in Users\Public). Includes a System32 cmd.exe row as control.
+
+### 10_timestomping_with_bam
+Dual-detector scenario. `backdoor.exe` is timestomped ($SI vs $FN) and caught by the SelfCorrectionEngine timestomping pathway; `ldr.exe` runs from `C:\Users\Public\Downloads` and is caught by `RegistryDetector` via BAM + attacker-writable-path heuristic. Adds `bam.csv`.
+
 ## Adding a Scenario
 
 1. Create `scenarios/synthetic/NN_<name>/`
 2. Add CSVs: `mft.csv`, `prefetch.csv`, `evtx.csv` (+ optional parsers)
+   - Registry fixtures: `shimcache.csv`, `amcache.csv`, `bam.csv`, `userassist.csv`, `run_keys.csv`
 3. Add `scenario.yaml` manifest (see `../_schemas/scenario.yaml`)
 4. Tests are picked up automatically via the `scenarios/**/scenario.yaml` glob

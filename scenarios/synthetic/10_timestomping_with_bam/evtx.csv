@@ -1,0 +1,2 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-04-03T12:00:00.0000000Z,4688,120001,VICTIM-PC,Security,Information,S-1-5-21-5555555,C:\Windows\System32\backdoor.exe,%%1936,0xABF01,C:\Windows\explorer.exe,0xF601,backdoor.exe,Process Create (Event ID 4688)

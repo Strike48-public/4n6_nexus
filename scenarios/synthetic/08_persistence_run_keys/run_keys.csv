@@ -1,0 +1,2 @@
+key_path,value_name,command,hive,last_write_time
+Software\Microsoft\Windows\CurrentVersion\Run,WindowsDefenderUpdate,"powershell.exe -nop -w hidden -ep bypass -File C:\Users\Public\beacon.ps1",HKCU,2025-04-01T08:55:00.0000000Z

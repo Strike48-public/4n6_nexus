@@ -1,0 +1,2 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-04-02T11:00:00.0000000Z,4688,110001,VICTIM-PC,Security,Information,S-1-5-21-9999999,C:\Windows\explorer.exe,%%1936,0xABE01,C:\Windows\System32\userinit.exe,0xF501,explorer.exe,Process Create (Event ID 4688)

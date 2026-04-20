@@ -1,0 +1,41 @@
+name: 10_timestomping_with_bam
+tier: synthetic
+category: defense_evasion
+difficulty: advanced
+description: >
+  Combined scenario. ``backdoor.exe`` is timestomped ($SI backdated
+  four years before $FN) and has a matching Prefetch entry - the
+  SelfCorrectionEngine flags it via the timestomping pathway.
+  Meanwhile ``ldr.exe`` runs from C:\Users\Public\Downloads with no
+  Prefetch record; BAM captures the execution at microsecond precision
+  and RegistryDetector flags the attacker-writable-path execution.
+  Exercises both detectors in one image.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+  bam: bam.csv
+
+expected:
+  malicious_executables:
+    - backdoor.exe
+    - ldr.exe
+  finding_counts:
+    timeline_tampering: 1
+    persistence: 1
+    total: 2
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  MITRE ATT&CK T1070.006 (Timestomp), T1036.005 (Masquerading), plus
+  execution-from-attacker-writable-path pattern caught by BAM. The
+  timestomping detector fires on backdoor.exe via SI/FN divergence;
+  RegistryDetector fires on ldr.exe via BAM + path heuristic. Both
+  feed into the harness's precision/recall accounting via the
+  ``executable`` evidence key.

@@ -1,0 +1,40 @@
+name: 08_persistence_run_keys
+tier: synthetic
+category: persistence
+difficulty: intermediate
+description: >
+  Persistence via Registry Run keys. HKCU Run value launches
+  powershell.exe with hidden/encoded flags against a payload in
+  C:\Users\Public. Traditional timeline artifacts (MFT/Prefetch/EvtX)
+  are clean - only the Registry detector should flag the persistence
+  mechanism. Exercises RegistryDetector on Run key + corroborating
+  execution records (Amcache + BAM) for the payload.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+  run_keys: run_keys.csv
+  amcache: amcache.csv
+  bam: bam.csv
+
+expected:
+  malicious_executables:
+    - beacon.ps1
+    - beacon.exe
+  finding_counts:
+    persistence: 2
+    total: 2
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  MITRE ATT&CK T1547.001 (Registry Run Keys / Startup Folder). The Run
+  key launches powershell -enc against beacon.ps1; the payload token
+  (beacon.ps1) is the executable of record, not powershell.exe. BAM
+  and Amcache corroborate a second payload binary beacon.exe executing
+  from C:\Users\Public\ — a classic attacker-writable drop path.

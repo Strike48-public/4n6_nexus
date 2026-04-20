@@ -1,0 +1,3 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-04-01T09:00:00.0000000Z,4688,100001,VICTIM-PC,Security,Information,S-1-5-21-7777777,C:\Windows\explorer.exe,%%1936,0xABD01,C:\Windows\System32\userinit.exe,0xF401,explorer.exe,Process Create (Event ID 4688)
+2025-04-01T09:15:00.0000000Z,4688,100002,VICTIM-PC,Security,Information,S-1-5-21-7777777,C:\Program Files\Google\Chrome\Application\chrome.exe,%%1936,0xABD02,C:\Windows\explorer.exe,0xF402,chrome.exe --type=browser,Process Create (Event ID 4688)

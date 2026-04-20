@@ -17,11 +17,13 @@ from typing import Any, Optional
 import yaml
 
 from sift_find_evil.detectors import NetworkDetector
+from sift_find_evil.detectors.registry_detector import RegistryDetector
 from sift_find_evil.detectors.webmail_exfil_detector import MFTAccessRecord
 from sift_find_evil.parsers.browser_history_parser import BrowserHistoryParser
 from sift_find_evil.parsers.evtx_parser import EventLogParser
 from sift_find_evil.parsers.mft_parser import MFTParser
 from sift_find_evil.parsers.prefetch_parser import PrefetchParser
+from sift_find_evil.parsers.registry_parser import RegistryParser
 from sift_find_evil.self_correction.engine import SelfCorrectionEngine
 
 
@@ -37,6 +39,11 @@ class ScenarioExpectation:
     prefetch_fixture: str
     evtx_fixture: str
     browser_history_fixture: Optional[str] = None
+    shimcache_fixture: Optional[str] = None
+    amcache_fixture: Optional[str] = None
+    bam_fixture: Optional[str] = None
+    userassist_fixture: Optional[str] = None
+    run_keys_fixture: Optional[str] = None
     finding_counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -113,11 +120,63 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
                 browser_history_fixture=(
                     str(browser_history_fixture) if browser_history_fixture else None
                 ),
+                shimcache_fixture=_optional_str(fixtures.get("shimcache")),
+                amcache_fixture=_optional_str(fixtures.get("amcache")),
+                bam_fixture=_optional_str(fixtures.get("bam")),
+                userassist_fixture=_optional_str(fixtures.get("userassist")),
+                run_keys_fixture=_optional_str(fixtures.get("run_keys")),
                 finding_counts={k: int(v) for k, v in finding_counts.items()},
             )
         )
 
     return expectations
+
+
+def _optional_str(value: Any) -> Optional[str]:
+    """Return ``str(value)`` if truthy, else ``None``."""
+    return str(value) if value else None
+
+
+def _run_registry_for_scenario(expectation: ScenarioExpectation) -> list:
+    """Run ``RegistryDetector`` on any registry fixtures declared by the scenario.
+
+    Returns an empty list when no registry fixtures are present — scenarios
+    that predate SFE-m9a stay untouched.
+    """
+    fixtures = {
+        "shimcache": expectation.shimcache_fixture,
+        "amcache": expectation.amcache_fixture,
+        "bam": expectation.bam_fixture,
+        "userassist": expectation.userassist_fixture,
+        "run_keys": expectation.run_keys_fixture,
+    }
+    if not any(fixtures.values()):
+        return []
+
+    parser = RegistryParser()
+    directory = expectation.directory
+    kwargs: dict[str, Any] = {}
+
+    if fixtures["shimcache"]:
+        kwargs["shimcache"] = parser.parse_shimcache_csv(
+            directory / fixtures["shimcache"]
+        )
+    if fixtures["amcache"]:
+        kwargs["amcache"] = parser.parse_amcache_csv(
+            directory / fixtures["amcache"]
+        )
+    if fixtures["bam"]:
+        kwargs["bam"] = parser.parse_bam_csv(directory / fixtures["bam"])
+    if fixtures["userassist"]:
+        kwargs["userassist"] = parser.parse_userassist_csv(
+            directory / fixtures["userassist"]
+        )
+    if fixtures["run_keys"]:
+        kwargs["run_keys"] = parser.parse_run_keys_csv(
+            directory / fixtures["run_keys"]
+        )
+
+    return RegistryDetector().analyze(**kwargs)
 
 
 def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
@@ -135,6 +194,9 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     )
 
     findings = list(SelfCorrectionEngine().analyze(mft, prefetch, evtx))
+
+    registry_findings = _run_registry_for_scenario(expectation)
+    findings.extend(registry_findings)
 
     network_findings: list = []
     if expectation.browser_history_fixture:

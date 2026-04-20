@@ -277,6 +277,50 @@ def test_empty_inputs_produce_no_findings():
     assert detector.analyze(shimcache=[], amcache=[], bam=[], userassist=[], run_keys=[]) == []
 
 
+def test_run_key_evidence_prefers_payload_basename_over_lolbas_launcher():
+    # When the launcher is a script host, harness-level matching needs the
+    # payload basename, not "powershell.exe". The target here is malware.ps1.
+    entry = _run_key(
+        command='powershell.exe -nop -w hidden -File "C:\\Users\\Public\\malware.ps1"'
+    )
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+    assert findings[0].evidence["executable"] == "malware.ps1"
+    assert findings[0].evidence["launcher"] == "powershell.exe"
+
+
+def test_run_key_evidence_falls_back_to_launcher_when_no_payload_token():
+    # regsvr32 /s /u scrobj.dll — scrobj.dll is a Windows system DLL, not a
+    # named payload on its own. Harness-level accounting should still have
+    # *something* to match, so we fall back to the launcher basename.
+    entry = _run_key(command="regsvr32.exe /s /u scrobj.dll")
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+    assert findings[0].evidence["executable"] == "scrobj.dll"
+
+
+def test_run_key_evidence_uses_launcher_when_not_lolbas():
+    # Non-LOLBAS launcher: the executable IS the payload.
+    entry = _run_key(command='"C:\\Users\\Public\\update.exe"')
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+    assert findings[0].evidence["executable"] == "update.exe"
+
+
+def test_execution_evidence_has_executable_basename():
+    findings = RegistryDetector().analyze(
+        shimcache=[_shimcache("C:\\Users\\Public\\tools\\mimi.exe")],
+    )
+    assert findings[0].evidence["executable"] == "mimi.exe"
+
+
+def test_userassist_evidence_has_executable_basename():
+    findings = RegistryDetector().analyze(
+        userassist=[_userassist("powershell.exe")],
+    )
+    assert findings[0].evidence["executable"] == "powershell.exe"
+
+
 def test_full_pipeline_produces_mixed_findings():
     findings = RegistryDetector().analyze(
         run_keys=[

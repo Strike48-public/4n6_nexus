@@ -1,0 +1,38 @@
+name: 09_shimcache_only
+tier: synthetic
+category: anti_forensics
+difficulty: advanced
+description: >
+  Attacker wiped Prefetch to hide execution of two staging binaries
+  dropped into C:\ProgramData and C:\Users\Public. Shimcache is the
+  only artifact that still records the runs. Exercises the Registry
+  detector's attacker-writable-path branch on Shimcache when Prefetch
+  is absent and Event Log 4688 is not available (host was not in an
+  audit-process-creation policy).
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+  shimcache: shimcache.csv
+
+expected:
+  malicious_executables:
+    - stage1.exe
+    - report.pdf.exe
+  finding_counts:
+    persistence: 2
+    total: 2
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  MITRE ATT&CK T1070.004 (File Deletion) / T1070.009 (Clear Persistence).
+  Prefetch and EvtX are intentionally benign - the detector must carry
+  the case on Shimcache alone. report.pdf.exe uses a double extension
+  so its finding should be high-severity. The System32\cmd.exe row is a
+  control to prove the detector does not flag benign system paths.

@@ -51,6 +51,12 @@ fixtures:
   prefetch: prefetch.csv
   evtx: evtx.csv
   browser_history: browser_history.csv   # optional
+  # Registry fixtures (optional; any subset may be present).
+  shimcache: shimcache.csv
+  amcache: amcache.csv
+  bam: bam.csv
+  userassist: userassist.csv
+  run_keys: run_keys.csv
 
 # ─── Ground truth (what the engine is expected to find) ──────────────────────
 
