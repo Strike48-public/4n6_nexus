@@ -24,7 +24,7 @@ from sift_find_evil.parsers.evtx_parser import EventLogParser
 from sift_find_evil.parsers.mft_parser import MFTParser
 from sift_find_evil.parsers.prefetch_parser import PrefetchParser
 from sift_find_evil.parsers.registry_parser import RegistryParser
-from sift_find_evil.self_correction.engine import SelfCorrectionEngine
+from sift_find_evil.self_correction.engine import Finding, SelfCorrectionEngine
 
 
 @dataclass(frozen=True)
@@ -137,7 +137,7 @@ def _optional_str(value: Any) -> Optional[str]:
     return str(value) if value else None
 
 
-def _run_registry_for_scenario(expectation: ScenarioExpectation) -> list:
+def _run_registry_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
     """Run ``RegistryDetector`` on any registry fixtures declared by the scenario.
 
     Returns an empty list when no registry fixtures are present — scenarios
