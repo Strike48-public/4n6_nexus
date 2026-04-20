@@ -21,7 +21,7 @@ evidence:
   - path: evidence/Narcos-CCleaner.E01
     kind: e01
     size_bytes: 8174198160
-    sha256: null
+    sha256: 722928a1519978d2546098e3136aa5c72a8b899bf3a4239cea52c89c455c56a0
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2019-narcos/Narcos-CCleaner.E01
     description: CCleaner-custodian disk image (~7.6 GB)
     required: true
@@ -29,7 +29,7 @@ evidence:
   - path: evidence/Narcos-Mem-CCleaner.E01
     kind: memory
     size_bytes: 1547259526
-    sha256: null
+    sha256: fa59cb5951aec1e7dcfbc7e17e49669a8c7961fb933fb414509096a281199f61
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2019-narcos/Narcos-Mem-CCleaner.E01
     description: CCleaner-custodian memory capture (~1.4 GB)
     required: true

@@ -21,7 +21,7 @@ evidence:
   - path: evidence/alison_ws.7z
     kind: archive
     size_bytes: 8551539548
-    sha256: null
+    sha256: 80b5a13a46df07839e75181a962b5ab78ea66d518b984cd915e52fa0ceb0ccb4
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage3/alison_ws.7z
     description: Stage 3 compromised workstation image, 7z-packed (~8 GB)
     required: true
@@ -29,7 +29,7 @@ evidence:
   - path: evidence/aamemend.7z
     kind: memory
     size_bytes: 811401833
-    sha256: null
+    sha256: 2676d4506ca4eae967877f2812a14b057ba3b2fb13d9f365b6f22eb426e1e185
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage5/aamemend.7z
     description: Paired end-state memory capture, 7z-packed (~0.8 GB)
     required: true

@@ -21,7 +21,7 @@ evidence:
   - path: evidence/Forensic_Image_Files.zip
     kind: archive
     size_bytes: 15770423411
-    sha256: null
+    sha256: 1d42d46341a0f9d5311b5bec37f34fa4bee2e102d2fbc196c903753b07c801ab
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2018-lonewolf/Forensic%20Image%20Files.zip
     description: LoneWolf forensic image bundle (~14.7 GB)
     required: true
