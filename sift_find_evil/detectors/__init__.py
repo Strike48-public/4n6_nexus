@@ -9,6 +9,7 @@ interface declares.
 
 from __future__ import annotations
 
+from .exfil_ratio_detector import ExfilRatioDetector
 from .network_detector import NetworkDetector
 from .stats_detector import BeaconingDetector, DNSAnomalyDetector
 from .watchlist_detector import (
@@ -22,6 +23,7 @@ __all__ = [
     "BeaconingDetector",
     "CleartextProtocolDetector",
     "DNSAnomalyDetector",
+    "ExfilRatioDetector",
     "NetworkDetector",
     "OffensivePackageInstallDetector",
     "SuspiciousHostDetector",

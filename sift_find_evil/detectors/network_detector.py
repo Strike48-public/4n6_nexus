@@ -18,6 +18,7 @@ from typing import Iterable, Optional
 from ..parsers.browser_history_parser import BrowserHistoryEntry
 from ..parsers.pcap_parser import DNSQuery, HTTPRequest, SMTPMessage, TCPConversation
 from ..self_correction.engine import Finding
+from .exfil_ratio_detector import ExfilRatioDetector
 from .stats_detector import BeaconingDetector, DNSAnomalyDetector
 from .watchlist_detector import (
     CleartextProtocolDetector,
@@ -43,6 +44,7 @@ class NetworkDetector:
         cleartext_protocol: Optional[CleartextProtocolDetector] = None,
         beaconing: Optional[BeaconingDetector] = None,
         dns_anomaly: Optional[DNSAnomalyDetector] = None,
+        exfil_ratio: Optional[ExfilRatioDetector] = None,
     ):
         self.webmail_exfil = webmail_exfil or WebmailExfilDetector()
         self.suspicious_host = suspicious_host or SuspiciousHostDetector()
@@ -54,6 +56,7 @@ class NetworkDetector:
         )
         self.beaconing = beaconing or BeaconingDetector()
         self.dns_anomaly = dns_anomaly or DNSAnomalyDetector()
+        self.exfil_ratio = exfil_ratio or ExfilRatioDetector()
 
     def analyze(
         self,
@@ -108,9 +111,16 @@ class NetworkDetector:
             )
 
         if tcp_conversations is not None:
+            conv_list = list(tcp_conversations)
             findings.extend(
                 self.cleartext_protocol.analyze(
-                    tcp_conversations=tcp_conversations
+                    tcp_conversations=conv_list
+                )
+            )
+            findings.extend(
+                self.exfil_ratio.analyze(
+                    tcp_conversations=conv_list,
+                    dns_queries=dns_list,
                 )
             )
 

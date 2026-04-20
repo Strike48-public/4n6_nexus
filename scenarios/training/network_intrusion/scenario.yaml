@@ -37,8 +37,22 @@ evidence:
 
 expected:
   malicious_executables: []
+  # Counts reflect what the current NetworkDetector pipeline produces on the
+  # real Day 1 PCAP, post SFE-m82/SFE-cpg/SFE-dar/SFE-4wl/SFE-tcj/SFE-84s
+  # detector landings. The scenario harness does not yet grade network-only
+  # scenarios (requires MFT/prefetch/evtx fixtures), so these counts are
+  # documentation rather than test assertions — they exist to keep the
+  # expected envelope honest rather than tautologically passing with total=0.
   finding_counts:
-    total: 0
+    suspicious_host_access: 20       # pastebin, null-byte.wonderhowto, metasploit mirror
+    offensive_package_install: 3     # metasploit-framework, john, mirror-only match
+    cleartext_protocol: 4            # SMTP:25, POP3:110, IMAP:143, rsyslog:514
+    asymmetric_outbound_transfer: 1  # 156.59.33.180 -> 44.226.54.40:443 (22x outbound)
+    total: 28
+  # Beaconing and DNS-tunneling detectors produce zero findings on this
+  # capture: minimum observed CoV is 0.245 (threshold 0.15) and the longest
+  # DNS label is an AWS ELB name (suppressed). That is expected and correct —
+  # this capture's "evil" is watchlist-visible, not statistical.
   min_precision: 1.0
   min_recall: 1.0
 
