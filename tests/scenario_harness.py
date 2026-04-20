@@ -12,10 +12,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
+from sift_find_evil.detectors import NetworkDetector
+from sift_find_evil.detectors.webmail_exfil_detector import MFTAccessRecord
+from sift_find_evil.parsers.browser_history_parser import BrowserHistoryParser
 from sift_find_evil.parsers.evtx_parser import EventLogParser
 from sift_find_evil.parsers.mft_parser import MFTParser
 from sift_find_evil.parsers.prefetch_parser import PrefetchParser
@@ -33,6 +36,8 @@ class ScenarioExpectation:
     mft_fixture: str
     prefetch_fixture: str
     evtx_fixture: str
+    browser_history_fixture: Optional[str] = None
+    finding_counts: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -88,19 +93,13 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
         mft_fixture = fixtures.get("mft")
         prefetch_fixture = fixtures.get("prefetch")
         evtx_fixture = fixtures.get("evtx")
+        browser_history_fixture = fixtures.get("browser_history")
         if not (mft_fixture and prefetch_fixture and evtx_fixture):
             continue
 
         expected = data.get("expected") or {}
         malicious = expected.get("malicious_executables") or []
-
-        # Skip scenarios whose ground truth is non-executable (e.g. webmail
-        # exfiltration) — those need a dedicated harness that inspects other
-        # finding categories.
         finding_counts = expected.get("finding_counts") or {}
-        total_expected = finding_counts.get("total", 0)
-        if total_expected and not malicious:
-            continue
 
         expectations.append(
             ScenarioExpectation(
@@ -111,6 +110,10 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
                 mft_fixture=str(mft_fixture),
                 prefetch_fixture=str(prefetch_fixture),
                 evtx_fixture=str(evtx_fixture),
+                browser_history_fixture=(
+                    str(browser_history_fixture) if browser_history_fixture else None
+                ),
+                finding_counts={k: int(v) for k, v in finding_counts.items()},
             )
         )
 
@@ -118,7 +121,12 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
 
 
 def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
-    """Execute the engine for one scenario and compare to ground truth."""
+    """Execute the engine for one scenario and compare to ground truth.
+
+    Runs both the SelfCorrectionEngine (executable-level detections) and the
+    NetworkDetector when the scenario provides browser history. Findings from
+    both pipelines feed into the same precision/recall accounting.
+    """
     directory = expectation.directory
     mft = MFTParser().parse_csv(directory / expectation.mft_fixture)
     prefetch = PrefetchParser().parse_csv(directory / expectation.prefetch_fixture)
@@ -126,14 +134,47 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         directory / expectation.evtx_fixture, filter_event_ids=[4688]
     )
 
-    findings = SelfCorrectionEngine().analyze(mft, prefetch, evtx)
+    findings = list(SelfCorrectionEngine().analyze(mft, prefetch, evtx))
+
+    network_findings: list = []
+    if expectation.browser_history_fixture:
+        browser_history = BrowserHistoryParser().parse_csv(
+            directory / expectation.browser_history_fixture
+        )
+        mft_records = [
+            MFTAccessRecord(
+                filename=entry.file_name,
+                parent_path=entry.parent_path,
+                accessed=entry.si_accessed or entry.fn_accessed,
+            )
+            for entry in mft
+            if (entry.si_accessed or entry.fn_accessed) is not None
+        ]
+        network_findings = NetworkDetector().analyze(
+            browser_history=browser_history,
+            mft_records=mft_records,
+        )
+        findings.extend(network_findings)
 
     detected = [f.evidence.get("executable", "").lower() for f in findings]
     expected = set(expectation.malicious_executables)
 
-    tp = [name for name in detected if name in expected]
-    fp = [name for name in detected if name not in expected]
+    tp = [name for name in detected if name and name in expected]
+    fp = [name for name in detected if name and name not in expected]
     fn = [name for name in expected if name not in detected]
+
+    # When the scenario's expected finding is a category count rather than a
+    # named executable (webmail exfiltration), count each category-matching
+    # finding as a true positive up to the expected total.
+    webmail_expected = expectation.finding_counts.get("webmail_exfiltration", 0)
+    if webmail_expected:
+        matched = [
+            f for f in network_findings
+            if f.category.value == "data_exfiltration"
+        ]
+        tp.extend(["webmail_exfiltration"] * min(webmail_expected, len(matched)))
+        missing = max(webmail_expected - len(matched), 0)
+        fn.extend(["webmail_exfiltration"] * missing)
 
     avg_conf = (
         sum(f.confidence for f in findings) / len(findings) if findings else 0.0

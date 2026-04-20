@@ -14,9 +14,12 @@ from typing import Optional
 from .parsers.mft_parser import MFTParser
 from .parsers.prefetch_parser import PrefetchParser
 from .parsers.evtx_parser import EventLogParser
+from .parsers.browser_history_parser import BrowserHistoryParser
 from .self_correction.engine import SelfCorrectionEngine
 from .disk.wipe_detector import detect_from_image
 from .disk.exfil_detector import detect_exfiltration
+from .detectors import NetworkDetector
+from .detectors.webmail_exfil_detector import MFTAccessRecord
 from .validation import AdversarialValidator
 
 
@@ -220,8 +223,8 @@ def _render_findings(findings: list, validation_reports: Optional[dict] = None) 
         return
     for idx, finding in enumerate(findings, 1):
         validation_status = None
-        if validation_reports and finding in validation_reports:
-            report = validation_reports[finding]
+        if validation_reports and id(finding) in validation_reports:
+            report = validation_reports[id(finding)]
             if report.passed:
                 if report.warnings:
                     validation_status = f"PASSED with {len(report.warnings)} warning(s)"
@@ -232,21 +235,104 @@ def _render_findings(findings: list, validation_reports: Optional[dict] = None) 
         print_finding(finding, idx, validation_status)
 
 
+def _mft_entries_to_access_records(mft_entries) -> list[MFTAccessRecord]:
+    """Project MFT entries into the minimal shape NetworkDetector consumes."""
+    records: list[MFTAccessRecord] = []
+    for entry in mft_entries:
+        accessed = entry.si_accessed or entry.fn_accessed
+        if accessed is None:
+            continue
+        records.append(
+            MFTAccessRecord(
+                filename=entry.file_name,
+                parent_path=entry.parent_path,
+                accessed=accessed,
+            )
+        )
+    return records
+
+
+def _run_network_detector(
+    browser_history_path: Optional[Path],
+    pcap_path: Optional[Path],
+    mft_entries,
+    verbose: bool,
+) -> list:
+    """Run NetworkDetector against browser history + optional PCAP."""
+    if browser_history_path is None and pcap_path is None:
+        return []
+
+    browser_history = None
+    if browser_history_path is not None:
+        if verbose:
+            print(f"  Loading browser history from: {browser_history_path}")
+        browser_history = BrowserHistoryParser().parse_csv(browser_history_path)
+        if verbose:
+            print(f"    Loaded {len(browser_history)} browser history entries")
+
+    http_requests = None
+    if pcap_path is not None:
+        if verbose:
+            print(f"  Loading HTTP requests from PCAP: {pcap_path}")
+        from .parsers.pcap_parser import PcapParser
+        http_requests = PcapParser().extract_http_requests(pcap_path)
+        if verbose:
+            print(f"    Extracted {len(http_requests)} HTTP requests")
+
+    mft_records = _mft_entries_to_access_records(mft_entries) if mft_entries else None
+
+    if verbose:
+        print_section("Running Network Detector")
+
+    findings = NetworkDetector().analyze(
+        browser_history=browser_history,
+        mft_records=mft_records,
+        http_requests=http_requests,
+    )
+
+    if verbose:
+        print(f"  Detected {len(findings)} network finding(s)")
+
+    return findings
+
+
 def cmd_analyze(args):
     """Handle analyze command."""
     print_banner()
 
     image_path: Optional[Path] = Path(args.image) if getattr(args, 'image', None) else None
     pst_path: Optional[Path] = Path(args.pst) if getattr(args, 'pst', None) else None
+    pcap_path: Optional[Path] = Path(args.pcap) if getattr(args, 'pcap', None) else None
+    browser_history_path: Optional[Path] = (
+        Path(args.browser_history) if getattr(args, 'browser_history', None) else None
+    )
     artifact_args = [getattr(args, 'mft', None), getattr(args, 'prefetch', None), getattr(args, 'evtx', None)]
     has_artifacts = any(artifact_args)
+    has_network = pcap_path is not None or browser_history_path is not None
 
-    if image_path is None and not has_artifacts and pst_path is None:
-        print("Error: provide --image and/or --pst and/or all of --mft/--prefetch/--evtx", file=sys.stderr)
+    if (
+        image_path is None
+        and not has_artifacts
+        and pst_path is None
+        and not has_network
+    ):
+        print(
+            "Error: provide --image and/or --pst and/or all of --mft/--prefetch/--evtx "
+            "and/or --pcap/--browser-history",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if has_artifacts and not all(artifact_args):
         print("Error: --mft, --prefetch, and --evtx must be provided together", file=sys.stderr)
+        sys.exit(1)
+
+    if pcap_path is not None and not pcap_path.exists():
+        print(f"Error: PCAP file not found: {pcap_path}", file=sys.stderr)
+        sys.exit(1)
+
+    if browser_history_path is not None and not browser_history_path.exists():
+        print(f"Error: browser history CSV not found: {browser_history_path}", file=sys.stderr)
         sys.exit(1)
 
     disk_finding = None
@@ -264,6 +350,10 @@ def cmd_analyze(args):
 
     if not has_artifacts:
         findings = [disk_finding] if disk_finding else []
+        if has_network:
+            findings = list(findings) + _run_network_detector(
+                browser_history_path, pcap_path, mft_entries=None, verbose=True
+            )
         _write_output(findings, Path(args.output) if args.output else None)
         _render_findings(findings)
         return
@@ -297,6 +387,15 @@ def cmd_analyze(args):
     if disk_finding is not None:
         findings = [disk_finding] + list(findings)
 
+    if has_network:
+        mft_entries_for_network = MFTParser().parse_csv(mft_path)
+        findings = list(findings) + _run_network_detector(
+            browser_history_path,
+            pcap_path,
+            mft_entries=mft_entries_for_network,
+            verbose=True,
+        )
+
     # Validate CRITICAL findings
     print_section("Validating CRITICAL Findings")
     validator = AdversarialValidator()
@@ -307,7 +406,7 @@ def cmd_analyze(args):
     for finding in findings:
         if finding.severity == "critical":
             report = validator.validate(finding)
-            validation_reports[finding] = report
+            validation_reports[id(finding)] = report
 
             if report.critical_issues:
                 # Finding failed validation - suppress it
@@ -345,8 +444,8 @@ def cmd_analyze(args):
 
     for i, finding in enumerate(findings, 1):
         validation_status = None
-        if finding in validation_reports:
-            report = validation_reports[finding]
+        if id(finding) in validation_reports:
+            report = validation_reports[id(finding)]
             if report.warnings:
                 validation_status = f"PASSED with {len(report.warnings)} warning(s)"
             else:
@@ -528,6 +627,15 @@ Examples:
     analyze_parser.add_argument(
         '--image', '-i',
         help='Path to disk image (.E01 or .dd) for wipe detection and/or content reading (optional)'
+    )
+    analyze_parser.add_argument(
+        '--pcap',
+        help='Path to PCAP file for network-layer detectors (optional)'
+    )
+    analyze_parser.add_argument(
+        '--browser-history',
+        dest='browser_history',
+        help='Path to browser history CSV (Chrome/Firefox/Edge export) for webmail-exfil detection (optional)'
     )
     analyze_parser.add_argument(
         '--output', '-o',

@@ -433,6 +433,18 @@ class MemoryParser:
 
 **Estimated Lines of Code:** ~600 lines (Volatility wrapper + parsers + tests)
 
+**Deferred work — 2026-04-19**:
+Installing Volatility 3 on this workstation and building `MemoryParser` +
+`MemoryDetector` was explicitly deferred during the
+`network_intrusion` scenario testing pass. The scenario ships a 4.29 GB
+Linux memory dump (`ggmemday1.dmp`) that cannot be analyzed until this
+capability lands. See `docs/SCENARIO_TESTING_NOTES.md` tier 3.4 and the
+related beads issues. The Phase 1 detector slice (NetworkDetector +
+`--pcap` CLI flag) proceeds first; Volatility is the next blocker to
+unblock `network_intrusion` Pass 2. Linux memory dump needs
+kernel-specific ISF symbol tables — budget time for banner identification
+and symbol-table download when this work starts.
+
 ---
 
 #### 6. Jump Lists & LNK Files (2-3 days implementation)
