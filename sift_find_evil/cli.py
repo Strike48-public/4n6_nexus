@@ -18,8 +18,9 @@ from .parsers.browser_history_parser import BrowserHistoryParser
 from .self_correction.engine import SelfCorrectionEngine
 from .disk.wipe_detector import detect_from_image
 from .disk.exfil_detector import detect_exfiltration
-from .detectors import NetworkDetector
+from .detectors import NetworkDetector, RegistryDetector
 from .detectors.webmail_exfil_detector import MFTAccessRecord
+from .parsers.registry_parser import RegistryParser
 from .validation import AdversarialValidator
 
 
@@ -307,6 +308,73 @@ def _run_network_detector(
     return findings
 
 
+def _run_registry_detector(
+    shimcache_path: Optional[Path],
+    amcache_path: Optional[Path],
+    bam_path: Optional[Path],
+    userassist_path: Optional[Path],
+    run_keys_path: Optional[Path],
+    verbose: bool,
+) -> list:
+    """Parse any supplied registry CSVs and run RegistryDetector."""
+    if not any([shimcache_path, amcache_path, bam_path, userassist_path, run_keys_path]):
+        return []
+
+    parser = RegistryParser()
+    shimcache = amcache = bam = userassist = run_keys = None
+
+    if shimcache_path is not None:
+        if verbose:
+            print(f"  Loading Shimcache CSV from: {shimcache_path}")
+        shimcache = parser.parse_shimcache_csv(shimcache_path)
+        if verbose:
+            print(f"    Loaded {len(shimcache)} Shimcache entries")
+
+    if amcache_path is not None:
+        if verbose:
+            print(f"  Loading Amcache CSV from: {amcache_path}")
+        amcache = parser.parse_amcache_csv(amcache_path)
+        if verbose:
+            print(f"    Loaded {len(amcache)} Amcache entries")
+
+    if bam_path is not None:
+        if verbose:
+            print(f"  Loading BAM CSV from: {bam_path}")
+        bam = parser.parse_bam_csv(bam_path)
+        if verbose:
+            print(f"    Loaded {len(bam)} BAM entries")
+
+    if userassist_path is not None:
+        if verbose:
+            print(f"  Loading UserAssist CSV from: {userassist_path}")
+        userassist = parser.parse_userassist_csv(userassist_path)
+        if verbose:
+            print(f"    Loaded {len(userassist)} UserAssist entries")
+
+    if run_keys_path is not None:
+        if verbose:
+            print(f"  Loading Run keys CSV from: {run_keys_path}")
+        run_keys = parser.parse_run_keys_csv(run_keys_path)
+        if verbose:
+            print(f"    Loaded {len(run_keys)} Run key entries")
+
+    if verbose:
+        print_section("Running Registry Detector")
+
+    findings = RegistryDetector().analyze(
+        shimcache=shimcache,
+        amcache=amcache,
+        bam=bam,
+        userassist=userassist,
+        run_keys=run_keys,
+    )
+
+    if verbose:
+        print(f"  Detected {len(findings)} registry finding(s)")
+
+    return findings
+
+
 def cmd_analyze(args):
     """Handle analyze command."""
     print_banner()
@@ -317,19 +385,36 @@ def cmd_analyze(args):
     browser_history_path: Optional[Path] = (
         Path(args.browser_history) if getattr(args, 'browser_history', None) else None
     )
+    shimcache_path: Optional[Path] = (
+        Path(args.shimcache) if getattr(args, 'shimcache', None) else None
+    )
+    amcache_path: Optional[Path] = (
+        Path(args.amcache) if getattr(args, 'amcache', None) else None
+    )
+    bam_path: Optional[Path] = Path(args.bam) if getattr(args, 'bam', None) else None
+    userassist_path: Optional[Path] = (
+        Path(args.userassist) if getattr(args, 'userassist', None) else None
+    )
+    run_keys_path: Optional[Path] = (
+        Path(args.run_keys) if getattr(args, 'run_keys', None) else None
+    )
+    registry_paths = [shimcache_path, amcache_path, bam_path, userassist_path, run_keys_path]
     artifact_args = [getattr(args, 'mft', None), getattr(args, 'prefetch', None), getattr(args, 'evtx', None)]
     has_artifacts = any(artifact_args)
     has_network = pcap_path is not None or browser_history_path is not None
+    has_registry = any(registry_paths)
 
     if (
         image_path is None
         and not has_artifacts
         and pst_path is None
         and not has_network
+        and not has_registry
     ):
         print(
             "Error: provide --image and/or --pst and/or all of --mft/--prefetch/--evtx "
-            "and/or --pcap/--browser-history",
+            "and/or --pcap/--browser-history and/or one of "
+            "--shimcache/--amcache/--bam/--userassist/--run-keys",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -345,6 +430,18 @@ def cmd_analyze(args):
     if browser_history_path is not None and not browser_history_path.exists():
         print(f"Error: browser history CSV not found: {browser_history_path}", file=sys.stderr)
         sys.exit(1)
+
+    _registry_path_labels = [
+        ("Shimcache", shimcache_path),
+        ("Amcache", amcache_path),
+        ("BAM", bam_path),
+        ("UserAssist", userassist_path),
+        ("Run keys", run_keys_path),
+    ]
+    for label, path in _registry_path_labels:
+        if path is not None and not path.exists():
+            print(f"Error: {label} CSV not found: {path}", file=sys.stderr)
+            sys.exit(1)
 
     disk_finding = None
     if image_path is not None:
@@ -364,6 +461,15 @@ def cmd_analyze(args):
         if has_network:
             findings = list(findings) + _run_network_detector(
                 browser_history_path, pcap_path, mft_entries=None, verbose=True
+            )
+        if has_registry:
+            findings = list(findings) + _run_registry_detector(
+                shimcache_path,
+                amcache_path,
+                bam_path,
+                userassist_path,
+                run_keys_path,
+                verbose=True,
             )
         _write_output(findings, Path(args.output) if args.output else None)
         _render_findings(findings)
@@ -404,6 +510,16 @@ def cmd_analyze(args):
             browser_history_path,
             pcap_path,
             mft_entries=mft_entries_for_network,
+            verbose=True,
+        )
+
+    if has_registry:
+        findings = list(findings) + _run_registry_detector(
+            shimcache_path,
+            amcache_path,
+            bam_path,
+            userassist_path,
+            run_keys_path,
             verbose=True,
         )
 
@@ -647,6 +763,27 @@ Examples:
         '--browser-history',
         dest='browser_history',
         help='Path to browser history CSV (Chrome/Firefox/Edge export) for webmail-exfil detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--shimcache',
+        help='Path to Shimcache CSV (RegRipper/RECmd export) for registry detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--amcache',
+        help='Path to Amcache CSV (RECmd/AmcacheParser export) for registry detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--bam',
+        help='Path to BAM/DAM CSV export for registry detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--userassist',
+        help='Path to UserAssist CSV export for registry detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--run-keys',
+        dest='run_keys',
+        help='Path to Run keys CSV (RegRipper/RECmd export) for persistence detection (optional)'
     )
     analyze_parser.add_argument(
         '--output', '-o',

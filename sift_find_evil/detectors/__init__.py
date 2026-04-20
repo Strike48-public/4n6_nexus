@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from .exfil_ratio_detector import ExfilRatioDetector
 from .network_detector import NetworkDetector
+from .registry_detector import RegistryDetector
 from .stats_detector import BeaconingDetector, DNSAnomalyDetector
 from .watchlist_detector import (
     CleartextProtocolDetector,
@@ -26,6 +27,7 @@ __all__ = [
     "ExfilRatioDetector",
     "NetworkDetector",
     "OffensivePackageInstallDetector",
+    "RegistryDetector",
     "SuspiciousHostDetector",
     "WebmailExfilDetector",
 ]
