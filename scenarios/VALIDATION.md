@@ -43,11 +43,11 @@ Pass legend: **[ ]** not run -- **[x]** matches expected -- **[!]** divergence (
 
 | # | Scenario | 1st pass | 2nd pass | 3rd pass | Notes |
 |---|----------|:-:|:-:|:-:|-------|
-| 1 | [`circl-2023-wiped`](real/circl-2023-wiped/) | [x] | [ ] | [ ] | CRITICAL partition-wipe finding at 0.95 confidence. |
+| 1 | [`circl-2023-wiped`](real/circl-2023-wiped/) | [x] | [x] | [ ] | CRITICAL partition-wipe finding at 0.95 confidence. Pass 2 reproduces exactly. |
 | 2 | [`m57-jean`](real/m57-jean/) | [!] | [ ] | [ ] | CLI has no E01->MFT/registry/browser extraction pipeline. |
-| 3 | [`m57-patents`](real/m57-patents/) | [ ] | [ ] | [ ] | Blocked: download 404 on nps-2009-pat.* URLs. |
-| 4 | [`nitroba`](real/nitroba/) | [!] | [ ] | [ ] | PcapParser exists but not wired into CLI. |
-| 5 | [`national_gallery_2012`](real/national_gallery_2012/) | [ ] | [ ] | [ ] | Blocked: no evidence, no download script. |
+| 3 | [`m57-patents`](real/m57-patents/) | [ ] | [ ] | [ ] | Evidence downloaded (~42 GB, 6 E01s, sha256 pinned). No CLI path yet. |
+| 4 | [`nitroba`](real/nitroba/) | [!] | [!] | [ ] | PCAP path is now wired (`--pcap`); yields 1 FP (weather.com widget beaconing, CoV 0.002). Expected total=0. |
+| 5 | [`national_gallery_2012`](real/national_gallery_2012/) | [ ] | [ ] | [ ] | Evidence downloaded (~27 GB, 9 items, sha256 pinned). No CLI path yet. |
 
 ## Training (external community images)
 
@@ -78,11 +78,18 @@ Append one block per pass across the matrix. Keep it terse.
   - All 4 training scenarios have empty evidence/ directories
 - See full notes: `docs/SCENARIO_TESTING_NOTES.md`
 
-### Pass 2 -- YYYY-MM-DD -- git `<sha>`
+### Pass 2 -- 2026-04-19 -- git `bdf6176`
 
-- Environment:
+- Environment: SANS SIFT Ubuntu Workstation, Python 3.12.2
+- Scope: re-ran `circl-2023-wiped` and `nitroba` per user request
 - Observations:
+  - `circl-2023-wiped` reproduces 1 CRITICAL partition-wipe finding at 0.95 (matches expected total=1)
+  - `nitroba` CLI now has `--pcap`; PcapParser extracts 4850 HTTP / 1488 DNS / 2021 TCP conversations
+  - `nitroba` NetworkDetector flags 1 beaconing finding to `image.weather.com` (192.168.15.4, mean 899.5s, CoV 0.002)
 - Divergences:
+  - `nitroba` expected total=0; got 1 FP — Weather.com's embedded widget polls every 15 minutes, which trips the beaconing detector. Either (a) add a known-benign allowlist for well-known widget hosts, or (b) raise the minimum event count past 7, or (c) accept this as a documented FP for pcaps containing weather widgets.
+  - Did not touch m57-jean / m57-patents / national_gallery_2012 / training scenarios this pass.
+- Artifacts: `analysis/circl-2023-wiped/run_2.json`, `analysis/nitroba/run_2.json`
 
 ### Pass 3 -- YYYY-MM-DD -- git `<sha>`
 

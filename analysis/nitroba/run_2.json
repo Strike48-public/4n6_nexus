@@ -1,0 +1,39 @@
+{
+  "findings": [
+    {
+      "title": "Beaconing to image.weather.com from 192.168.15.4",
+      "description": "7 events to image.weather.com with mean interval 899.5s (stddev 1.40s, CoV 0.002) \u2014 the cadence is too regular to be human browsing.",
+      "type": "behavior",
+      "severity": "high",
+      "category": "unknown",
+      "evidence": {
+        "src_ip": "192.168.15.4",
+        "host": "image.weather.com",
+        "event_count": 7,
+        "mean_interval_seconds": 899.46,
+        "stddev_seconds": 1.396,
+        "coefficient_of_variation": 0.0016,
+        "first_seen": "2008-07-22T04:40:18.076520+00:00",
+        "last_seen": "2008-07-22T06:10:14.854626+00:00"
+      },
+      "confidence": 0.95,
+      "confidence_label": "High",
+      "reasoning_chain": [
+        "7 events to image.weather.com from 192.168.15.4.",
+        "Inter-event intervals: mean=899.5s, stddev=1.40s.",
+        "Coefficient of variation 0.002 is below threshold 0.15.",
+        "Uniform cadence is consistent with automated/beaconing traffic."
+      ],
+      "contradictions": [],
+      "resolutions": [],
+      "confidence_calculation": {},
+      "detected_at": "2026-04-20T09:45:05.746384",
+      "artifact_sources": [
+        "pcap"
+      ]
+    }
+  ],
+  "summary": {
+    "total_findings": 1
+  }
+}
