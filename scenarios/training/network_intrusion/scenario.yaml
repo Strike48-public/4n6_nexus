@@ -3,30 +3,36 @@ tier: training
 category: network_intrusion
 difficulty: intermediate
 description: >
-  Network-based attack with C2 communications. Combined PCAP + memory
-  investigation. Focus areas: protocol analysis, C2 detection, malware
-  network behavior, data exfiltration.
+  Linux Threat Analysis scenario (Digital Corpora, 2020), Stage 1
+  perimeter capture. Network-based attack with C2 communications,
+  paired with a memory capture from the compromised host. Focus:
+  protocol analysis, C2 detection, malware network behavior,
+  data exfiltration.
 
 source:
-  provider: dfir_training
-  url: https://www.dfir.training/downloads/test-images
-  license: dfir_training_terms
-  attribution: DFIR.training community test images.
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/
+  date_published: 2020-01-01
+  license: academic_use
+  attribution: >
+    Linux Threat Analysis scenario (Digital Corpora, 2020).
+    Academic use per digitalcorpora.org.
 
 evidence:
-  - path: evidence/network_capture.pcap
-    kind: pcap
-    size_bytes: null
+  - path: evidence/Day_1_Capture.7z
+    kind: archive
+    size_bytes: 924827765
     sha256: null
-    download_url: https://www.dfir.training/downloads/test-images
-    description: Network packet capture covering the intrusion window
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage1/Day_1_Capture.7z
+    description: Day 1 perimeter PCAP, 7z-packed (~0.86 GB)
     required: true
-  - path: evidence/memory.raw
+
+  - path: evidence/ggmemday1.7z
     kind: memory
-    size_bytes: null
+    size_bytes: 552477198
     sha256: null
-    download_url: https://www.dfir.training/downloads/test-images
-    description: Memory dump from the compromised host
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage1/ggmemday1.7z
+    description: Day 1 memory capture (gg host), 7z-packed (~0.5 GB)
     required: true
 
 expected:
@@ -43,5 +49,6 @@ questions:
   - What network-based IOCs should be recorded?
 
 notes: |
-  Evidence not downloaded yet. Expected combined size ~4 GB.
-  Correlate PCAP flows with Volatility 3 netscan/netstat output.
+  Day_2_Capture.7z + ggmemday2.7z are also available under the same
+  prefix if you want a two-day window. Extract with 7z; correlate
+  PCAP flows with Volatility 3 netscan/netstat output.

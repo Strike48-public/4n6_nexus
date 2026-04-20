@@ -3,23 +3,35 @@ tier: training
 category: insider_threat
 difficulty: intermediate
 description: >
-  Data exfiltration by authorized user. Windows 10/11 host. Focus
-  areas: USB device artifacts, cloud storage forensics (OneDrive,
-  Dropbox), data-theft indicators, user activity timeline.
+  Narcos scenario (Digital Corpora, 2019) — CCleaner custodian subset.
+  Authorized user exfiltrating sensitive data; CCleaner runs muddy
+  the filesystem timeline. Focus: USB device artifacts, anti-forensic
+  tool use, user activity reconstruction across disk + memory.
 
 source:
-  provider: dfir_training
-  url: https://www.dfir.training/downloads/test-images
-  license: dfir_training_terms
-  attribution: DFIR.training community test images.
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/2019-narcos/
+  date_published: 2019-01-01
+  license: academic_use
+  attribution: >
+    Narcos scenario (Digital Corpora, 2019). Academic use per
+    digitalcorpora.org.
 
 evidence:
-  - path: evidence/insider_system.E01
+  - path: evidence/Narcos-CCleaner.E01
     kind: e01
-    size_bytes: null
+    size_bytes: 8174198160
     sha256: null
-    download_url: https://www.dfir.training/downloads/test-images
-    description: Insider threat disk image (~6 GB)
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2019-narcos/Narcos-CCleaner.E01
+    description: CCleaner-custodian disk image (~7.6 GB)
+    required: true
+
+  - path: evidence/Narcos-Mem-CCleaner.E01
+    kind: memory
+    size_bytes: 1547259526
+    sha256: null
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2019-narcos/Narcos-Mem-CCleaner.E01
+    description: CCleaner-custodian memory capture (~1.4 GB)
     required: true
 
 expected:
@@ -31,7 +43,11 @@ expected:
 
 questions:
   - What USB devices connected to the host?
-  - What cloud storage providers are present?
+  - What anti-forensic actions (CCleaner runs) affected the evidence?
   - What sensitive documents were accessed shortly before disconnect?
+  - What cloud storage providers appear in the artifacts?
 
-notes: Evidence not downloaded yet.
+notes: |
+  Full 50+ GB Narcos corpus (3 custodians, all memory captures) sits
+  under the same prefix. Jane and Steve custodian images are
+  additional options. Memory dump is packaged as an E01 container.

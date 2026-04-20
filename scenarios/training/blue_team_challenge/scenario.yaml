@@ -3,30 +3,35 @@ tier: training
 category: compromise_investigation
 difficulty: advanced
 description: >
-  Compromised Windows 10 workstation with lateral movement indicators.
-  Combined disk + memory investigation. Focus areas: memory forensics,
-  cross-artifact timeline, lateral movement, persistence mechanisms.
+  Linux Threat Analysis scenario (Digital Corpora, 2020), Stage 3
+  workstation slice. Compromised analyst workstation with a paired
+  memory capture. Focus: disk + memory correlation, persistence
+  mechanisms, lateral-movement indicators, cross-artifact timeline.
 
 source:
-  provider: dfir_training
-  url: https://www.dfir.training/downloads/test-images
-  license: dfir_training_terms
-  attribution: DFIR.training community test images.
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/
+  date_published: 2020-01-01
+  license: academic_use
+  attribution: >
+    Linux Threat Analysis scenario (Digital Corpora, 2020).
+    Academic use per digitalcorpora.org.
 
 evidence:
-  - path: evidence/compromised_system.E01
-    kind: e01
-    size_bytes: null
+  - path: evidence/alison_ws.7z
+    kind: archive
+    size_bytes: 8551539548
     sha256: null
-    download_url: https://www.dfir.training/downloads/test-images
-    description: Compromised Windows 10 disk image
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage3/alison_ws.7z
+    description: Stage 3 compromised workstation image, 7z-packed (~8 GB)
     required: true
-  - path: evidence/memory_dump.raw
+
+  - path: evidence/aamemend.7z
     kind: memory
-    size_bytes: null
+    size_bytes: 811401833
     sha256: null
-    download_url: https://www.dfir.training/downloads/test-images
-    description: Memory dump captured during incident
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage5/aamemend.7z
+    description: Paired end-state memory capture, 7z-packed (~0.8 GB)
     required: true
 
 expected:
@@ -38,10 +43,12 @@ expected:
 
 questions:
   - What was the initial access vector?
-  - What persistence mechanisms are present?
-  - What lateral movement indicators exist in memory and on disk?
-  - Which processes were malicious at capture time?
+  - What persistence mechanisms are present on the workstation?
+  - What lateral-movement indicators exist in memory and on disk?
+  - Which processes in memory correspond to malicious activity?
 
 notes: |
-  Evidence not downloaded yet. Expected combined size ~10 GB.
-  Requires Volatility 3 for memory analysis alongside disk parsing.
+  Extract with 7z before analysis. Stages 2 and 4 hold supporting
+  logs (pfSense, DNS, log aggregation) that can enrich the
+  investigation; Stage 1 captures are covered by network_intrusion.
+  Requires Volatility 3 for the Linux memory dump.

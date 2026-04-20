@@ -63,23 +63,29 @@ notes. Final-day images are enough for end-to-end validation.
 
 ## Training scenarios
 
-All four training manifests currently point at
-`https://www.dfir.training/downloads/test-images`, which is an aggregator
-page of external links rather than a direct download. URLs in these YAMLs
-must be replaced with real source URLs before evidence can be fetched.
+All four training scenarios were originally authored with placeholder
+URLs pointing at `dfir.training/downloads/test-images` (an aggregator
+page, not a download). The manifests now point at verified Digital
+Corpora corpora; the downloader works against them directly.
 
-Recommended substitutions (Digital Corpora scenarios that match the
-intended category):
+### ransomware_2021 — missing (~14.7 GB)
+Source: `https://downloads.digitalcorpora.org/corpora/scenarios/2018-lonewolf/`
+- `evidence/Forensic_Image_Files.zip` (14.7 GB, LoneWolf curated image bundle)
 
-| Scenario | Suggested corpus | Direct source | Approx size |
-|----------|------------------|---------------|-------------|
-| `ransomware_2021` | 2018-lonewolf | `corpora/scenarios/2018-lonewolf/` (LoneWolf.E01-E09 + memdump.mem) | ~16 GB |
-| `insider_threat_2022` | 2019-narcos | `corpora/scenarios/2019-narcos/` (Narcos-1/2/3.zip, CCleaner, memory) | ~50 GB full, ~10 GB single custodian |
-| `blue_team_challenge` | 2020-linux-threat-analysis Stage 3 | `corpora/scenarios/2020-linux-threat-analysis/` | ~8 GB |
-| `network_intrusion` | 2020-linux-threat-analysis Stage 1 | `corpora/scenarios/2020-linux-threat-analysis/` (capture + memory) | ~2.7 GB |
+### insider_threat_2022 — missing (~9 GB)
+Source: `https://downloads.digitalcorpora.org/corpora/scenarios/2019-narcos/`
+- `evidence/Narcos-CCleaner.E01` (7.6 GB, disk)
+- `evidence/Narcos-Mem-CCleaner.E01` (1.4 GB, memory)
 
-Status: **[tbd]** — the scenario.yaml URL fields still need to be updated;
-no files are missing yet because the download targets are not yet decided.
+### blue_team_challenge — missing (~8.7 GB)
+Source: `https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/`
+- `evidence/alison_ws.7z` (8.0 GB, Stage 3 workstation)
+- `evidence/aamemend.7z` (0.8 GB, Stage 5 memory)
+
+### network_intrusion — missing (~1.4 GB)
+Source: `https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage1/`
+- `evidence/Day_1_Capture.7z` (0.86 GB, PCAP)
+- `evidence/ggmemday1.7z` (0.51 GB, memory)
 
 ---
 

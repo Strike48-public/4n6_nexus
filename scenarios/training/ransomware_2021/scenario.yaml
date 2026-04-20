@@ -3,24 +3,27 @@ tier: training
 category: ransomware
 difficulty: intermediate
 description: >
-  Ransomware deployment via phishing. Windows 10 host. Focus areas:
-  phishing email analysis, encryption artifacts, filesystem timeline,
-  attribution indicators.
+  LoneWolf scenario (Digital Corpora, 2018) — single-user Windows 10
+  workstation with a disgruntled employee preparing a violent act.
+  Stands in for ransomware/insider-style investigations: phishing
+  artifacts, filesystem timeline, persistence, attribution indicators.
 
 source:
-  provider: dfir_training
-  url: https://www.dfir.training/downloads/test-images
-  license: dfir_training_terms
+  provider: digital_corpora
+  url: https://digitalcorpora.org/corpora/scenarios/2018-lonewolf/
+  date_published: 2018-01-01
+  license: academic_use
   attribution: >
-    DFIR.training community test images.
+    LoneWolf scenario (Digital Corpora, 2018). Academic use per
+    digitalcorpora.org.
 
 evidence:
-  - path: evidence/ransomware_investigation.E01
-    kind: e01
-    size_bytes: null
+  - path: evidence/Forensic_Image_Files.zip
+    kind: archive
+    size_bytes: 15770423411
     sha256: null
-    download_url: https://www.dfir.training/downloads/test-images
-    description: Ransomware investigation E01 (~8 GB)
+    download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2018-lonewolf/Forensic%20Image%20Files.zip
+    description: LoneWolf forensic image bundle (~14.7 GB)
     required: true
 
 expected:
@@ -31,11 +34,13 @@ expected:
   min_recall: 1.0
 
 questions:
-  - What was the phishing vector?
-  - Which ransomware family is present?
-  - What is the scope of encrypted files?
+  - What was the initial compromise / delivery vector?
+  - What is the scope of encrypted or modified files?
   - What persistence or lateral-movement indicators exist?
+  - What attribution markers are present in the artifacts?
 
 notes: |
-  Evidence not downloaded yet. Exact filename depends on the
-  DFIR.training listing at fetch time.
+  The full 32 GB LoneWolf_Image_Files.zip is also available at the
+  same prefix if you need raw disk images alongside the curated
+  forensic set. Extract with unzip; expect .E01 segments and
+  supporting artifacts inside.
