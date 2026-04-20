@@ -271,13 +271,22 @@ def _run_network_detector(
             print(f"    Loaded {len(browser_history)} browser history entries")
 
     http_requests = None
+    dns_queries = None
+    tcp_conversations = None
     if pcap_path is not None:
         if verbose:
-            print(f"  Loading HTTP requests from PCAP: {pcap_path}")
+            print(f"  Loading HTTP/DNS/TCP from PCAP: {pcap_path}")
         from .parsers.pcap_parser import PcapParser
-        http_requests = PcapParser().extract_http_requests(pcap_path)
+        parser = PcapParser()
+        http_requests = parser.extract_http_requests(pcap_path)
+        dns_queries = parser.extract_dns_queries(pcap_path)
+        tcp_conversations = parser.extract_tcp_conversations(pcap_path)
         if verbose:
-            print(f"    Extracted {len(http_requests)} HTTP requests")
+            print(
+                f"    Extracted {len(http_requests)} HTTP requests, "
+                f"{len(dns_queries)} DNS queries, "
+                f"{len(tcp_conversations)} TCP conversations"
+            )
 
     mft_records = _mft_entries_to_access_records(mft_entries) if mft_entries else None
 
@@ -288,6 +297,8 @@ def _run_network_detector(
         browser_history=browser_history,
         mft_records=mft_records,
         http_requests=http_requests,
+        dns_queries=dns_queries,
+        tcp_conversations=tcp_conversations,
     )
 
     if verbose:

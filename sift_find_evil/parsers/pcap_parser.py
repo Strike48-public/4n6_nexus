@@ -9,11 +9,27 @@ No GUI dependencies, CLI-only workflow.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+
+_BYTE_UNITS: dict[str, int] = {
+    "bytes": 1, "B": 1, "kB": 1024, "MB": 1024**2, "GB": 1024**3,
+}
+
+
+def _int(s: str) -> int:
+    """Parse an integer field that may contain thousand-separator commas."""
+    return int(s.replace(",", ""))
+
+
+def _bytes(n: str, unit: str) -> int:
+    """Parse a (value, unit) pair from tshark byte columns."""
+    return _int(n) * _BYTE_UNITS.get(unit, 1)
 
 
 @dataclass(frozen=True)
@@ -61,6 +77,38 @@ class DNSQuery:
     query_name: str  # Domain being queried
     query_type: str  # A, AAAA, MX, etc.
     response_ip: Optional[str] = None  # Resolved IP (if response available)
+
+
+@dataclass(frozen=True)
+class TCPConversation:
+    """A single TCP conversation (endpoint pair + byte/frame counts).
+
+    Extracted from ``tshark -z conv,tcp``. The A/B endpoint ordering is whatever
+    tshark emits — detectors must not assume A is the client. ``service_port``
+    heuristically returns the lower of the two ports since server ports are
+    usually well-known and client ports are ephemeral (>1024).
+    """
+
+    endpoint_a_ip: str
+    endpoint_a_port: int
+    endpoint_b_ip: str
+    endpoint_b_port: int
+    frames_a_to_b: int
+    bytes_a_to_b: int
+    frames_b_to_a: int
+    bytes_b_to_a: int
+    total_frames: int
+    total_bytes: int
+
+    def service_port(self) -> Optional[int]:
+        """Return the likely server port (the well-known side, if one exists)."""
+        ports = (self.endpoint_a_port, self.endpoint_b_port)
+        well_known = [p for p in ports if p <= 1024]
+        if len(well_known) == 1:
+            return well_known[0]
+        if len(well_known) == 2:
+            return min(ports)
+        return min(ports)
 
 
 @dataclass(frozen=True)
@@ -351,6 +399,73 @@ class PcapParser:
                 continue
 
         return queries
+
+    def extract_tcp_conversations(
+        self, pcap_path: Path
+    ) -> list[TCPConversation]:
+        """Extract TCP conversations (flow stats) from a PCAP.
+
+        Wraps ``tshark -q -z conv,tcp``. Each row is parsed into a
+        ``TCPConversation`` so detectors can reason about per-flow byte
+        balance and service ports without re-invoking tshark.
+        """
+        if not pcap_path.exists():
+            raise FileNotFoundError(f"PCAP file not found: {pcap_path}")
+
+        cmd = [
+            str(self.tshark_path),
+            "-r", str(pcap_path),
+            "-q", "-z", "conv,tcp",
+        ]
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=True, timeout=300
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"tshark failed: {e.stderr}") from e
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("tshark timed out extracting TCP conversations")
+
+        return self._parse_tcp_conv_table(result.stdout)
+
+    @staticmethod
+    def _parse_tcp_conv_table(text: str) -> list[TCPConversation]:
+        """Parse tshark's ``conv,tcp`` output into ``TCPConversation`` records.
+
+        Expected row shape (fixed-column output):
+        ``A_ip:A_port <-> B_ip:B_port  frames bytes unit  frames bytes unit  frames bytes unit  rel_start  duration``
+
+        tshark abbreviates bytes with ``kB`` / ``MB`` / ``GB`` and emits
+        comma-grouped integers; both are handled.
+        """
+        conversations: list[TCPConversation] = []
+        row_re = re.compile(
+            r"^(?P<a>\S+:\d+)\s+<->\s+(?P<b>\S+:\d+)\s+"
+            r"(?P<rxf>[\d,]+)\s+(?P<rxb>[\d,]+)\s+(?P<rxu>\w+)\s+"
+            r"(?P<txf>[\d,]+)\s+(?P<txb>[\d,]+)\s+(?P<txu>\w+)\s+"
+            r"(?P<tf>[\d,]+)\s+(?P<tb>[\d,]+)\s+(?P<tu>\w+)"
+        )
+        for line in text.splitlines():
+            m = row_re.match(line.strip())
+            if not m:
+                continue
+            a_ip, a_port = m.group("a").rsplit(":", 1)
+            b_ip, b_port = m.group("b").rsplit(":", 1)
+            conversations.append(
+                TCPConversation(
+                    endpoint_a_ip=a_ip,
+                    endpoint_a_port=int(a_port),
+                    endpoint_b_ip=b_ip,
+                    endpoint_b_port=int(b_port),
+                    frames_a_to_b=_int(m.group("txf")),
+                    bytes_a_to_b=_bytes(m.group("txb"), m.group("txu")),
+                    frames_b_to_a=_int(m.group("rxf")),
+                    bytes_b_to_a=_bytes(m.group("rxb"), m.group("rxu")),
+                    total_frames=_int(m.group("tf")),
+                    total_bytes=_bytes(m.group("tb"), m.group("tu")),
+                )
+            )
+        return conversations
 
     def extract_smtp_messages(self, pcap_path: Path) -> list[SMTPMessage]:
         """Extract SMTP email traffic from PCAP file.

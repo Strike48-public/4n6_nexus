@@ -16,8 +16,13 @@ from __future__ import annotations
 from typing import Iterable, Optional
 
 from ..parsers.browser_history_parser import BrowserHistoryEntry
-from ..parsers.pcap_parser import DNSQuery, HTTPRequest, SMTPMessage
+from ..parsers.pcap_parser import DNSQuery, HTTPRequest, SMTPMessage, TCPConversation
 from ..self_correction.engine import Finding
+from .watchlist_detector import (
+    CleartextProtocolDetector,
+    OffensivePackageInstallDetector,
+    SuspiciousHostDetector,
+)
 from .webmail_exfil_detector import MFTAccessRecord, WebmailExfilDetector
 
 
@@ -32,8 +37,18 @@ class NetworkDetector:
     def __init__(
         self,
         webmail_exfil: Optional[WebmailExfilDetector] = None,
+        suspicious_host: Optional[SuspiciousHostDetector] = None,
+        offensive_package: Optional[OffensivePackageInstallDetector] = None,
+        cleartext_protocol: Optional[CleartextProtocolDetector] = None,
     ):
         self.webmail_exfil = webmail_exfil or WebmailExfilDetector()
+        self.suspicious_host = suspicious_host or SuspiciousHostDetector()
+        self.offensive_package = (
+            offensive_package or OffensivePackageInstallDetector()
+        )
+        self.cleartext_protocol = (
+            cleartext_protocol or CleartextProtocolDetector()
+        )
 
     def analyze(
         self,
@@ -42,6 +57,7 @@ class NetworkDetector:
         http_requests: Optional[Iterable[HTTPRequest]] = None,
         dns_queries: Optional[Iterable[DNSQuery]] = None,
         smtp_messages: Optional[Iterable[SMTPMessage]] = None,
+        tcp_conversations: Optional[Iterable[TCPConversation]] = None,
     ) -> list[Finding]:
         """Run every applicable sub-detector and return merged findings.
 
@@ -53,18 +69,38 @@ class NetworkDetector:
         """
         findings: list[Finding] = []
 
+        http_list = list(http_requests) if http_requests is not None else None
+        dns_list = list(dns_queries) if dns_queries is not None else None
+
         if browser_history is not None:
             findings.extend(
                 self.webmail_exfil.analyze(
                     browser_history=browser_history,
                     mft_records=mft_records,
-                    http_requests=http_requests,
+                    http_requests=http_list,
                 )
             )
 
-        # Placeholder for future sub-detectors that consume DNS / SMTP /
-        # raw HTTP without browser history context. Kept explicit so the
-        # signature advertises the orchestrator's full input surface.
-        _ = dns_queries, smtp_messages
+        if dns_list is not None or http_list is not None:
+            findings.extend(
+                self.suspicious_host.analyze(
+                    dns_queries=dns_list,
+                    http_requests=http_list,
+                )
+            )
+
+        if http_list is not None:
+            findings.extend(
+                self.offensive_package.analyze(http_requests=http_list)
+            )
+
+        if tcp_conversations is not None:
+            findings.extend(
+                self.cleartext_protocol.analyze(
+                    tcp_conversations=tcp_conversations
+                )
+            )
+
+        _ = smtp_messages  # reserved for future SMTP-based sub-detectors
 
         return findings
