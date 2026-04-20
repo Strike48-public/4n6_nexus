@@ -22,7 +22,7 @@ evidence:
   - path: evidence/Day_1_Capture.7z
     kind: archive
     size_bytes: 924827765
-    sha256: null
+    sha256: 3f75a2f78beee4abe8876be311c5dd5729556482d1c903758eb7651a8cf7c31a
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage1/Day_1_Capture.7z
     description: Day 1 perimeter PCAP, 7z-packed (~0.86 GB)
     required: true
@@ -30,7 +30,7 @@ evidence:
   - path: evidence/ggmemday1.7z
     kind: memory
     size_bytes: 552477198
-    sha256: null
+    sha256: 6d1f09d052be60a99c158f15e06b8ff5a9a3bd828910d6ac6756b13924f87d0f
     download_url: https://downloads.digitalcorpora.org/corpora/scenarios/2020-linux-threat-analysis/Stage1/ggmemday1.7z
     description: Day 1 memory capture (gg host), 7z-packed (~0.5 GB)
     required: true

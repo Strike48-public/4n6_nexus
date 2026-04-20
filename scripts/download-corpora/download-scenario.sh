@@ -124,7 +124,10 @@ for e in entries:
     r = str(e.get("required", "false")).lower()
     if s in (None, "null", ""):
         s = ""
-    print(f"{p}\t{u}\t{s}\t{r}")
+    # Use | as delimiter — will not appear in any of these fields.
+    # Bash read IFS on tab collapses consecutive tabs, mis-aligning
+    # columns when sha256 is empty.
+    print(f"{p}|{u}|{s}|{r}")
 PY
 )"
 
@@ -145,7 +148,7 @@ downloaded=0
 failed=0
 verified=0
 
-while IFS=$'\t' read -r rel_path url sha required; do
+while IFS='|' read -r rel_path url sha required; do
   [[ -z "$rel_path" ]] && continue
   [[ "$url" == "null" || -z "$url" ]] && { warn "No URL for $rel_path, skipping"; continue; }
   if [[ $REQUIRED_ONLY -eq 1 && "$required" != "true" ]]; then
