@@ -10,6 +10,7 @@ interface declares.
 from __future__ import annotations
 
 from .network_detector import NetworkDetector
+from .stats_detector import BeaconingDetector, DNSAnomalyDetector
 from .watchlist_detector import (
     CleartextProtocolDetector,
     OffensivePackageInstallDetector,
@@ -18,7 +19,9 @@ from .watchlist_detector import (
 from .webmail_exfil_detector import WebmailExfilDetector
 
 __all__ = [
+    "BeaconingDetector",
     "CleartextProtocolDetector",
+    "DNSAnomalyDetector",
     "NetworkDetector",
     "OffensivePackageInstallDetector",
     "SuspiciousHostDetector",

@@ -18,6 +18,7 @@ from typing import Iterable, Optional
 from ..parsers.browser_history_parser import BrowserHistoryEntry
 from ..parsers.pcap_parser import DNSQuery, HTTPRequest, SMTPMessage, TCPConversation
 from ..self_correction.engine import Finding
+from .stats_detector import BeaconingDetector, DNSAnomalyDetector
 from .watchlist_detector import (
     CleartextProtocolDetector,
     OffensivePackageInstallDetector,
@@ -40,6 +41,8 @@ class NetworkDetector:
         suspicious_host: Optional[SuspiciousHostDetector] = None,
         offensive_package: Optional[OffensivePackageInstallDetector] = None,
         cleartext_protocol: Optional[CleartextProtocolDetector] = None,
+        beaconing: Optional[BeaconingDetector] = None,
+        dns_anomaly: Optional[DNSAnomalyDetector] = None,
     ):
         self.webmail_exfil = webmail_exfil or WebmailExfilDetector()
         self.suspicious_host = suspicious_host or SuspiciousHostDetector()
@@ -49,6 +52,8 @@ class NetworkDetector:
         self.cleartext_protocol = (
             cleartext_protocol or CleartextProtocolDetector()
         )
+        self.beaconing = beaconing or BeaconingDetector()
+        self.dns_anomaly = dns_anomaly or DNSAnomalyDetector()
 
     def analyze(
         self,
@@ -92,6 +97,14 @@ class NetworkDetector:
         if http_list is not None:
             findings.extend(
                 self.offensive_package.analyze(http_requests=http_list)
+            )
+            findings.extend(
+                self.beaconing.analyze(http_requests=http_list)
+            )
+
+        if dns_list is not None:
+            findings.extend(
+                self.dns_anomaly.analyze(dns_queries=dns_list)
             )
 
         if tcp_conversations is not None:
