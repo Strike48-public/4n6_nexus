@@ -18,8 +18,9 @@ from .parsers.browser_history_parser import BrowserHistoryParser
 from .self_correction.engine import SelfCorrectionEngine
 from .disk.wipe_detector import detect_from_image
 from .disk.exfil_detector import detect_exfiltration
-from .detectors import NetworkDetector, RegistryDetector
+from .detectors import LnkJumpListDetector, NetworkDetector, RegistryDetector
 from .detectors.webmail_exfil_detector import MFTAccessRecord
+from .parsers.lnk_jumplist_parser import JumpListParser, LnkParser
 from .parsers.registry_parser import RegistryParser
 from .validation import AdversarialValidator
 
@@ -375,6 +376,45 @@ def _run_registry_detector(
     return findings
 
 
+def _run_lnk_jumplist_detector(
+    lnk_csv_path: Optional[Path],
+    jumplist_csv_path: Optional[Path],
+    verbose: bool,
+) -> list:
+    """Parse any supplied LNK / Jump List CSVs and run LnkJumpListDetector."""
+    if lnk_csv_path is None and jumplist_csv_path is None:
+        return []
+
+    lnk_entries = jumplist_entries = None
+
+    if lnk_csv_path is not None:
+        if verbose:
+            print(f"  Loading LNK CSV from: {lnk_csv_path}")
+        lnk_entries = LnkParser().parse_csv(lnk_csv_path)
+        if verbose:
+            print(f"    Loaded {len(lnk_entries)} LNK entries")
+
+    if jumplist_csv_path is not None:
+        if verbose:
+            print(f"  Loading Jump List CSV from: {jumplist_csv_path}")
+        jumplist_entries = JumpListParser().parse_csv(jumplist_csv_path)
+        if verbose:
+            print(f"    Loaded {len(jumplist_entries)} Jump List entries")
+
+    if verbose:
+        print_section("Running LNK / Jump List Detector")
+
+    findings = LnkJumpListDetector().analyze(
+        lnk_entries=lnk_entries,
+        jumplist_entries=jumplist_entries,
+    )
+
+    if verbose:
+        print(f"  Detected {len(findings)} LNK / Jump List finding(s)")
+
+    return findings
+
+
 def cmd_analyze(args):
     """Handle analyze command."""
     print_banner()
@@ -398,11 +438,16 @@ def cmd_analyze(args):
     run_keys_path: Optional[Path] = (
         Path(args.run_keys) if getattr(args, 'run_keys', None) else None
     )
+    lnk_path: Optional[Path] = Path(args.lnk) if getattr(args, 'lnk', None) else None
+    jumplist_path: Optional[Path] = (
+        Path(args.jumplist) if getattr(args, 'jumplist', None) else None
+    )
     registry_paths = [shimcache_path, amcache_path, bam_path, userassist_path, run_keys_path]
     artifact_args = [getattr(args, 'mft', None), getattr(args, 'prefetch', None), getattr(args, 'evtx', None)]
     has_artifacts = any(artifact_args)
     has_network = pcap_path is not None or browser_history_path is not None
     has_registry = any(registry_paths)
+    has_lnk_jumplist = lnk_path is not None or jumplist_path is not None
 
     if (
         image_path is None
@@ -410,11 +455,13 @@ def cmd_analyze(args):
         and pst_path is None
         and not has_network
         and not has_registry
+        and not has_lnk_jumplist
     ):
         print(
             "Error: provide --image and/or --pst and/or all of --mft/--prefetch/--evtx "
             "and/or --pcap/--browser-history and/or one of "
-            "--shimcache/--amcache/--bam/--userassist/--run-keys",
+            "--shimcache/--amcache/--bam/--userassist/--run-keys "
+            "and/or --lnk/--jumplist",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -437,6 +484,8 @@ def cmd_analyze(args):
         ("BAM", bam_path),
         ("UserAssist", userassist_path),
         ("Run keys", run_keys_path),
+        ("LNK", lnk_path),
+        ("Jump List", jumplist_path),
     ]
     for label, path in _registry_path_labels:
         if path is not None and not path.exists():
@@ -470,6 +519,10 @@ def cmd_analyze(args):
                 userassist_path,
                 run_keys_path,
                 verbose=True,
+            )
+        if has_lnk_jumplist:
+            findings = list(findings) + _run_lnk_jumplist_detector(
+                lnk_path, jumplist_path, verbose=True
             )
         _write_output(findings, Path(args.output) if args.output else None)
         _render_findings(findings)
@@ -521,6 +574,11 @@ def cmd_analyze(args):
             userassist_path,
             run_keys_path,
             verbose=True,
+        )
+
+    if has_lnk_jumplist:
+        findings = list(findings) + _run_lnk_jumplist_detector(
+            lnk_path, jumplist_path, verbose=True
         )
 
     # Validate CRITICAL findings
@@ -784,6 +842,14 @@ Examples:
         '--run-keys',
         dest='run_keys',
         help='Path to Run keys CSV (RegRipper/RECmd export) for persistence detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--lnk',
+        help='Path to LNK CSV (LECmd export) for document-access / removable-media detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--jumplist',
+        help='Path to Jump List CSV (JLECmd export) for per-application MRU detection (optional)'
     )
     analyze_parser.add_argument(
         '--output', '-o',

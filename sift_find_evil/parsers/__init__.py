@@ -1,7 +1,14 @@
 """CSV parsers for forensic tool outputs."""
 
+from .evtx_parser import EventLogParser
+from .lnk_jumplist_parser import JumpListParser, LnkParser
 from .mft_parser import MFTParser
 from .prefetch_parser import PrefetchParser
-from .evtx_parser import EventLogParser
 
-__all__ = ['MFTParser', 'PrefetchParser', 'EventLogParser']
+__all__ = [
+    'EventLogParser',
+    'JumpListParser',
+    'LnkParser',
+    'MFTParser',
+    'PrefetchParser',
+]
