@@ -118,14 +118,76 @@ def test_run_key_ignores_benign_signed_path():
     assert findings == []
 
 
-def test_run_key_single_reason_is_medium_confidence():
-    # Path alone is suspicious but no LOLBAS launcher, no hidden flags.
+def test_run_key_path_only_is_low_confidence():
+    # Path alone is suspicious but no LOLBAS launcher, no hidden flags —
+    # many legitimate updaters also write to ProgramData, so this should be
+    # low-confidence and not scare the investigator into action on its own.
     entry = _run_key(
         command='"C:\\ProgramData\\MyApp\\helper.exe"',
     )
     findings = RegistryDetector().analyze(run_keys=[entry])
     assert len(findings) == 1
+    assert findings[0].confidence_label == "Low"
+    assert findings[0].confidence == 0.50
+    reasons = findings[0].evidence["reasons"]
+    assert len(reasons) == 1
+    assert "programdata" in reasons[0].lower()
+
+
+def test_run_key_lolbas_alone_is_medium_confidence():
+    # LOLBAS host without path/flags is a stronger single signal than path
+    # alone: still medium, not low.
+    entry = _run_key(command="regsvr32.exe /s /u scrobj.dll")
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
     assert findings[0].confidence_label == "Medium"
+    assert findings[0].confidence == 0.65
+
+
+def test_run_key_survives_pathological_long_command():
+    # Regression: catastrophic-backtracking DoS if a Run key carries a
+    # megabyte-sized -e-prefixed blob. Detector must not hang and must not
+    # flag the hidden-flags signal on oversize input.
+    entry = _run_key(command="-e" * 50_000)
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert findings == []
+
+
+def test_run_key_multiple_powershell_flags():
+    entry = _run_key(
+        command='powershell.exe -NoProfile -WindowStyle hidden -ExecutionPolicy Bypass -EncodedCommand AAAA'
+    )
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+    reasons = findings[0].evidence["reasons"]
+    # Should fire LOLBAS + hidden-flags once each, not one-per-flag.
+    assert sum("hidden/encoded/bypass" in r for r in reasons) == 1
+    assert findings[0].confidence_label == "High"
+
+
+def test_run_key_empty_command_is_rejected_by_dataclass():
+    # RunKeyEntry.__post_init__ rejects empty commands outright. Sanity check
+    # that the detector never sees one.
+    import pytest
+
+    with pytest.raises(ValueError):
+        _run_key(command="")
+
+
+def test_run_key_whitespace_only_command_produces_no_finding():
+    entry = _run_key(command="   ")
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert findings == []
+
+
+def test_run_key_userassist_finding_tagged_persistence():
+    # Regression: UserAssist should map to PERSISTENCE, not UNKNOWN — zero-
+    # focus shell invocation of a script host is an automation signal.
+    findings = RegistryDetector().analyze(
+        userassist=[_userassist("powershell.exe")],
+    )
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.PERSISTENCE
 
 
 # --- Shimcache / Amcache / BAM ---------------------------------------------
@@ -188,7 +250,7 @@ def test_userassist_flags_zero_focus_launcher():
         userassist=[_userassist("powershell.exe")],
     )
     assert len(findings) == 1
-    assert findings[0].category == FindingCategory.UNKNOWN
+    assert findings[0].category == FindingCategory.PERSISTENCE
     assert findings[0].evidence["program_name"] == "powershell.exe"
 
 

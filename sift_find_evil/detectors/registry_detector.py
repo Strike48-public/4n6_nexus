@@ -16,9 +16,9 @@ Three finding classes today:
   etc.) AND the basename is a double-extension or unsigned-publisher binary.
   Grouped by file path so 200 BAM rows for one binary collapse to one finding.
 
-- ``UNKNOWN`` findings for UserAssist entries with zero focus time and a
-  non-user-facing basename — the GUI shell logged a "run" but no window ever
-  rendered, which fits script/launcher patterns.
+- ``PERSISTENCE`` findings for UserAssist entries with zero focus time and a
+  script-host basename — the GUI shell logged a "run" but no window ever
+  rendered, which fits scheduled/scripted launch patterns.
 
 Addresses SFE-tcs.
 """
@@ -70,10 +70,17 @@ _LOLBAS_LAUNCHERS: frozenset[str] = frozenset(
 )
 
 # Run key commands that bake encoded/hidden payload arguments.
+# Flat alternation (no nested optional groups) to avoid pathological
+# backtracking if an adversary drops a giant value into a Run key.
 _HIDDEN_POWERSHELL_FLAGS = re.compile(
-    r"(?:^|\s)-(?:e(?:nc(?:odedcommand)?)?|w\s+hidden|windowstyle\s+hidden|nop|noprofile|ep\s+bypass|executionpolicy\s+bypass)",
+    r"(?:^|\s)-(?:encodedcommand|enc|e|w\s+hidden|windowstyle\s+hidden|noprofile|nop|executionpolicy\s+bypass|ep\s+bypass)\b",
     re.IGNORECASE,
 )
+
+# Hard cap on command length sent to the regex. Real Run key commands are
+# well under 2kB; anything longer is malformed or adversarial input and we
+# don't want to spend regex time on it.
+_MAX_COMMAND_LENGTH = 4096
 
 _DOUBLE_EXT_RE = re.compile(
     r"\.(?:doc|docx|xls|xlsx|pdf|txt|jpg|png|mp3|mp4)\.(?:exe|scr|com|bat|vbs|js|jse|wsf|lnk|ps1)$",
@@ -210,7 +217,10 @@ class RegistryDetector:
         if launcher is not None and launcher in self.lolbas_launchers:
             reasons.append(f"Launcher '{launcher}' is a LOLBAS/script host")
 
-        if _HIDDEN_POWERSHELL_FLAGS.search(command):
+        if (
+            len(command) <= _MAX_COMMAND_LENGTH
+            and _HIDDEN_POWERSHELL_FLAGS.search(command)
+        ):
             reasons.append("Command uses hidden/encoded/bypass launcher flags")
 
         for token in _command_path_tokens(command):
@@ -226,6 +236,23 @@ class RegistryDetector:
             if fragment in lowered_command:
                 return fragment.strip("\\")
         return None
+
+    @staticmethod
+    def _score_run_key(reasons: list[str]) -> tuple[float, str, str]:
+        """Map the reason list to (confidence, label, severity).
+
+        Rationale: a single path-only reason ("lives under ProgramData") is
+        generic — legitimate updaters write there. A single strong reason
+        (LOLBAS host, hidden flags, double-extension) is already suspicious on
+        its own. Two or more reasons of any kind is a clear persistence signal.
+        """
+        if len(reasons) >= 2:
+            return 0.80, "High", "high"
+        only = reasons[0].lower()
+        is_path_only = "lives under" in only
+        if is_path_only:
+            return 0.50, "Low", "medium"
+        return 0.65, "Medium", "medium"
 
     @staticmethod
     def _launcher_basename(command: str) -> Optional[str]:
@@ -246,6 +273,7 @@ class RegistryDetector:
         self, entry: RunKeyEntry, reasons: list[str]
     ) -> Finding:
         launcher = self._launcher_basename(entry.command) or "(unknown)"
+        confidence, label, severity = self._score_run_key(reasons)
         return Finding(
             title=(
                 f"Suspicious Run key: {entry.hive} \\{entry.key_path}"
@@ -258,7 +286,7 @@ class RegistryDetector:
                 f"{'; '.join(reasons)}."
             ),
             finding_type="behavior",
-            severity="high",
+            severity=severity,
             category=FindingCategory.PERSISTENCE,
             evidence={
                 "hive": entry.hive,
@@ -269,19 +297,26 @@ class RegistryDetector:
                 "last_write_time": entry.last_write_time.isoformat(),
                 "reasons": reasons,
             },
-            confidence=0.80 if len(reasons) >= 2 else 0.65,
-            confidence_label="High" if len(reasons) >= 2 else "Medium",
+            confidence=confidence,
+            confidence_label=label,
             reasoning_chain=[
                 f"{entry.hive}\\{entry.key_path} Run key points at {launcher}.",
                 *reasons,
-                (
-                    "Multiple independent signals fired."
-                    if len(reasons) >= 2
-                    else "Single signal fired; investigate context before acting."
-                ),
+                self._run_key_summary_line(reasons),
             ],
             artifact_sources=["registry"],
         )
+
+    @staticmethod
+    def _run_key_summary_line(reasons: list[str]) -> str:
+        if len(reasons) >= 2:
+            return "Multiple independent signals fired."
+        if "lives under" in reasons[0].lower():
+            return (
+                "Only a generic path signal fired; many legitimate updaters "
+                "also drop into user-writable directories."
+            )
+        return "Single strong signal fired; investigate context before acting."
 
     # --- Shimcache / Amcache / BAM execution from unusual paths -------------
 
@@ -445,7 +480,7 @@ class RegistryDetector:
             ),
             finding_type="indicator",
             severity="medium",
-            category=FindingCategory.UNKNOWN,
+            category=FindingCategory.PERSISTENCE,
             evidence={
                 "program_name": entry.program_name,
                 "run_count": entry.run_count,
