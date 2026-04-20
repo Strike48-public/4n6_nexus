@@ -91,6 +91,22 @@ _USER_WRITABLE_FRAGMENTS: tuple[str, ...] = (
     "\\perflogs\\",
 )
 
+# Targets that legitimately auto-start from user-writable directories on a
+# normal corporate workstation. Matched case-insensitively. Without this, a
+# Startup LNK for OneDrive or Teams fires as "user-writable persistence" on
+# every host and drowns the real signal.
+_STARTUP_SIGNED_TARGET_FRAGMENTS: tuple[str, ...] = (
+    "\\microsoft\\onedrive\\",
+    "\\microsoft\\teams\\",
+    "\\microsoft\\edge\\",
+    "\\microsoft onedrive\\",
+    "\\dropbox\\",
+    "\\google\\chrome\\",
+    "\\google\\drive\\",
+    "\\slack\\",
+    "\\zoom\\",
+)
+
 # Flat alternation, no nested groups, to avoid catastrophic backtracking if a
 # LNK Arguments field carries megabyte-scale adversarial input.
 _HIDDEN_POWERSHELL_FLAGS = re.compile(
@@ -136,6 +152,23 @@ def _in_user_writable(path: str) -> Optional[str]:
         if fragment in lowered:
             return fragment.strip("\\")
     return None
+
+
+def _is_known_signed_autostart(target_path: str) -> bool:
+    """Return True if ``target_path`` matches a legitimate auto-start app.
+
+    Matched against a short allowlist of well-known consumer / corporate apps
+    that write Startup LNKs into user-writable directories by design
+    (OneDrive, Teams, Dropbox, Chrome, Slack, Zoom). Adversaries can of course
+    drop a binary named ``onedrive.exe`` into one of these directories, but a
+    name match plus the full vendor sub-path is already strong evidence of
+    legitimate software — and the investigator can always corroborate via
+    publisher signing.
+    """
+    if not target_path:
+        return False
+    lowered = target_path.lower()
+    return any(fragment in lowered for fragment in _STARTUP_SIGNED_TARGET_FRAGMENTS)
 
 
 def _is_unc_path(path: str) -> bool:
@@ -268,12 +301,16 @@ class LnkJumpListDetector:
                 "target_path": target_path,
                 "sources": set(),
                 "drive_types": set(),
+                "volume_serials": set(),
                 "timestamps": [],
                 "details": [],
             },
         )
         bundle["sources"].add(source)
         bundle["drive_types"].add(drive_type)
+        serial = detail.get("volume_serial")
+        if serial:
+            bundle["volume_serials"].add(serial)
         if timestamp:
             bundle["timestamps"].append(timestamp)
         bundle["details"].append({"source": source, "drive_type": drive_type, **detail})
@@ -282,17 +319,22 @@ class LnkJumpListDetector:
         target_path = bundle["target_path"]
         sources = sorted(bundle["sources"])
         drive_types = sorted(bundle["drive_types"])
+        volume_serials = sorted(bundle["volume_serials"])
         timestamps = sorted(bundle["timestamps"])
         first_seen = timestamps[0] if timestamps else ""
         last_seen = timestamps[-1] if timestamps else ""
         extension = _extension(_basename(target_path))
         drive_label = "/".join(drive_types)
 
-        base_conf = 0.65
+        # Base is intentionally conservative: corporate users plug in USB
+        # drives for legitimate work. Cross-source corroboration is the
+        # meaningful upgrade; same-filename-across-multiple-volumes is the
+        # second (suggests repeated staging across media).
+        base_conf = 0.60
         if len(sources) >= 2:
+            base_conf = min(0.85, base_conf + 0.15)
+        if len(volume_serials) >= 2:
             base_conf = min(0.85, base_conf + 0.10)
-        if "removable" in drive_types:
-            base_conf = min(0.85, base_conf + 0.05)
 
         return Finding(
             title=f"Sensitive file accessed from {drive_label} media: {_basename(target_path)}",
@@ -310,6 +352,7 @@ class LnkJumpListDetector:
                 "extension": extension,
                 "sources": sources,
                 "drive_types": drive_types,
+                "volume_serials": volume_serials,
                 "first_seen": first_seen,
                 "last_seen": last_seen,
                 "details": bundle["details"],
@@ -320,9 +363,14 @@ class LnkJumpListDetector:
                 f"{target_path} has a sensitive extension (.{extension}).",
                 f"Target lived on {drive_label} media per drive-type metadata.",
                 (
-                    f"Corroborated by {', '.join(sources)} ({len(sources)} sources)."
-                    if len(sources) >= 2
-                    else f"Single-source hit from {sources[0]}; corroborate with USB/PCAP."
+                    f"Seen across {len(volume_serials)} distinct volumes "
+                    f"({', '.join(volume_serials)}) — repeated staging pattern."
+                    if len(volume_serials) >= 2
+                    else (
+                        f"Corroborated by {', '.join(sources)} ({len(sources)} sources)."
+                        if len(sources) >= 2
+                        else f"Single-source hit from {sources[0]}; corroborate with USB/PCAP."
+                    )
                 ),
             ],
             artifact_sources=["lnk_jumplist"],
@@ -351,7 +399,7 @@ class LnkJumpListDetector:
                 f"Startup shortcut launches LOLBAS/script host '{target_basename}'"
             )
         writable_fragment = _in_user_writable(entry.target_path)
-        if writable_fragment is not None:
+        if writable_fragment is not None and not _is_known_signed_autostart(entry.target_path):
             reasons.append(
                 f"Startup shortcut target lives under '{writable_fragment}' (user-writable)"
             )

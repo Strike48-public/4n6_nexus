@@ -205,16 +205,31 @@ def _parse_optional_int(value: str) -> Optional[int]:
         return None
 
 
+# Max path/argument length we carry through the pipeline. Real LNKs stay well
+# under 4 KB per field; anything larger is adversarial or malformed CSV input.
+_MAX_FIELD_LENGTH = 4096
+
+
 def _first_nonempty(row: dict, *keys: str, default: str = "") -> str:
     """Return the first non-empty value among ``keys`` in ``row``.
 
     CSV exporters disagree on column names (``TargetPath`` vs ``target_path``
     vs ``LocalPath``). Centralise the alias lookup so the parser survives
     minor schema drift.
+
+    Strips null bytes and bare CR/LF that could smuggle past downstream path
+    checks if an adversarial CSV is under analysis, and truncates oversize
+    cells to ``_MAX_FIELD_LENGTH`` so downstream regexes never see pathological
+    inputs.
     """
     for key in keys:
         if key in row and row[key]:
-            return row[key].strip()
+            raw = row[key]
+            cleaned = (
+                raw.replace("\x00", "").replace("\r", "").replace("\n", "").strip()
+            )
+            if cleaned:
+                return cleaned[:_MAX_FIELD_LENGTH]
     return default
 
 
@@ -356,9 +371,9 @@ class JumpListParser:
                         app_id = "(unknown)"
                     entry_type_raw = _first_nonempty(
                         row, "EntryType", "entry_type", default="Automatic"
-                    ).strip().lower()
+                    ).lower()
                     entry_type = (
-                        "custom" if entry_type_raw.startswith("custom") else "automatic"
+                        "custom" if "custom" in entry_type_raw else "automatic"
                     )
                     entries.append(
                         JumpListEntry(

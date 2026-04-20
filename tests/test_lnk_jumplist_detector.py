@@ -75,6 +75,27 @@ def test_lnk_on_removable_media_with_sensitive_ext_flagged():
     assert "q3_financials.xlsx" in f.title
     assert f.evidence["drive_types"] == ["removable"]
     assert f.evidence["sources"] == ["lnk"]
+    # Single-source, single-volume hit: conservative base confidence.
+    assert f.confidence == 0.60
+    assert f.evidence["volume_serials"] == ["ABCD-1234"]
+
+
+def test_multi_volume_removable_hits_bump_confidence():
+    # Same file seen across two distinct USB serials is a repeat-staging signal.
+    findings = LnkJumpListDetector().analyze(
+        lnk_entries=[
+            _lnk(volume_serial="ABCD-1234", volume_label="USB_A"),
+            _lnk(
+                lnk_path="C:\\Users\\bob\\AppData\\Roaming\\Microsoft\\Windows\\Recent\\q3_alt.lnk",
+                volume_serial="EFGH-5678",
+                volume_label="USB_B",
+            ),
+        ]
+    )
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.confidence >= 0.70
+    assert sorted(f.evidence["volume_serials"]) == ["ABCD-1234", "EFGH-5678"]
 
 
 def test_lnk_on_fixed_drive_ignored_even_with_sensitive_ext():
@@ -171,6 +192,57 @@ def test_startup_lnk_to_signed_path_not_flagged():
     )
     findings = LnkJumpListDetector().analyze(lnk_entries=[entry])
     assert findings == []
+
+
+def test_startup_lnk_to_onedrive_in_programdata_not_flagged():
+    # Regression: legitimate OneDrive auto-start lives under ProgramData on
+    # every corporate workstation. Without the signed-autostart allowlist, the
+    # generic "programdata is user-writable" signal fires on a benign app.
+    entry = _lnk(
+        lnk_path=_STARTUP_LNK,
+        target_path="C:\\ProgramData\\Microsoft\\OneDrive\\OneDrive.exe",
+        arguments="/background",
+        drive_type="fixed",
+    )
+    findings = LnkJumpListDetector().analyze(lnk_entries=[entry])
+    assert findings == []
+
+
+def test_startup_lnk_to_teams_in_appdata_not_flagged():
+    # Similar regression for Microsoft Teams.
+    entry = _lnk(
+        lnk_path=_STARTUP_LNK,
+        target_path="C:\\Users\\alice\\AppData\\Local\\Microsoft\\Teams\\Update.exe",
+        arguments="--processStart Teams.exe",
+        drive_type="fixed",
+    )
+    findings = LnkJumpListDetector().analyze(lnk_entries=[entry])
+    assert findings == []
+
+
+def test_startup_lnk_to_chrome_in_appdata_not_flagged():
+    entry = _lnk(
+        lnk_path=_STARTUP_LNK,
+        target_path="C:\\Users\\alice\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe",
+        arguments="",
+        drive_type="fixed",
+    )
+    findings = LnkJumpListDetector().analyze(lnk_entries=[entry])
+    assert findings == []
+
+
+def test_startup_lnk_to_unsigned_appdata_path_still_flagged():
+    # Guard the allowlist isn't over-broad: a random unknown binary in
+    # AppData\Roaming must still trip the signal.
+    entry = _lnk(
+        lnk_path=_STARTUP_LNK,
+        target_path="C:\\Users\\alice\\AppData\\Roaming\\Suspicious\\payload.exe",
+        arguments="",
+        drive_type="fixed",
+    )
+    findings = LnkJumpListDetector().analyze(lnk_entries=[entry])
+    persistence = [f for f in findings if f.category == FindingCategory.PERSISTENCE]
+    assert len(persistence) == 1
 
 
 def test_startup_lnk_survives_pathological_arguments():

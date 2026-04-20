@@ -845,11 +845,11 @@ Examples:
     )
     analyze_parser.add_argument(
         '--lnk',
-        help='Path to LNK CSV (LECmd export) for document-access / removable-media detection (optional)'
+        help='Path to LNK CSV (LECmd export) for document-access, removable-media, and Startup-folder persistence detection (optional)'
     )
     analyze_parser.add_argument(
         '--jumplist',
-        help='Path to Jump List CSV (JLECmd export) for per-application MRU detection (optional)'
+        help='Path to Jump List CSV (JLECmd export) for per-application MRU and UNC-share document access detection (optional)'
     )
     analyze_parser.add_argument(
         '--output', '-o',

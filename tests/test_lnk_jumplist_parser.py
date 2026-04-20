@@ -235,3 +235,34 @@ def test_jumplist_parser_skips_rows_with_nothing_useful(tmp_path: Path):
 def test_jumplist_parser_missing_file_raises(tmp_path: Path):
     with pytest.raises(FileNotFoundError):
         JumpListParser().parse_csv(tmp_path / "missing.csv")
+
+
+# --- Adversarial input hardening -------------------------------------------
+
+
+def test_lnk_parser_strips_null_bytes_from_target_path(tmp_path: Path):
+    # Regression: an adversarial CSV can embed a NUL to confuse downstream
+    # path-fragment checks (Windows APIs treat NUL as string terminator).
+    csv_path = tmp_path / "lnk.csv"
+    csv_path.write_text(
+        "SourceFile,LocalPath,DriveType\n"
+        "C:\\a.lnk,C:\\evil.exe\x00C:\\legit.txt,Fixed\n"
+    )
+    entries = LnkParser().parse_csv(csv_path)
+    assert len(entries) == 1
+    assert "\x00" not in entries[0].target_path
+    assert entries[0].target_path == "C:\\evil.exeC:\\legit.txt"
+
+
+def test_lnk_parser_truncates_oversize_arguments(tmp_path: Path):
+    # Regression: a megabyte-scale Arguments blob must be capped at parse
+    # time so downstream regexes never see pathological input.
+    csv_path = tmp_path / "lnk.csv"
+    giant = "-e" * 50_000
+    csv_path.write_text(
+        "SourceFile,LocalPath,Arguments,DriveType\n"
+        f"C:\\a.lnk,C:\\x.exe,{giant},Fixed\n"
+    )
+    entries = LnkParser().parse_csv(csv_path)
+    assert len(entries) == 1
+    assert len(entries[0].arguments) <= 4096
