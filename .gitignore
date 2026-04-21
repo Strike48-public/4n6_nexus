@@ -57,6 +57,7 @@ analysis/scenario_*.json
 analysis/*/extracted/
 analysis/*/csv/
 analysis/*/logs/
+analysis/scenario_testing/
 
 # Scenario evidence - downloaded binary files live under scenarios/**/evidence/
 # and reference corpora, never in git.
