@@ -11,6 +11,7 @@ from typing import List, Optional
 from pathlib import Path
 
 from ..validators.timestamp_comparator import TimestampComparator
+from ._csv_schema import require_columns as _require_columns
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,11 @@ class PrefetchParser:
         """Initialize the parser with a timestamp comparator."""
         self.comparator = TimestampComparator()
 
+    # Columns the parser actually reads for matching against MFT/EventLog.
+    # An input CSV without these is not a PECmd export and will be rejected
+    # instead of silently producing empty entries (SFE-2lr).
+    REQUIRED_COLUMNS = ("Executable", "LastRunTime")
+
     def parse_csv(self, csv_path: str) -> List[PrefetchEntry]:
         """Parse PECmd CSV file.
 
@@ -91,7 +97,8 @@ class PrefetchParser:
 
         Raises:
             FileNotFoundError: If CSV file doesn't exist
-            ValueError: If CSV format is invalid
+            ValueError: If the CSV is empty or is missing any required column
+                from ``REQUIRED_COLUMNS``.
         """
         csv_file = Path(csv_path)
         if not csv_file.exists():
@@ -101,6 +108,7 @@ class PrefetchParser:
 
         with open(csv_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
+            _require_columns(reader, self.REQUIRED_COLUMNS, csv_file, "Prefetch")
 
             for row in reader:
                 entry = self._parse_row(row)

@@ -11,6 +11,7 @@ from typing import List, Optional
 from pathlib import Path
 
 from ..validators.timestamp_comparator import TimestampComparator
+from ._csv_schema import require_columns as _require_columns
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,10 @@ class EventLogParser:
         """Initialize the parser with a timestamp comparator."""
         self.comparator = TimestampComparator()
 
+    # Required header columns. Rejecting files that are missing these avoids
+    # silently parsing non-EvtxECmd CSVs into empty EventLogEntry rows (SFE-2lr).
+    REQUIRED_COLUMNS = ("TimeCreated", "EventId")
+
     def parse_csv(self, csv_path: str, filter_event_ids: Optional[List[int]] = None) -> List[EventLogEntry]:
         """Parse EvtxECmd CSV file.
 
@@ -111,7 +116,8 @@ class EventLogParser:
 
         Raises:
             FileNotFoundError: If CSV file doesn't exist
-            ValueError: If CSV format is invalid
+            ValueError: If the CSV is empty or is missing any required column
+                from ``REQUIRED_COLUMNS``.
         """
         csv_file = Path(csv_path)
         if not csv_file.exists():
@@ -121,6 +127,7 @@ class EventLogParser:
 
         with open(csv_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
+            _require_columns(reader, self.REQUIRED_COLUMNS, csv_file, "Event Log")
 
             for row in reader:
                 entry = self._parse_row(row)
