@@ -100,7 +100,7 @@ class MFTParser:
     # (``Created0x10`` and ``SI_LtCreated``), so the required-column entry for
     # the $SI creation timestamp accepts either variant. Rejects non-MFTECmd
     # CSVs that would otherwise silently parse into empty entries (SFE-2lr).
-    REQUIRED_COLUMNS = (
+    REQUIRED_COLUMNS: tuple[str | tuple[str, ...], ...] = (
         "FileName",
         ("Created0x10", "SI_LtCreated"),
     )

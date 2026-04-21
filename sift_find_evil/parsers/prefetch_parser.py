@@ -84,7 +84,7 @@ class PrefetchParser:
     # Columns the parser actually reads for matching against MFT/EventLog.
     # An input CSV without these is not a PECmd export and will be rejected
     # instead of silently producing empty entries (SFE-2lr).
-    REQUIRED_COLUMNS = ("Executable", "LastRunTime")
+    REQUIRED_COLUMNS: tuple[str, ...] = ("Executable", "LastRunTime")
 
     def parse_csv(self, csv_path: str) -> List[PrefetchEntry]:
         """Parse PECmd CSV file.

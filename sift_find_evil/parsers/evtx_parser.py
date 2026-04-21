@@ -102,7 +102,7 @@ class EventLogParser:
 
     # Required header columns. Rejecting files that are missing these avoids
     # silently parsing non-EvtxECmd CSVs into empty EventLogEntry rows (SFE-2lr).
-    REQUIRED_COLUMNS = ("TimeCreated", "EventId")
+    REQUIRED_COLUMNS: tuple[str, ...] = ("TimeCreated", "EventId")
 
     def parse_csv(self, csv_path: str, filter_event_ids: Optional[List[int]] = None) -> List[EventLogEntry]:
         """Parse EvtxECmd CSV file.

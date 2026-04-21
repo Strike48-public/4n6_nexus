@@ -17,9 +17,9 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from typing import Sequence, Union
+from typing import Sequence, Tuple, Union
 
-RequiredColumn = Union[str, Sequence[str]]
+RequiredColumn = Union[str, Tuple[str, ...]]
 
 
 def require_columns(
