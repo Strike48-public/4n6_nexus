@@ -1,0 +1,304 @@
+"""YaraScanner — compile rules and scan files for malware classification.
+
+yara-python is an **optional** dependency. The module imports cleanly on hosts
+without libyara; invoking ``compile_from_directory`` or ``scan_file`` raises
+``MissingYaraError`` so callers can fall back gracefully.
+
+Design
+------
+- ``YaraScanner`` wraps a compiled ``yara.Rules`` object and a scan policy
+  (file-size cap, string-capture flag).
+- ``YaraMatch`` / ``YaraString`` are immutable dataclasses that mirror the
+  yara-python match shape so downstream code never touches yara-python types
+  directly — this lets us swap implementations (yara-x, etc.) later without
+  rewriting detectors.
+- Broken .yar files are skipped by default (logged into ``compile_errors``)
+  since community rulesets (YARA-Rules, Signature-Base) routinely ship with
+  files that fail to compile under newer libyara; ``strict=True`` restores
+  fail-fast behavior for unit tests.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
+
+try:
+    import yara as _yara
+except ImportError:  # pragma: no cover — only exercised on hosts without libyara
+    _yara = None
+
+
+class MissingYaraError(RuntimeError):
+    """Raised when the yara-python package is not installed.
+
+    Callers should catch this and either skip YARA scanning or surface a
+    clear message pointing at the install instructions. Raising a dedicated
+    exception (rather than ImportError) lets callers distinguish a missing
+    YARA install from any other import failure inside this package.
+    """
+
+
+DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MiB per-file scan cap
+
+
+@dataclass(frozen=True)
+class YaraString:
+    """One matching string instance inside a YARA match.
+
+    yara-python returns string matches as ``(offset, identifier, data)`` in
+    v4.2 and as a ``StringMatch`` object in v4.3+. This dataclass normalizes
+    both.
+    """
+
+    identifier: str
+    offset: int
+    data: bytes
+
+
+@dataclass(frozen=True)
+class YaraMatch:
+    """One rule match against one file.
+
+    ``strings`` captures up to a bounded number of string instances to keep
+    memory predictable when scanning large files against noisy rules.
+    """
+
+    rule: str
+    namespace: str
+    tags: tuple[str, ...]
+    meta: dict[str, Any]
+    strings: tuple[YaraString, ...]
+    source_file: Path
+
+
+@dataclass
+class CompileError:
+    """Record of a .yar file that failed to compile during bulk load."""
+
+    source: str
+    message: str
+
+
+class YaraScanner:
+    """Compile YARA rules and scan files or directories.
+
+    Prefer ``YaraScanner.compile_from_directory(path)`` to the constructor;
+    the classmethod enforces the directory-load policy (skip-on-error,
+    aggregation across files). The constructor exists for callers who have
+    already compiled a ``yara.Rules`` object and want to wrap it.
+    """
+
+    def __init__(
+        self,
+        rules: Any,
+        rule_count: int,
+        compile_errors: Optional[list[CompileError]] = None,
+        max_file_size: int = DEFAULT_MAX_FILE_SIZE,
+        capture_strings: bool = True,
+    ):
+        if _yara is None:
+            raise MissingYaraError(
+                "yara-python is not installed. "
+                "Install with `pip install yara-python` and ensure libyara "
+                "is available (SIFT: `/usr/local/bin/yara`)."
+            )
+        self._rules = rules
+        self._rule_count = rule_count
+        self._compile_errors = list(compile_errors or [])
+        self._max_file_size = max_file_size
+        self._capture_strings = capture_strings
+
+    @property
+    def rule_count(self) -> int:
+        """Number of rules successfully compiled into this scanner."""
+        return self._rule_count
+
+    @property
+    def compile_errors(self) -> list[CompileError]:
+        """Rules that failed to compile during ``compile_from_directory``."""
+        return list(self._compile_errors)
+
+    @classmethod
+    def compile_from_directory(
+        cls,
+        rules_dir: Path,
+        *,
+        recursive: bool = True,
+        strict: bool = False,
+        max_file_size: int = DEFAULT_MAX_FILE_SIZE,
+        capture_strings: bool = True,
+    ) -> "YaraScanner":
+        """Compile every ``*.yar``/``*.yara`` file under ``rules_dir``.
+
+        Parameters
+        ----------
+        rules_dir:
+            Directory to walk for rule files.
+        recursive:
+            Walk subdirectories when True (default).
+        strict:
+            When True, a single broken rule file aborts the load. Default
+            False is more forgiving and matches community-ruleset reality.
+        max_file_size:
+            Per-file byte cap for subsequent scans. Files larger than this
+            raise ``ValueError`` at scan time to prevent memory blow-up on
+            disk images or massive archives.
+        capture_strings:
+            When True (default), matching string instances (with offsets)
+            are returned on every match. Disable for faster bulk scans when
+            only the rule-name is needed.
+        """
+        if _yara is None:
+            raise MissingYaraError(
+                "yara-python is not installed. "
+                "Install with `pip install yara-python`."
+            )
+        if not rules_dir.is_dir():
+            raise FileNotFoundError(f"YARA rules directory not found: {rules_dir}")
+
+        pattern_iter = (
+            rules_dir.rglob("*") if recursive else rules_dir.glob("*")
+        )
+        rule_files = sorted(
+            p for p in pattern_iter
+            if p.is_file() and p.suffix.lower() in (".yar", ".yara")
+        )
+        if not rule_files:
+            raise ValueError(
+                f"no YARA rule files (*.yar, *.yara) found under {rules_dir}"
+            )
+
+        filepaths: dict[str, str] = {}
+        errors: list[CompileError] = []
+        rule_count = 0
+
+        for rule_file in rule_files:
+            namespace = _namespace_for(rule_file, rules_dir)
+            try:
+                compiled = _yara.compile(filepath=str(rule_file))
+            except _yara.Error as exc:  # SyntaxError, Error — all subclasses
+                if strict:
+                    raise
+                errors.append(CompileError(source=str(rule_file), message=str(exc)))
+                continue
+            # Re-count successfully-parsed rules by iterating the compiled
+            # object. yara.Rules is iterable in 4.2+ and exposes __len__ via
+            # iteration in 4.5.
+            rule_count += sum(1 for _ in compiled)
+            filepaths[namespace] = str(rule_file)
+
+        if not filepaths:
+            # Every rule file failed to compile. Fail loudly rather than
+            # returning an empty scanner that silently matches nothing.
+            first = errors[0] if errors else None
+            raise ValueError(
+                f"no YARA rules compiled successfully from {rules_dir} "
+                f"({len(errors)} file(s) failed"
+                + (f"; first error: {first.message}" if first else "")
+                + ")"
+            )
+
+        rules = _yara.compile(filepaths=filepaths)
+        return cls(
+            rules=rules,
+            rule_count=rule_count,
+            compile_errors=errors,
+            max_file_size=max_file_size,
+            capture_strings=capture_strings,
+        )
+
+    def scan_file(self, target: Path) -> list[YaraMatch]:
+        """Scan one file and return its matches."""
+        if not target.is_file():
+            raise FileNotFoundError(f"scan target not found: {target}")
+        size = target.stat().st_size
+        if size > self._max_file_size:
+            raise ValueError(
+                f"{target} is {size} bytes; exceeds max_file_size "
+                f"{self._max_file_size}"
+            )
+        raw_matches = self._rules.match(filepath=str(target))
+        return [self._normalize(m, target) for m in raw_matches]
+
+    def scan_directory(
+        self,
+        root: Path,
+        *,
+        recursive: bool = True,
+    ) -> dict[Path, list[YaraMatch]]:
+        """Scan every regular file under ``root`` and return a {path: matches} map.
+
+        Files exceeding ``max_file_size`` are returned with an empty match
+        list rather than raising, so a single oversized file in a batch does
+        not abort the whole scan. Call ``scan_file`` directly for strict mode.
+        """
+        if not root.is_dir():
+            raise FileNotFoundError(f"scan root not found: {root}")
+        iter_paths = root.rglob("*") if recursive else root.glob("*")
+        results: dict[Path, list[YaraMatch]] = {}
+        for path in sorted(p for p in iter_paths if p.is_file()):
+            try:
+                results[path] = self.scan_file(path)
+            except ValueError:
+                results[path] = []  # oversized file — recorded as no-match
+        return results
+
+    def _normalize(self, raw: Any, source_file: Path) -> YaraMatch:
+        """Convert a yara-python match into our immutable dataclass."""
+        strings: tuple[YaraString, ...] = ()
+        if self._capture_strings:
+            strings = tuple(_flatten_strings(raw.strings))
+        tags = tuple(raw.tags or ())
+        meta = dict(raw.meta or {})
+        return YaraMatch(
+            rule=raw.rule,
+            namespace=raw.namespace or "default",
+            tags=tags,
+            meta=meta,
+            strings=strings,
+            source_file=source_file,
+        )
+
+
+def _namespace_for(rule_file: Path, rules_dir: Path) -> str:
+    """Derive a stable namespace from the rule file's path under rules_dir."""
+    try:
+        relative = rule_file.relative_to(rules_dir)
+    except ValueError:
+        relative = rule_file
+    return str(relative.with_suffix("")).replace("/", ".") or rule_file.stem
+
+
+def _flatten_strings(raw_strings: Any) -> list[YaraString]:
+    """Normalize yara-python string matches across library versions.
+
+    yara-python 4.2.x returns ``[(offset, identifier, data), ...]``.
+    yara-python 4.3+ returns ``[StringMatch(identifier=..., instances=[...])]``
+    where each ``instance`` has ``offset`` and ``matched_data``.
+    """
+    if not raw_strings:
+        return []
+    flat: list[YaraString] = []
+    for item in raw_strings:
+        if isinstance(item, tuple) and len(item) == 3:
+            offset, identifier, data = item
+            flat.append(
+                YaraString(identifier=str(identifier), offset=int(offset), data=bytes(data))
+            )
+            continue
+        # yara-python 4.3+ StringMatch shape
+        instances = getattr(item, "instances", None)
+        identifier = getattr(item, "identifier", "")
+        if instances is None:
+            continue
+        for instance in instances:
+            flat.append(
+                YaraString(
+                    identifier=str(identifier),
+                    offset=int(getattr(instance, "offset", 0)),
+                    data=bytes(getattr(instance, "matched_data", b"")),
+                )
+            )
+    return flat
