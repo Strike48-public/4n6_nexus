@@ -155,13 +155,18 @@ def hash_all_files(files: list[Path]) -> list[tuple[Path, str, str]]:
 
 
 def filter_with_nsrl(
-    hashed_files: list[tuple[Path, str, str]], nsrl_path: Path | None
+    hashed_files: list[tuple[Path, str, str]],
+    nsrl_path: Path | None,
+    use_bloom: bool = False,
 ) -> tuple[list[tuple[Path, str, str]], list[tuple[Path, str, str]]]:
     """Filter files using NSRL database.
 
     Args:
         hashed_files: List of (path, sha256, sha1) tuples
         nsrl_path: Path to NSRLFile.txt (or None to skip)
+        use_bloom: If True, use the bloom-filter backend (memory-efficient,
+            <1 GB RAM for 200M hashes at p=0.001) instead of the exact set
+            (2-10 GB RAM depending on RDS size).
 
     Returns:
         Tuple of (known_good, unknown) file lists
@@ -170,10 +175,11 @@ def filter_with_nsrl(
         logger.info("NSRL filtering skipped (no database provided)")
         return [], hashed_files
 
-    logger.info(f"Loading NSRL database: {nsrl_path}")
+    backend = "bloom" if use_bloom else "set"
+    logger.info(f"Loading NSRL database ({backend} backend): {nsrl_path}")
 
     try:
-        nsrl_filter = NSRLFilter(nsrl_path)
+        nsrl_filter = NSRLFilter(nsrl_path, use_bloom=use_bloom)
         nsrl_filter.load()
 
         # Convert to format expected by filter_files (path, hash)
@@ -310,6 +316,14 @@ Examples:
         action="store_true",
         help="Skip carving step (use existing carved files in analysis/circl-2023-wiped/carved_executables/)",
     )
+    parser.add_argument(
+        "--nsrl-bloom",
+        action="store_true",
+        help=(
+            "Use bloom filter backend for NSRL (requires rbloom; "
+            "~400 MB RAM vs 2-10 GB for exact set; tunable false-positive rate)"
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -356,7 +370,9 @@ Examples:
             )
             logger.warning("Proceeding without NSRL filtering...")
 
-    known_good, unknown = filter_with_nsrl(hashed_files, nsrl_path)
+    known_good, unknown = filter_with_nsrl(
+        hashed_files, nsrl_path, use_bloom=args.nsrl_bloom
+    )
 
     # Step 4: Generate report
     report_file = OUTPUT_DIR / "executable_analysis_report.json"

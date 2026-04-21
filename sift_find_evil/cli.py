@@ -442,6 +442,20 @@ def cmd_analyze(args):
     jumplist_path: Optional[Path] = (
         Path(args.jumplist) if getattr(args, 'jumplist', None) else None
     )
+    nsrl_db_path: Optional[Path] = (
+        Path(args.nsrl_db) if getattr(args, 'nsrl_db', None) else None
+    )
+    nsrl_use_bloom: bool = bool(getattr(args, 'nsrl_bloom', False))
+    if nsrl_use_bloom:
+        try:
+            import rbloom  # noqa: F401
+        except ImportError:
+            print(
+                "Error: --nsrl-bloom requires rbloom. Install: pip install rbloom",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     registry_paths = [shimcache_path, amcache_path, bam_path, userassist_path, run_keys_path]
     artifact_args = [getattr(args, 'mft', None), getattr(args, 'prefetch', None), getattr(args, 'evtx', None)]
     has_artifacts = any(artifact_args)
@@ -491,6 +505,29 @@ def cmd_analyze(args):
         if path is not None and not path.exists():
             print(f"Error: {label} CSV not found: {path}", file=sys.stderr)
             sys.exit(1)
+
+    nsrl_filter = None
+    if nsrl_db_path is not None or nsrl_use_bloom:
+        from .carving import NSRLFilter, find_nsrl_database
+
+        resolved = nsrl_db_path or find_nsrl_database()
+        if resolved is None or not resolved.exists():
+            print(
+                "Error: NSRL database not found. "
+                "Run ./scripts/download-nsrl.sh modern or pass --nsrl-db PATH.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print_section("Loading NSRL Database")
+        backend = "bloom" if nsrl_use_bloom else "set"
+        print(f"  Path: {resolved} (backend: {backend})")
+        nsrl_filter = NSRLFilter(resolved, use_bloom=nsrl_use_bloom)
+        nsrl_filter.load()
+        stats = nsrl_filter.get_stats()
+        print(
+            f"  Loaded {stats['sha1_count']:,} SHA-1 hashes, "
+            f"{stats['md5_count']:,} MD5 hashes"
+        )
 
     disk_finding = None
     if image_path is not None:
@@ -850,6 +887,24 @@ Examples:
     analyze_parser.add_argument(
         '--jumplist',
         help='Path to Jump List CSV (JLECmd export) for per-application MRU and UNC-share document access detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--nsrl-db',
+        dest='nsrl_db',
+        help=(
+            'Path to NSRLFile.txt for known-good hash filtering. '
+            'Auto-discovered if omitted (~/.sift_find_evil/nsrl/NSRLFile.txt, '
+            './nsrl/NSRLFile.txt, /cases/nsrl/NSRLFile.txt). Used by carving triage.'
+        ),
+    )
+    analyze_parser.add_argument(
+        '--nsrl-bloom',
+        dest='nsrl_bloom',
+        action='store_true',
+        help=(
+            'Use bloom filter backend for NSRL (requires rbloom; ~400 MB RAM '
+            'vs 2-10 GB for exact set; tunable false-positive rate)'
+        ),
     )
     analyze_parser.add_argument(
         '--output', '-o',

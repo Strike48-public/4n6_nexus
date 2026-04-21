@@ -255,3 +255,163 @@ def test_nsrl_filter_invalid_format():
             nsrl_filter.load()
     finally:
         temp_path.unlink()
+
+
+# --- Bloom filter backend tests --------------------------------------------
+
+
+def test_bloom_backend_init(mock_nsrl_file):
+    """Bloom backend is selectable via constructor and reports its backend."""
+    nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
+    assert nsrl_filter.use_bloom is True
+    assert nsrl_filter.loaded is False
+    # Backend surfaces through stats before load
+    stats = nsrl_filter.get_stats()
+    assert stats["backend"] == "bloom"
+    assert stats["expected_items"] == 1000
+
+
+def test_bloom_backend_default_is_set(mock_nsrl_file):
+    """Default backend remains the exact Python set (backward compat)."""
+    nsrl_filter = NSRLFilter(mock_nsrl_file)
+    assert nsrl_filter.use_bloom is False
+    assert nsrl_filter.get_stats()["backend"] == "set"
+
+
+def test_bloom_backend_load_and_positive_lookup(mock_nsrl_file):
+    """Bloom backend returns True for hashes that were loaded (no false negatives)."""
+    nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
+    nsrl_filter.load()
+
+    assert nsrl_filter.loaded is True
+    # SHA-1 positive
+    assert nsrl_filter.is_known_good(
+        "5d41402abc4b2a76b9719d911017c592", hash_type="sha1"
+    )
+    # MD5 positive
+    assert nsrl_filter.is_known_good(
+        "7d793037a0760186574b0282f2f435e7", hash_type="md5"
+    )
+
+
+def test_bloom_backend_case_insensitive(mock_nsrl_file):
+    """Bloom backend lowercases inputs just like the set backend."""
+    nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
+    nsrl_filter.load()
+    assert nsrl_filter.is_known_good(
+        "5D41402ABC4B2A76B9719D911017C592", hash_type="sha1"
+    )
+
+
+def test_bloom_backend_no_false_negatives_under_stress(mock_nsrl_file):
+    """Every hash inserted into the bloom filter must resolve to True on lookup.
+
+    Bloom filters guarantee no false negatives; this test protects that contract
+    across all fixture hashes, covering every CSV row end-to-end.
+    """
+    nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
+    nsrl_filter.load()
+
+    known_sha1 = [
+        "5d41402abc4b2a76b9719d911017c592",
+        "aaf4c61ddcc5e8a2dabede0f3b482cd9",
+        "9c2e4d0d9a1c66c5d6e4e35c6b7d1234",
+    ]
+    known_md5 = [
+        "7d793037a0760186574b0282f2f435e7",
+        "098f6bcd4621d373cade4e832627b4f6",
+        "5f4dcc3b5aa765d61d8327deb882cf99",
+    ]
+    for h in known_sha1:
+        assert nsrl_filter.is_known_good(h, hash_type="sha1"), h
+    for h in known_md5:
+        assert nsrl_filter.is_known_good(h, hash_type="md5"), h
+
+
+def test_bloom_backend_false_positive_rate_bounded():
+    """False-positive rate stays close to target over a realistic workload.
+
+    Inserts 5_000 SHA-1-shaped strings and checks 50_000 disjoint unknowns.
+    At p=0.01 the observed FP rate must stay well under 5%.
+    """
+    nsrl_filter = NSRLFilter.__new__(NSRLFilter)
+    nsrl_filter.nsrl_path = Path("/dev/null")
+    nsrl_filter.use_bloom = True
+    nsrl_filter._expected_items = 5_000
+    nsrl_filter._false_positive_rate = 0.01
+    from sift_find_evil.carving.nsrl_filter import _make_bloom
+
+    nsrl_filter.sha1_hashes = _make_bloom(5_000, 0.01)
+    nsrl_filter.md5_hashes = _make_bloom(5_000, 0.01)
+    nsrl_filter.loaded = True
+
+    # Insert 5_000 known hashes
+    known = {f"{i:040x}" for i in range(5_000)}
+    for h in known:
+        nsrl_filter.sha1_hashes.add(h)
+
+    # Every known hash resolves positive (no false negatives)
+    for h in known:
+        assert nsrl_filter.is_known_good(h, hash_type="sha1")
+
+    # Check 50_000 disjoint unknowns; observed FP rate must stay under 5%
+    trials = 50_000
+    false_positives = 0
+    for i in range(10_000, 10_000 + trials):
+        h = f"{i:040x}"
+        if h in known:
+            continue
+        if nsrl_filter.is_known_good(h, hash_type="sha1"):
+            false_positives += 1
+
+    observed_fp = false_positives / trials
+    assert observed_fp < 0.05, (
+        f"Bloom FP rate {observed_fp:.4f} exceeded 5% upper bound "
+        f"(target 1%, tolerates rbloom variance)"
+    )
+
+
+def test_bloom_backend_stats_after_load(mock_nsrl_file):
+    """Bloom backend reports approximate counts and size metadata."""
+    nsrl_filter = NSRLFilter(
+        mock_nsrl_file, use_bloom=True, expected_items=1000, false_positive_rate=0.01
+    )
+    nsrl_filter.load()
+    stats = nsrl_filter.get_stats()
+
+    assert stats["loaded"] is True
+    assert stats["backend"] == "bloom"
+    assert stats["false_positive_rate"] == 0.01
+    assert stats["expected_items"] == 1000
+    assert stats["size_bytes"] > 0
+    # approx_items is a float approximation; accept a small window around 3
+    assert abs(stats["sha1_count"] - 3) <= 1
+    assert abs(stats["md5_count"] - 3) <= 1
+
+
+def test_bloom_backend_filter_files(mock_nsrl_file):
+    """filter_files partitions correctly using the bloom backend."""
+    nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
+
+    files = [
+        ("/carved/file1.dll", "5d41402abc4b2a76b9719d911017c592"),
+        ("/carved/file2.exe", "aaf4c61ddcc5e8a2dabede0f3b482cd9"),
+        ("/carved/file3.exe", "0000000000000000000000000000000000000000"),
+        ("/carved/file4.exe", "1111111111111111111111111111111111111111"),
+    ]
+    known_good, unknown = nsrl_filter.filter_files(files, hash_type="sha1")
+    # Known-good must include both real hashes; bloom allows rare FPs so we
+    # only assert a lower bound on unknowns and an exact set on known_good.
+    known_paths = {p for p, _ in known_good}
+    assert "/carved/file1.dll" in known_paths
+    assert "/carved/file2.exe" in known_paths
+    # At least one of the random hashes should land in unknown at this size.
+    assert len(unknown) >= 1
+
+
+def test_bloom_backend_invalid_hash_type(mock_nsrl_file):
+    """Bloom backend raises ValueError for unsupported hash types."""
+    nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
+    nsrl_filter.load()
+    with pytest.raises(ValueError, match="Unsupported hash type"):
+        nsrl_filter.is_known_good("abc123", hash_type="invalid")

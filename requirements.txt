@@ -14,6 +14,7 @@ pytsk3>=20231007
 volatility3>=2.5.0
 libewf-python>=20240506   # provides `pyewf` (used by image_content_reader)
 libpff-python>=20231205   # provides `pypff` (used by pst_parser)
+rbloom>=1.5.0             # bloom filter for NSRL (200M+ hashes, ~400 MB RAM)
 
 # Logging and audit
 structlog>=24.1.0
