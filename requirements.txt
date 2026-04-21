@@ -12,6 +12,8 @@ anthropic>=0.18.0
 # Forensic tool wrappers
 pytsk3>=20231007
 volatility3>=2.5.0
+libewf-python>=20240506   # provides `pyewf` (used by image_content_reader)
+libpff-python>=20231205   # provides `pypff` (used by pst_parser)
 
 # Logging and audit
 structlog>=24.1.0

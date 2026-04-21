@@ -25,12 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system deps for pytsk3 + libewf-python
+      - name: Install system deps for pytsk3 + libewf-python + libpff-python
         # These are sdist-only on PyPI and compile against system headers.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libewf-dev \
+            libpff-dev \
             libtsk-dev \
             pkg-config
 
