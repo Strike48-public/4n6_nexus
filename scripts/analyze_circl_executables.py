@@ -20,12 +20,11 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sift_find_evil.carving import NSRLFilter, find_nsrl_database, detect_file_type
+from sift_find_evil.carving import NSRLFilter, find_nsrl_database
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -189,7 +188,7 @@ def filter_with_nsrl(
         known_good = [f for f in hashed_files if f[2] in known_good_set]
         unknown = [f for f in hashed_files if f[2] in unknown_set]
 
-        logger.info(f"NSRL filtering complete:")
+        logger.info("NSRL filtering complete:")
         logger.info(f"  Total: {len(hashed_files)}")
         logger.info(f"  Known-good: {len(known_good)}")
         logger.info(f"  Unknown: {len(unknown)}")

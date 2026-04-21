@@ -7,7 +7,6 @@ Missing lines from coverage report: 37-41, 49-50, 63-70, 98, 156-159, 178,
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest

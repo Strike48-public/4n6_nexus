@@ -7,11 +7,10 @@ This test file focuses on the missing lines identified in coverage report:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-import pytest
 
 from sift_find_evil.disk.exfil_detector import (
     ExfilMatch,

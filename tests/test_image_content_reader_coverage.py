@@ -8,12 +8,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, patch
 
 import pytest
 
 from sift_find_evil.parsers.image_content_reader import (
-    EwfImgInfo,
     ImageContentReader,
     make_content_reader,
 )
@@ -110,7 +109,7 @@ def test_image_content_reader_init_finds_ntfs_partition(
     mock_vol.__iter__ = Mock(return_value=iter([mock_part]))
     mock_volume.return_value = mock_vol
 
-    reader = ImageContentReader(image_path)
+    ImageContentReader(image_path)
 
     # Should open filesystem at partition offset (2048 sectors * 512 bytes)
     expected_offset = 2048 * 512
@@ -138,7 +137,7 @@ def test_image_content_reader_init_falls_back_to_offset_zero(
     # Volume_Info raises exception (no partition table)
     mock_volume.side_effect = Exception("No partition table")
 
-    reader = ImageContentReader(image_path)
+    ImageContentReader(image_path)
 
     # Should fall back to offset 0
     mock_fs.assert_called_once()
@@ -197,7 +196,7 @@ def test_image_content_reader_init_handles_string_partition_desc(
     mock_vol.__iter__ = Mock(return_value=iter([mock_part]))
     mock_volume.return_value = mock_vol
 
-    reader = ImageContentReader(image_path)
+    ImageContentReader(image_path)
 
     # Should still find the NTFS partition
     expected_offset = 2048 * 512
@@ -248,7 +247,7 @@ def test_image_content_reader_context_manager_exit_closes(
     mock_handle_class.return_value = mock_handle
     mock_volume.side_effect = Exception("No partition")
 
-    with ImageContentReader(image_path) as reader:
+    with ImageContentReader(image_path):
         pass
 
     # Handle should be closed after context exit

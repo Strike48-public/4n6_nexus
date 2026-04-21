@@ -181,7 +181,6 @@ def _maybe_extract_usnjrnl(fs: pytsk3.FS_Info, dst: Path) -> ExtractedFile | Non
             continue
         if not entry.info.meta:
             return None
-        node = entry.as_fs_info() if hasattr(entry, "as_fs_info") else None
         # Walk attributes looking for the $J data stream
         f = fs.open_meta(inode=entry.info.meta.addr)
         for attr in f:

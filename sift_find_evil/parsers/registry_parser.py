@@ -7,7 +7,6 @@ when Prefetch files are deleted or unavailable.
 
 import csv
 import logging
-import struct
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
