@@ -25,6 +25,18 @@ from .parsers.prefetch_parser import PrefetchParser
 from .parsers.registry_parser import RegistryParser
 from .self_correction.engine import SelfCorrectionEngine
 
+# yara-python is optional; detector import is deferred so scenarios without
+# YARA fixtures still work on hosts that do not have libyara installed.
+try:
+    from .detectors.yara_detector import YaraDetector
+    from .yara_scan.scanner import MissingYaraError, YaraScanner
+    _YARA_AVAILABLE = True
+except ImportError:  # pragma: no cover — only exercised on hosts without libyara
+    YaraDetector = None  # type: ignore[assignment]
+    YaraScanner = None  # type: ignore[assignment]
+    MissingYaraError = RuntimeError  # type: ignore[assignment,misc]
+    _YARA_AVAILABLE = False
+
 
 MAX_MANIFEST_SIZE = 1_048_576  # 1 MiB cap guards against YAML bombs on memory-limited DFIR workstations.
 
@@ -251,17 +263,29 @@ def _run_fixture_scenario(manifest: ScenarioManifest) -> ScenarioReport:
     mft_name = fixtures.get("mft")
     prefetch_name = fixtures.get("prefetch")
     evtx_name = fixtures.get("evtx")
-    if not (mft_name and prefetch_name and evtx_name):
+    yara_rules_name = fixtures.get("yara_rules")
+    yara_scan_dir_name = fixtures.get("yara_scan_dir")
+    has_causality = bool(mft_name and prefetch_name and evtx_name)
+    has_yara = bool(yara_rules_name and yara_scan_dir_name)
+
+    # A scenario is YARA-only when it declares yara_rules + yara_scan_dir and
+    # omits the causality triplet. That lets SFE-86p ship scenarios that
+    # exercise malware classification without manufacturing synthetic MFT,
+    # prefetch, and event log CSVs just to pass the required-fixture gate.
+    if not has_causality and not has_yara:
         return _skip(manifest, "fixture scenario missing required mft/prefetch/evtx")
 
-    mft = MFTParser().parse_csv(directory / mft_name)
-    prefetch = PrefetchParser().parse_csv(directory / prefetch_name)
-    evtx = EventLogParser().parse_csv(
-        directory / evtx_name, filter_event_ids=[4688]
-    )
+    findings: list = []
+    mft: list = []
 
-    findings = list(SelfCorrectionEngine().analyze(mft, prefetch, evtx))
-    findings.extend(_run_registry(manifest))
+    if has_causality:
+        mft = MFTParser().parse_csv(directory / mft_name)
+        prefetch = PrefetchParser().parse_csv(directory / prefetch_name)
+        evtx = EventLogParser().parse_csv(
+            directory / evtx_name, filter_event_ids=[4688]
+        )
+        findings.extend(SelfCorrectionEngine().analyze(mft, prefetch, evtx))
+        findings.extend(_run_registry(manifest))
 
     network_findings: list = []
     browser_history_name = fixtures.get("browser_history")
@@ -284,7 +308,12 @@ def _run_fixture_scenario(manifest: ScenarioManifest) -> ScenarioReport:
         )
         findings.extend(network_findings)
 
-    return _score(manifest, findings, network_findings)
+    yara_findings: list = []
+    if has_yara:
+        yara_findings = _run_yara(manifest)
+        findings.extend(yara_findings)
+
+    return _score(manifest, findings, network_findings, yara_findings)
 
 
 def _run_registry(manifest: ScenarioManifest) -> list:
@@ -320,6 +349,31 @@ def _run_registry(manifest: ScenarioManifest) -> list:
         )
 
     return RegistryDetector().analyze(**kwargs)
+
+
+def _run_yara(manifest: ScenarioManifest) -> list:
+    """Compile the scenario's YARA rules and scan its sample directory.
+
+    Returns ``[]`` when yara-python is not installed; the scenario is expected
+    to either skip gracefully elsewhere or carry non-YARA expectations that
+    still pass. YARA-only scenarios surface the missing dependency at the
+    manifest-expects-but-nothing-found layer so CI gates catch the regression.
+    """
+    if not _YARA_AVAILABLE:
+        return []
+
+    fixtures = manifest.fixtures
+    rules_dir_name = fixtures["yara_rules"]
+    scan_dir_name = fixtures["yara_scan_dir"]
+    rules_dir = manifest.directory / rules_dir_name
+    scan_dir = manifest.directory / scan_dir_name
+
+    try:
+        scanner = YaraScanner.compile_from_directory(rules_dir)
+    except (MissingYaraError, ValueError, FileNotFoundError):
+        return []
+    detector = YaraDetector(scanner=scanner)
+    return detector.analyze_directory(scan_dir)
 
 
 def _run_evidence_scenario(manifest: ScenarioManifest) -> ScenarioReport:
@@ -373,13 +427,14 @@ def _run_evidence_scenario(manifest: ScenarioManifest) -> ScenarioReport:
             "evidence present but no dispatchable kind (e01/dd/raw) found",
         )
 
-    return _score(manifest, findings, network_findings=[])
+    return _score(manifest, findings, network_findings=[], yara_findings=[])
 
 
 def _score(
     manifest: ScenarioManifest,
     findings: list,
     network_findings: list,
+    yara_findings: list,
 ) -> ScenarioReport:
     detected = [f.evidence.get("executable", "").lower() for f in findings]
     expected = set(manifest.expected_malicious_executables)
@@ -409,6 +464,16 @@ def _score(
         tp.extend(["cloud_upload"] * min(cloud_expected, len(matched)))
         missing = max(cloud_expected - len(matched), 0)
         fn.extend(["cloud_upload"] * missing)
+
+    yara_expected = manifest.expected_finding_counts.get("yara_match", 0)
+    if yara_expected:
+        matched = [
+            f for f in yara_findings
+            if f.category.value == "malware_classification"
+        ]
+        tp.extend(["yara_match"] * min(yara_expected, len(matched)))
+        missing = max(yara_expected - len(matched), 0)
+        fn.extend(["yara_match"] * missing)
 
     avg_conf = (
         sum(f.confidence for f in findings) / len(findings) if findings else 0.0

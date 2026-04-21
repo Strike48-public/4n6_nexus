@@ -179,3 +179,39 @@ def test_load_scenario_rejects_fixture_with_non_string_value(tmp_path: Path) -> 
 
     with pytest.raises(ScenarioLoadError, match="must be a string path"):
         load_scenario(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# YARA-only scenario dispatch (SFE-yzb)
+# ---------------------------------------------------------------------------
+
+
+yara = pytest.importorskip("yara")  # skips YARA tests on hosts without libyara
+
+
+@pytest.fixture
+def synthetic_yara_dir() -> Path:
+    return REPO_ROOT / "scenarios" / "synthetic" / "11_yara_malware"
+
+
+def test_run_yara_only_scenario_passes(synthetic_yara_dir: Path) -> None:
+    """A scenario with only yara_rules + yara_scan_dir should dispatch YaraDetector."""
+    report = run_scenario_path(synthetic_yara_dir)
+
+    assert report.skipped is False, report.skip_reason
+    assert report.passed is True
+    assert report.precision == 1.0
+    assert report.recall == 1.0
+    assert report.findings_count == 1
+    assert "yara_match" in report.true_positives
+
+
+def test_yara_only_scenario_loads_fixtures(synthetic_yara_dir: Path) -> None:
+    manifest = load_scenario(synthetic_yara_dir)
+
+    assert manifest.fixtures.get("yara_rules") == "yara_rules"
+    assert manifest.fixtures.get("yara_scan_dir") == "samples"
+    # YARA-only scenarios do not declare the causality triplet.
+    assert "mft" not in manifest.fixtures
+    assert "prefetch" not in manifest.fixtures
+    assert "evtx" not in manifest.fixtures

@@ -26,6 +26,16 @@ from sift_find_evil.parsers.prefetch_parser import PrefetchParser
 from sift_find_evil.parsers.registry_parser import RegistryParser
 from sift_find_evil.self_correction.engine import Finding, SelfCorrectionEngine
 
+try:
+    from sift_find_evil.detectors.yara_detector import YaraDetector
+    from sift_find_evil.yara_scan.scanner import MissingYaraError, YaraScanner
+    _YARA_AVAILABLE = True
+except ImportError:  # pragma: no cover — hosts without libyara
+    YaraDetector = None  # type: ignore[assignment]
+    YaraScanner = None  # type: ignore[assignment]
+    MissingYaraError = RuntimeError  # type: ignore[assignment,misc]
+    _YARA_AVAILABLE = False
+
 
 @dataclass(frozen=True)
 class ScenarioExpectation:
@@ -44,6 +54,8 @@ class ScenarioExpectation:
     bam_fixture: Optional[str] = None
     userassist_fixture: Optional[str] = None
     run_keys_fixture: Optional[str] = None
+    yara_rules_fixture: Optional[str] = None
+    yara_scan_dir_fixture: Optional[str] = None
     finding_counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -101,7 +113,11 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
         prefetch_fixture = fixtures.get("prefetch")
         evtx_fixture = fixtures.get("evtx")
         browser_history_fixture = fixtures.get("browser_history")
-        if not (mft_fixture and prefetch_fixture and evtx_fixture):
+        yara_rules_fixture = fixtures.get("yara_rules")
+        yara_scan_dir_fixture = fixtures.get("yara_scan_dir")
+        has_causality = bool(mft_fixture and prefetch_fixture and evtx_fixture)
+        has_yara = bool(yara_rules_fixture and yara_scan_dir_fixture)
+        if not has_causality and not has_yara:
             continue
 
         expected = data.get("expected") or {}
@@ -114,9 +130,9 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
                 directory=manifest_path.parent,
                 malicious_executables=frozenset(str(m).lower() for m in malicious),
                 description=str(data.get("description") or "").strip(),
-                mft_fixture=str(mft_fixture),
-                prefetch_fixture=str(prefetch_fixture),
-                evtx_fixture=str(evtx_fixture),
+                mft_fixture=str(mft_fixture) if mft_fixture else "",
+                prefetch_fixture=str(prefetch_fixture) if prefetch_fixture else "",
+                evtx_fixture=str(evtx_fixture) if evtx_fixture else "",
                 browser_history_fixture=(
                     str(browser_history_fixture) if browser_history_fixture else None
                 ),
@@ -125,6 +141,8 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
                 bam_fixture=_optional_str(fixtures.get("bam")),
                 userassist_fixture=_optional_str(fixtures.get("userassist")),
                 run_keys_fixture=_optional_str(fixtures.get("run_keys")),
+                yara_rules_fixture=_optional_str(yara_rules_fixture),
+                yara_scan_dir_fixture=_optional_str(yara_scan_dir_fixture),
                 finding_counts={k: int(v) for k, v in finding_counts.items()},
             )
         )
@@ -179,24 +197,56 @@ def _run_registry_for_scenario(expectation: ScenarioExpectation) -> list[Finding
     return RegistryDetector().analyze(**kwargs)
 
 
+def _run_yara_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
+    """Run YaraDetector on the scenario's yara_rules + yara_scan_dir fixtures.
+
+    Returns ``[]`` when yara-python is missing or fixtures are incomplete,
+    matching the scanner wrapper's graceful-degradation contract.
+    """
+    if not (
+        _YARA_AVAILABLE
+        and expectation.yara_rules_fixture
+        and expectation.yara_scan_dir_fixture
+    ):
+        return []
+    directory = expectation.directory
+    rules_dir = directory / expectation.yara_rules_fixture
+    scan_dir = directory / expectation.yara_scan_dir_fixture
+    try:
+        scanner = YaraScanner.compile_from_directory(rules_dir)
+    except (MissingYaraError, ValueError, FileNotFoundError):
+        return []
+    return YaraDetector(scanner=scanner).analyze_directory(scan_dir)
+
+
 def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     """Execute the engine for one scenario and compare to ground truth.
 
-    Runs both the SelfCorrectionEngine (executable-level detections) and the
-    NetworkDetector when the scenario provides browser history. Findings from
-    both pipelines feed into the same precision/recall accounting.
+    Runs SelfCorrectionEngine (when mft/prefetch/evtx are declared), the
+    NetworkDetector (when browser history is provided), and YaraDetector
+    (when yara_rules + yara_scan_dir are provided). Findings from every
+    pipeline feed into the same precision/recall accounting.
     """
     directory = expectation.directory
-    mft = MFTParser().parse_csv(directory / expectation.mft_fixture)
-    prefetch = PrefetchParser().parse_csv(directory / expectation.prefetch_fixture)
-    evtx = EventLogParser().parse_csv(
-        directory / expectation.evtx_fixture, filter_event_ids=[4688]
+    has_causality = bool(
+        expectation.mft_fixture
+        and expectation.prefetch_fixture
+        and expectation.evtx_fixture
     )
 
-    findings = list(SelfCorrectionEngine().analyze(mft, prefetch, evtx))
+    findings: list[Finding] = []
+    mft: list = []
 
-    registry_findings = _run_registry_for_scenario(expectation)
-    findings.extend(registry_findings)
+    if has_causality:
+        mft = MFTParser().parse_csv(directory / expectation.mft_fixture)
+        prefetch = PrefetchParser().parse_csv(
+            directory / expectation.prefetch_fixture
+        )
+        evtx = EventLogParser().parse_csv(
+            directory / expectation.evtx_fixture, filter_event_ids=[4688]
+        )
+        findings.extend(SelfCorrectionEngine().analyze(mft, prefetch, evtx))
+        findings.extend(_run_registry_for_scenario(expectation))
 
     network_findings: list = []
     if expectation.browser_history_fixture:
@@ -217,6 +267,9 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
             mft_records=mft_records,
         )
         findings.extend(network_findings)
+
+    yara_findings = _run_yara_for_scenario(expectation)
+    findings.extend(yara_findings)
 
     detected = [f.evidence.get("executable", "").lower() for f in findings]
     expected = set(expectation.malicious_executables)
@@ -249,6 +302,16 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         tp.extend(["cloud_upload"] * min(cloud_expected, len(matched)))
         missing = max(cloud_expected - len(matched), 0)
         fn.extend(["cloud_upload"] * missing)
+
+    yara_expected = expectation.finding_counts.get("yara_match", 0)
+    if yara_expected:
+        matched = [
+            f for f in yara_findings
+            if f.category.value == "malware_classification"
+        ]
+        tp.extend(["yara_match"] * min(yara_expected, len(matched)))
+        missing = max(yara_expected - len(matched), 0)
+        fn.extend(["yara_match"] * missing)
 
     avg_conf = (
         sum(f.confidence for f in findings) / len(findings) if findings else 0.0

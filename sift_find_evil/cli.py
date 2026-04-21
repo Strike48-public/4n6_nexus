@@ -25,6 +25,16 @@ from .parsers.registry_parser import RegistryParser
 from .scenario_runner import ScenarioLoadError, run_scenario_path
 from .validation import AdversarialValidator
 
+try:
+    from .detectors.yara_detector import YaraDetector
+    from .yara_scan.scanner import MissingYaraError, YaraScanner
+    _YARA_AVAILABLE = True
+except ImportError:  # pragma: no cover — hosts without libyara
+    YaraDetector = None  # type: ignore[assignment]
+    YaraScanner = None  # type: ignore[assignment]
+    MissingYaraError = RuntimeError  # type: ignore[assignment,misc]
+    _YARA_AVAILABLE = False
+
 
 def print_banner():
     """Print CLI banner."""
@@ -377,6 +387,59 @@ def _run_registry_detector(
     return findings
 
 
+def _run_yara_detector(
+    yara_rules_path: Optional[Path],
+    yara_scan_path: Optional[Path],
+    verbose: bool,
+) -> list:
+    """Compile YARA rules and scan the target file or directory.
+
+    Raises SystemExit when yara-python is not installed (same contract as
+    ``--nsrl-bloom`` when ``rbloom`` is missing): explicit CLI flags must not
+    be silently ignored. ``scenario_runner._run_yara`` takes the opposite
+    stance and returns ``[]`` when yara-python is missing, because scenarios
+    auto-detect capabilities rather than being user-driven.
+    """
+    if yara_rules_path is None or yara_scan_path is None:
+        return []
+
+    if not _YARA_AVAILABLE:
+        print(
+            "Error: --yara-rules/--yara-scan requires yara-python. "
+            "Install with `pip install yara-python`.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if verbose:
+        print_section("Running YARA Detector")
+        print(f"  Compiling rules from: {yara_rules_path}")
+
+    try:
+        scanner = YaraScanner.compile_from_directory(yara_rules_path)
+    except MissingYaraError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except (ValueError, FileNotFoundError) as exc:
+        print(f"Error: YARA rule compilation failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if verbose:
+        print(f"    Compiled {scanner.rule_count} rule(s)")
+        if scanner.compile_errors:
+            print(f"    Skipped {len(scanner.compile_errors)} broken rule file(s)")
+
+    detector = YaraDetector(scanner=scanner)
+    if yara_scan_path.is_dir():
+        findings = detector.analyze_directory(yara_scan_path)
+    else:
+        findings = detector.analyze_file(yara_scan_path)
+
+    if verbose:
+        print(f"  Detected {len(findings)} YARA match(es)")
+    return findings
+
+
 def _run_lnk_jumplist_detector(
     lnk_csv_path: Optional[Path],
     jumplist_csv_path: Optional[Path],
@@ -443,6 +506,27 @@ def cmd_analyze(args):
     jumplist_path: Optional[Path] = (
         Path(args.jumplist) if getattr(args, 'jumplist', None) else None
     )
+    yara_rules_path: Optional[Path] = (
+        Path(args.yara_rules) if getattr(args, 'yara_rules', None) else None
+    )
+    yara_scan_path: Optional[Path] = (
+        Path(args.yara_scan) if getattr(args, 'yara_scan', None) else None
+    )
+    if (yara_rules_path is None) != (yara_scan_path is None):
+        print(
+            "Error: --yara-rules and --yara-scan must be provided together",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if yara_rules_path is not None and not yara_rules_path.is_dir():
+        print(
+            f"Error: --yara-rules must be a directory of .yar files: {yara_rules_path}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if yara_scan_path is not None and not yara_scan_path.exists():
+        print(f"Error: --yara-scan target not found: {yara_scan_path}", file=sys.stderr)
+        sys.exit(1)
     nsrl_db_path: Optional[Path] = (
         Path(args.nsrl_db) if getattr(args, 'nsrl_db', None) else None
     )
@@ -463,6 +547,7 @@ def cmd_analyze(args):
     has_network = pcap_path is not None or browser_history_path is not None
     has_registry = any(registry_paths)
     has_lnk_jumplist = lnk_path is not None or jumplist_path is not None
+    has_yara = yara_rules_path is not None and yara_scan_path is not None
 
     if (
         image_path is None
@@ -471,12 +556,14 @@ def cmd_analyze(args):
         and not has_network
         and not has_registry
         and not has_lnk_jumplist
+        and not has_yara
     ):
         print(
             "Error: provide --image and/or --pst and/or all of --mft/--prefetch/--evtx "
             "and/or --pcap/--browser-history and/or one of "
             "--shimcache/--amcache/--bam/--userassist/--run-keys "
-            "and/or --lnk/--jumplist",
+            "and/or --lnk/--jumplist "
+            "and/or --yara-rules/--yara-scan",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -562,6 +649,10 @@ def cmd_analyze(args):
             findings = list(findings) + _run_lnk_jumplist_detector(
                 lnk_path, jumplist_path, verbose=True
             )
+        if has_yara:
+            findings = list(findings) + _run_yara_detector(
+                yara_rules_path, yara_scan_path, verbose=True
+            )
         _write_output(findings, Path(args.output) if args.output else None)
         _render_findings(findings)
         return
@@ -617,6 +708,11 @@ def cmd_analyze(args):
     if has_lnk_jumplist:
         findings = list(findings) + _run_lnk_jumplist_detector(
             lnk_path, jumplist_path, verbose=True
+        )
+
+    if has_yara:
+        findings = list(findings) + _run_yara_detector(
+            yara_rules_path, yara_scan_path, verbose=True
         )
 
     # Validate CRITICAL findings
@@ -933,6 +1029,22 @@ Examples:
     analyze_parser.add_argument(
         '--jumplist',
         help='Path to Jump List CSV (JLECmd export) for per-application MRU and UNC-share document access detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--yara-rules',
+        dest='yara_rules',
+        help=(
+            'Directory of .yar/.yara rule files for malware classification '
+            '(MITRE T1587.001 / T1027). Must be paired with --yara-scan.'
+        ),
+    )
+    analyze_parser.add_argument(
+        '--yara-scan',
+        dest='yara_scan',
+        help=(
+            'File or directory to scan with the compiled YARA rules. '
+            'Must be paired with --yara-rules.'
+        ),
     )
     analyze_parser.add_argument(
         '--nsrl-db',
