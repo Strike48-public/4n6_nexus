@@ -9,6 +9,7 @@ interface declares.
 
 from __future__ import annotations
 
+from .cloud_upload_detector import CloudUploadDetector
 from .exfil_ratio_detector import ExfilRatioDetector
 from .lnk_jumplist_detector import LnkJumpListDetector
 from .network_detector import NetworkDetector
@@ -24,6 +25,7 @@ from .webmail_exfil_detector import WebmailExfilDetector
 __all__ = [
     "BeaconingDetector",
     "CleartextProtocolDetector",
+    "CloudUploadDetector",
     "DNSAnomalyDetector",
     "ExfilRatioDetector",
     "LnkJumpListDetector",

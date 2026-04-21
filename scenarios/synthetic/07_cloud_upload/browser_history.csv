@@ -1,0 +1,5 @@
+timestamp,url,title,visit_count,browser,profile
+2025-03-15T10:25:00Z,https://www.dropbox.com/,Dropbox,1,chrome,Default
+2025-03-15T10:25:10Z,https://www.dropbox.com/home,Dropbox - Home,1,chrome,Default
+2025-03-15T10:28:00Z,https://www.dropbox.com/upload,Upload - Dropbox,1,chrome,Default
+2025-03-15T10:30:00Z,https://www.dropbox.com/home/Uploads,Uploads - Dropbox,1,chrome,Default

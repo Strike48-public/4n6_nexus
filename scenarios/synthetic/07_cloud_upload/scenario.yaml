@@ -1,0 +1,30 @@
+name: 07_cloud_upload
+tier: synthetic
+category: insider_threat
+difficulty: intermediate
+description: >
+  Cloud-storage upload exfiltration. Browser history shows Dropbox upload
+  activity correlated with access to a sensitive document. Tests the
+  CloudUploadDetector against the scenario harness.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+  browser_history: browser_history.csv
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    cloud_upload: 1
+    total: 1
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Related MITRE ATT&CK technique: T1567.002 (Exfiltration to Cloud Storage).
+  Requires browser_history parser + CloudUploadDetector.

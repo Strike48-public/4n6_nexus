@@ -1,0 +1,3 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-03-15T10:25:00.2000000Z,4688,70001,DESKTOP-ABC123,Security,Information,S-1-5-21-1111,C:\Program Files\Google\Chrome\Application\chrome.exe,%%1936,0x1A2B,C:\Windows\explorer.exe,0x3C4D,chrome.exe,Process Create (Event ID 4688)
+2025-03-15T11:00:00.1000000Z,4688,70002,DESKTOP-ABC123,Security,Information,S-1-5-21-1111,C:\Windows\System32\notepad.exe,%%1936,0x2B3C,C:\Windows\explorer.exe,0x4D5E,notepad.exe,Process Create (Event ID 4688)

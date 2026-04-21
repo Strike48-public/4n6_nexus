@@ -226,17 +226,29 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     fn = [name for name in expected if name not in detected]
 
     # When the scenario's expected finding is a category count rather than a
-    # named executable (webmail exfiltration), count each category-matching
-    # finding as a true positive up to the expected total.
+    # named executable (webmail exfiltration, cloud-storage upload), count
+    # each title-matching finding as a true positive up to the expected total.
     webmail_expected = expectation.finding_counts.get("webmail_exfiltration", 0)
     if webmail_expected:
         matched = [
             f for f in network_findings
             if f.category.value == "data_exfiltration"
+            and "webmail" in f.title.lower()
         ]
         tp.extend(["webmail_exfiltration"] * min(webmail_expected, len(matched)))
         missing = max(webmail_expected - len(matched), 0)
         fn.extend(["webmail_exfiltration"] * missing)
+
+    cloud_expected = expectation.finding_counts.get("cloud_upload", 0)
+    if cloud_expected:
+        matched = [
+            f for f in network_findings
+            if f.category.value == "data_exfiltration"
+            and "cloud-storage" in f.title.lower()
+        ]
+        tp.extend(["cloud_upload"] * min(cloud_expected, len(matched)))
+        missing = max(cloud_expected - len(matched), 0)
+        fn.extend(["cloud_upload"] * missing)
 
     avg_conf = (
         sum(f.confidence for f in findings) / len(findings) if findings else 0.0

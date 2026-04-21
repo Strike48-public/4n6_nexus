@@ -18,6 +18,7 @@ from typing import Iterable, Optional
 from ..parsers.browser_history_parser import BrowserHistoryEntry
 from ..parsers.pcap_parser import DNSQuery, HTTPRequest, SMTPMessage, TCPConversation
 from ..self_correction.engine import Finding
+from .cloud_upload_detector import CloudUploadDetector
 from .exfil_ratio_detector import ExfilRatioDetector
 from .stats_detector import BeaconingDetector, DNSAnomalyDetector
 from .watchlist_detector import (
@@ -39,6 +40,7 @@ class NetworkDetector:
     def __init__(
         self,
         webmail_exfil: Optional[WebmailExfilDetector] = None,
+        cloud_upload: Optional[CloudUploadDetector] = None,
         suspicious_host: Optional[SuspiciousHostDetector] = None,
         offensive_package: Optional[OffensivePackageInstallDetector] = None,
         cleartext_protocol: Optional[CleartextProtocolDetector] = None,
@@ -47,6 +49,7 @@ class NetworkDetector:
         exfil_ratio: Optional[ExfilRatioDetector] = None,
     ):
         self.webmail_exfil = webmail_exfil or WebmailExfilDetector()
+        self.cloud_upload = cloud_upload or CloudUploadDetector()
         self.suspicious_host = suspicious_host or SuspiciousHostDetector()
         self.offensive_package = (
             offensive_package or OffensivePackageInstallDetector()
@@ -79,12 +82,21 @@ class NetworkDetector:
 
         http_list = list(http_requests) if http_requests is not None else None
         dns_list = list(dns_queries) if dns_queries is not None else None
+        mft_list = list(mft_records) if mft_records is not None else None
 
         if browser_history is not None:
+            history_list = list(browser_history)
             findings.extend(
                 self.webmail_exfil.analyze(
-                    browser_history=browser_history,
-                    mft_records=mft_records,
+                    browser_history=history_list,
+                    mft_records=mft_list,
+                    http_requests=http_list,
+                )
+            )
+            findings.extend(
+                self.cloud_upload.analyze(
+                    browser_history=history_list,
+                    mft_records=mft_list,
                     http_requests=http_list,
                 )
             )
