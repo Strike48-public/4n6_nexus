@@ -22,6 +22,7 @@ from .detectors import LnkJumpListDetector, NetworkDetector, RegistryDetector
 from .detectors.webmail_exfil_detector import MFTAccessRecord
 from .parsers.lnk_jumplist_parser import JumpListParser, LnkParser
 from .parsers.registry_parser import RegistryParser
+from .scenario_runner import ScenarioLoadError, run_scenario_path
 from .validation import AdversarialValidator
 
 
@@ -792,6 +793,48 @@ def cmd_demo(args):
     print("  resolved it using Event Log evidence, and adjusted confidence.")
 
 
+def cmd_run(args):
+    """Handle run command: execute one scenario.yaml manifest end-to-end."""
+    scenario_path = Path(args.scenario)
+    try:
+        report = run_scenario_path(scenario_path)
+    except ScenarioLoadError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(2)
+    except OSError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(2)
+
+    output_path = Path(args.output) if args.output else None
+    if output_path is not None:
+        with output_path.open("w", encoding="utf-8") as handle:
+            json.dump(report.to_dict(), handle, indent=2, default=str)
+
+    manifest = report.manifest
+    print_section(f"Scenario: {manifest.name}")
+    print(f"  Tier:        {manifest.tier}")
+    print(f"  Directory:   {manifest.directory}")
+
+    if report.skipped:
+        print(f"  Status:      SKIPPED ({report.skip_reason})")
+        # --strict treats skips as failures so CI gates cannot be silently
+        # greenlit by missing evidence. Default preserves local-dev ergonomics.
+        sys.exit(1 if getattr(args, 'strict', False) else 0)
+
+    print(f"  Findings:    {report.findings_count}")
+    print(f"  Precision:   {report.precision:.2f}")
+    print(f"  Recall:      {report.recall:.2f}")
+    print(f"  F1:          {report.f1:.2f}")
+    if report.false_positives:
+        print(f"  False pos:   {report.false_positives}")
+    if report.false_negatives:
+        print(f"  False neg:   {report.false_negatives}")
+    print(f"  Avg conf:    {report.average_confidence:.2f}")
+    print(f"  Status:      {'PASS' if report.passed else 'FAIL'}")
+
+    sys.exit(0 if report.passed else 1)
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -810,6 +853,9 @@ Examples:
 
   # Save output as JSON
   python -m sift_find_evil.cli demo --output findings.json
+
+  # Run a scenario manifest end-to-end
+  python -m sift_find_evil.cli run --scenario scenarios/synthetic/02_ransomware
         """
     )
 
@@ -911,6 +957,26 @@ Examples:
         help='Write findings to JSON file'
     )
 
+    # Run command
+    run_parser = subparsers.add_parser(
+        'run',
+        help='Run a scenario.yaml manifest end-to-end',
+    )
+    run_parser.add_argument(
+        '--scenario',
+        required=True,
+        help='Path to a scenario directory or scenario.yaml file',
+    )
+    run_parser.add_argument(
+        '--output', '-o',
+        help='Write scenario report to JSON file',
+    )
+    run_parser.add_argument(
+        '--strict',
+        action='store_true',
+        help='Treat SKIPPED scenarios as failures (exit 1). Use in CI to prevent silent passes from missing evidence.',
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -921,6 +987,8 @@ Examples:
         cmd_demo(args)
     elif args.command == 'analyze':
         cmd_analyze(args)
+    elif args.command == 'run':
+        cmd_run(args)
 
 
 if __name__ == '__main__':
