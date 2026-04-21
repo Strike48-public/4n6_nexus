@@ -76,6 +76,16 @@ class FindingCategory(StrEnum):
     timeline_tampering when timestamps are the specific signal).
     """
 
+    MALWARE_CLASSIFICATION = "malware_classification"
+    """Evidence that a file matches a known malware signature or family marker.
+
+    Examples: a packed binary matching a UPX signature, a script matching a
+    known dropper's YARA rule, an archive containing a sample flagged by a
+    community ruleset. Emitted by the YARA detector; kept distinct from
+    PERSISTENCE and DATA_EXFILTRATION because the signal is the file content
+    itself, not the file's installed effect.
+    """
+
     UNKNOWN = "unknown"
     """Escape hatch for findings that do not yet map to a named category.
 

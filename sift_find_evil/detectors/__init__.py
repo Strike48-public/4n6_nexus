@@ -21,6 +21,7 @@ from .watchlist_detector import (
     SuspiciousHostDetector,
 )
 from .webmail_exfil_detector import WebmailExfilDetector
+from .yara_detector import YaraDetector
 
 __all__ = [
     "BeaconingDetector",
@@ -34,4 +35,5 @@ __all__ = [
     "RegistryDetector",
     "SuspiciousHostDetector",
     "WebmailExfilDetector",
+    "YaraDetector",
 ]
