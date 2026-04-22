@@ -20,14 +20,18 @@ Design
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from types import MappingProxyType
+from typing import Any, Mapping, Optional
 
 try:
     import yara as _yara
 except ImportError:  # pragma: no cover — only exercised on hosts without libyara
     _yara = None
+
+logger = logging.getLogger(__name__)
 
 
 class MissingYaraError(RuntimeError):
@@ -79,6 +83,26 @@ class CompileError:
 
     source: str
     message: str
+
+
+@dataclass(frozen=True)
+class DirectoryScanResult:
+    """Structured result from ``scan_directory_details``.
+
+    ``matches`` mirrors the legacy ``scan_directory`` return value so existing
+    callers migrate by adding ``.matches`` access. ``oversized`` exposes the
+    paths skipped because they exceeded ``max_file_size`` — surfacing this
+    signal matters once the scanner runs over carved-file corpora (CIRCL
+    wiped, M57 memory) where large blobs can legitimately appear and a silent
+    skip looks indistinguishable from a genuine no-match.
+
+    ``matches`` is typed as ``Mapping`` (a read-only view) to match the
+    frozen-dataclass contract; the constructor wraps the builder's dict in a
+    ``MappingProxyType`` so callers can't mutate scan results post-hoc.
+    """
+
+    matches: Mapping[Path, list["YaraMatch"]] = field(default_factory=dict)
+    oversized: tuple[Path, ...] = ()
 
 
 class YaraScanner:
@@ -293,18 +317,56 @@ class YaraScanner:
 
         Files exceeding ``max_file_size`` are returned with an empty match
         list rather than raising, so a single oversized file in a batch does
-        not abort the whole scan. Call ``scan_file`` directly for strict mode.
+        not abort the whole scan, and a WARNING is logged per skip so the
+        signal isn't silently swallowed. Call ``scan_directory_details`` for
+        a structured view of which files were skipped, or ``scan_file``
+        directly for strict mode.
         """
+        matches, _ = self._scan_directory_impl(root, recursive=recursive)
+        return matches
+
+    def scan_directory_details(
+        self,
+        root: Path,
+        *,
+        recursive: bool = True,
+    ) -> DirectoryScanResult:
+        """Like ``scan_directory`` but also returns the list of oversized skips.
+
+        Use this when the caller needs to surface "file too large to scan" as
+        a distinct outcome from "file scanned and matched nothing" — for
+        example when reporting coverage against a carved-file corpus.
+        """
+        matches, oversized = self._scan_directory_impl(root, recursive=recursive)
+        return DirectoryScanResult(
+            matches=MappingProxyType(matches),
+            oversized=tuple(oversized),
+        )
+
+    def _scan_directory_impl(
+        self,
+        root: Path,
+        *,
+        recursive: bool,
+    ) -> tuple[dict[Path, list[YaraMatch]], list[Path]]:
+        """Walk ``root`` and return (matches, oversized) for both public APIs."""
         if not root.is_dir():
             raise FileNotFoundError(f"scan root not found: {root}")
         iter_paths = root.rglob("*") if recursive else root.glob("*")
-        results: dict[Path, list[YaraMatch]] = {}
+        matches: dict[Path, list[YaraMatch]] = {}
+        oversized: list[Path] = []
         for path in sorted(p for p in iter_paths if p.is_file()):
             try:
-                results[path] = self.scan_file(path)
-            except ValueError:
-                results[path] = []  # oversized file — recorded as no-match
-        return results
+                matches[path] = self.scan_file(path)
+            except ValueError as exc:
+                matches[path] = []
+                oversized.append(path)
+                logger.warning(
+                    "yara scan skipped %s: exceeds max_file_size (%s)",
+                    path,
+                    exc,
+                )
+        return matches, oversized
 
     def _normalize(self, raw: Any, source_file: Path) -> YaraMatch:
         """Convert a yara-python match into our immutable dataclass."""

@@ -287,6 +287,112 @@ def test_scan_directory_non_recursive_skips_subdirs(
     assert "hidden.bin" not in names
 
 
+def test_scan_directory_logs_oversized_skips(
+    rules_dir: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Oversized files must be logged rather than silently dropped."""
+    import logging
+
+    small = tmp_path / "ok.bin"
+    small.write_bytes(b"MZ\x90\x00")
+    big = tmp_path / "too_big.bin"
+    big.write_bytes(b"MZ" + b"\x00" * 2048)
+
+    scanner = YaraScanner.compile_from_directory(rules_dir, max_file_size=1024)
+    with caplog.at_level(logging.WARNING, logger="sift_find_evil.yara_scan.scanner"):
+        results = scanner.scan_directory(tmp_path)
+
+    assert results[big] == []  # still returns empty list for caller
+    assert any(
+        "too_big.bin" in rec.getMessage() and "max_file_size" in rec.getMessage()
+        for rec in caplog.records
+    )
+
+
+def test_scan_directory_details_returns_oversized_paths(
+    rules_dir: Path, tmp_path: Path
+) -> None:
+    """scan_directory_details() surfaces oversized skips as structured data."""
+    small = tmp_path / "ok.bin"
+    small.write_bytes(b"MZ\x90\x00")
+    big = tmp_path / "too_big.bin"
+    big.write_bytes(b"MZ" + b"\x00" * 2048)
+
+    scanner = YaraScanner.compile_from_directory(rules_dir, max_file_size=1024)
+    details = scanner.scan_directory_details(tmp_path)
+
+    assert big in details.oversized
+    assert small not in details.oversized
+    assert details.matches[small]
+    assert details.matches[big] == []
+
+
+def test_scan_directory_details_empty_when_no_skips(
+    rules_dir: Path, tmp_path: Path
+) -> None:
+    target = tmp_path / "ok.bin"
+    target.write_bytes(b"MZ\x90\x00")
+    scanner = YaraScanner.compile_from_directory(rules_dir)
+    details = scanner.scan_directory_details(tmp_path)
+    assert details.oversized == ()
+    assert details.matches[target]
+
+
+def test_scan_directory_details_matches_is_readonly(
+    rules_dir: Path, tmp_path: Path
+) -> None:
+    """DirectoryScanResult.matches is a read-only view — mutation must raise."""
+    target = tmp_path / "ok.bin"
+    target.write_bytes(b"MZ\x90\x00")
+    scanner = YaraScanner.compile_from_directory(rules_dir)
+    details = scanner.scan_directory_details(tmp_path)
+    with pytest.raises(TypeError):
+        details.matches[target] = []  # type: ignore[index]
+
+
+# -- yara-python 4.3+ StringMatch compatibility ----------------------------
+
+
+def test_flatten_strings_handles_4_3_stringmatch_shape() -> None:
+    """yara-python 4.3+ returns StringMatch objects; exercise that branch."""
+    from sift_find_evil.yara_scan.scanner import _flatten_strings, YaraString
+
+    class FakeInstance:
+        def __init__(self, offset: int, matched_data: bytes) -> None:
+            self.offset = offset
+            self.matched_data = matched_data
+
+    class FakeStringMatch:
+        def __init__(self, identifier: str, instances: list) -> None:
+            self.identifier = identifier
+            self.instances = instances
+
+    raw = [
+        FakeStringMatch(
+            "$mz",
+            [FakeInstance(0, b"MZ"), FakeInstance(512, b"MZ")],
+        ),
+        FakeStringMatch("$upx", [FakeInstance(2048, b"UPX0")]),
+    ]
+    flat = _flatten_strings(raw)
+    assert flat == [
+        YaraString(identifier="$mz", offset=0, data=b"MZ"),
+        YaraString(identifier="$mz", offset=512, data=b"MZ"),
+        YaraString(identifier="$upx", offset=2048, data=b"UPX0"),
+    ]
+
+
+def test_flatten_strings_skips_4_3_item_without_instances() -> None:
+    """StringMatch objects with no `instances` attr are silently skipped."""
+    from sift_find_evil.yara_scan.scanner import _flatten_strings
+
+    class WeirdShape:
+        identifier = "$weird"
+        # No `instances` attribute at all.
+
+    assert _flatten_strings([WeirdShape()]) == []
+
+
 # -- graceful degradation --------------------------------------------------
 
 
