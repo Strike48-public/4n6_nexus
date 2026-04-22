@@ -1,0 +1,135 @@
+{
+  "benign_total": 24,
+  "malicious_total": 10,
+  "false_positives": [],
+  "true_positives": [
+    {
+      "name": "ps_enc_downloadstring",
+      "high_severity": true,
+      "reasons": [
+        "PowerShell -EncodedCommand payload decoded to readable text",
+        "Decoded payload contains: Invoke-Expression (IEX)",
+        "Decoded payload contains: Net.WebClient download cradle",
+        "Decoded payload contains: New-Object Net.* (network object creation)",
+        "Decoded payload contains: URL literal in decoded payload"
+      ],
+      "mitre": [
+        "T1027",
+        "T1059.001",
+        "T1140"
+      ]
+    },
+    {
+      "name": "ps_enc_short_alias",
+      "high_severity": true,
+      "reasons": [
+        "PowerShell -EncodedCommand payload decoded to readable text",
+        "Decoded payload contains: Invoke-WebRequest",
+        "Decoded payload contains: URL literal in decoded payload"
+      ],
+      "mitre": [
+        "T1027",
+        "T1059.001",
+        "T1140"
+      ]
+    },
+    {
+      "name": "rundll32_squiblydoo",
+      "high_severity": true,
+      "reasons": [
+        "rundll32 javascript: protocol handler (squiblydoo)"
+      ],
+      "mitre": [
+        "T1059.007",
+        "T1140",
+        "T1218.011"
+      ]
+    },
+    {
+      "name": "regsvr32_squiblytwo",
+      "high_severity": true,
+      "reasons": [
+        "regsvr32 remote scriptlet execution (squiblytwo)"
+      ],
+      "mitre": [
+        "T1140",
+        "T1218.010"
+      ]
+    },
+    {
+      "name": "mshta_http",
+      "high_severity": true,
+      "reasons": [
+        "mshta script-host abuse"
+      ],
+      "mitre": [
+        "T1059",
+        "T1140",
+        "T1218.005"
+      ]
+    },
+    {
+      "name": "mshta_vbscript",
+      "high_severity": true,
+      "reasons": [
+        "mshta script-host abuse"
+      ],
+      "mitre": [
+        "T1059",
+        "T1140",
+        "T1218.005"
+      ]
+    },
+    {
+      "name": "certutil_decode",
+      "high_severity": false,
+      "reasons": [
+        "certutil used as decoder / downloader (LOLBAS)"
+      ],
+      "mitre": [
+        "T1027",
+        "T1105",
+        "T1140"
+      ]
+    },
+    {
+      "name": "bitsadmin_transfer",
+      "high_severity": false,
+      "reasons": [
+        "bitsadmin /transfer used as download cradle"
+      ],
+      "mitre": [
+        "T1105",
+        "T1140",
+        "T1197"
+      ]
+    },
+    {
+      "name": "iex_webclient",
+      "high_severity": true,
+      "reasons": [
+        "plaintext PowerShell download cradle (IEX + WebClient/IWR)"
+      ],
+      "mitre": [
+        "T1059.001",
+        "T1105",
+        "T1140"
+      ]
+    },
+    {
+      "name": "ps_enc_reflection",
+      "high_severity": true,
+      "reasons": [
+        "PowerShell -EncodedCommand payload decoded to readable text",
+        "Decoded payload contains: nested FromBase64String (double-encoded payload)",
+        "Decoded payload contains: Reflection.Assembly::Load (in-memory PE load)"
+      ],
+      "mitre": [
+        "T1027",
+        "T1059.001",
+        "T1140"
+      ]
+    }
+  ],
+  "false_negatives": []
+}
