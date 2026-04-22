@@ -12,6 +12,7 @@ from __future__ import annotations
 from .cloud_upload_detector import CloudUploadDetector
 from .exfil_ratio_detector import ExfilRatioDetector
 from .lnk_jumplist_detector import LnkJumpListDetector
+from .memory_detector import MemoryDetector
 from .network_detector import NetworkDetector
 from .registry_detector import RegistryDetector
 from .stats_detector import BeaconingDetector, DNSAnomalyDetector
@@ -30,6 +31,7 @@ __all__ = [
     "DNSAnomalyDetector",
     "ExfilRatioDetector",
     "LnkJumpListDetector",
+    "MemoryDetector",
     "NetworkDetector",
     "OffensivePackageInstallDetector",
     "RegistryDetector",

@@ -18,7 +18,12 @@ from .parsers.browser_history_parser import BrowserHistoryParser
 from .self_correction.engine import SelfCorrectionEngine
 from .disk.wipe_detector import detect_from_image
 from .disk.exfil_detector import detect_exfiltration
-from .detectors import LnkJumpListDetector, NetworkDetector, RegistryDetector
+from .detectors import (
+    LnkJumpListDetector,
+    MemoryDetector,
+    NetworkDetector,
+    RegistryDetector,
+)
 from .detectors.webmail_exfil_detector import MFTAccessRecord
 from .parsers.lnk_jumplist_parser import JumpListParser, LnkParser
 from .parsers.registry_parser import RegistryParser
@@ -440,6 +445,81 @@ def _run_yara_detector(
     return findings
 
 
+def _run_memory_detector(
+    memory_path: Optional[Path],
+    verbose: bool,
+) -> list:
+    """Run Volatility 3 + MemoryDetector against a memory dump.
+
+    Exits non-zero (same contract as ``--yara-rules`` / ``--nsrl-bloom``) when
+    the operator asked for memory analysis but Volatility 3 or the image is
+    missing. Silent fallback would let CI declare success on a malformed run.
+    """
+    if memory_path is None:
+        return []
+
+    try:
+        from .memory import (
+            MissingVolatilityError,
+            PluginExecutionError,
+            VolatilityRunner,
+        )
+    except ImportError as exc:  # pragma: no cover — exercise path
+        print(f"Error: memory analysis unavailable: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if verbose:
+        print_section("Running Memory Detector")
+        print(f"  Image: {memory_path}")
+
+    try:
+        runner = VolatilityRunner(memory_path)
+    except MissingVolatilityError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    pslist = psscan = malfind = cmdline = None
+    for name, fn in (
+        ("pslist", runner.run_pslist),
+        ("psscan", runner.run_psscan),
+        ("malfind", runner.run_malfind),
+        ("cmdline", runner.run_cmdline),
+    ):
+        try:
+            rows = fn()
+        except PluginExecutionError as exc:
+            # A plugin crashing on an unfamiliar symbol set must not take
+            # the whole memory pass down. Log and move on; detectors
+            # tolerate missing streams.
+            if verbose:
+                print(f"    {name}: FAILED ({exc})")
+            continue
+        if verbose:
+            print(f"    {name}: {len(rows)} row(s)")
+        if name == "pslist":
+            pslist = rows
+        elif name == "psscan":
+            psscan = rows
+        elif name == "malfind":
+            malfind = rows
+        elif name == "cmdline":
+            cmdline = rows
+
+    findings = MemoryDetector().analyze(
+        pslist=pslist,
+        psscan=psscan,
+        malfind=malfind,
+        cmdline=cmdline,
+    )
+
+    if verbose:
+        print(f"  Detected {len(findings)} memory finding(s)")
+    return findings
+
+
 def _run_lnk_jumplist_detector(
     lnk_csv_path: Optional[Path],
     jumplist_csv_path: Optional[Path],
@@ -506,6 +586,12 @@ def cmd_analyze(args):
     jumplist_path: Optional[Path] = (
         Path(args.jumplist) if getattr(args, 'jumplist', None) else None
     )
+    memory_path: Optional[Path] = (
+        Path(args.memory) if getattr(args, 'memory', None) else None
+    )
+    if memory_path is not None and not memory_path.is_file():
+        print(f"Error: memory image not found: {memory_path}", file=sys.stderr)
+        sys.exit(1)
     yara_rules_path: Optional[Path] = (
         Path(args.yara_rules) if getattr(args, 'yara_rules', None) else None
     )
@@ -547,6 +633,7 @@ def cmd_analyze(args):
     has_network = pcap_path is not None or browser_history_path is not None
     has_registry = any(registry_paths)
     has_lnk_jumplist = lnk_path is not None or jumplist_path is not None
+    has_memory = memory_path is not None
     has_yara = yara_rules_path is not None and yara_scan_path is not None
 
     if (
@@ -556,6 +643,7 @@ def cmd_analyze(args):
         and not has_network
         and not has_registry
         and not has_lnk_jumplist
+        and not has_memory
         and not has_yara
     ):
         print(
@@ -563,6 +651,7 @@ def cmd_analyze(args):
             "and/or --pcap/--browser-history and/or one of "
             "--shimcache/--amcache/--bam/--userassist/--run-keys "
             "and/or --lnk/--jumplist "
+            "and/or --memory "
             "and/or --yara-rules/--yara-scan",
             file=sys.stderr,
         )
@@ -649,6 +738,10 @@ def cmd_analyze(args):
             findings = list(findings) + _run_lnk_jumplist_detector(
                 lnk_path, jumplist_path, verbose=True
             )
+        if has_memory:
+            findings = list(findings) + _run_memory_detector(
+                memory_path, verbose=True
+            )
         if has_yara:
             findings = list(findings) + _run_yara_detector(
                 yara_rules_path, yara_scan_path, verbose=True
@@ -709,6 +802,9 @@ def cmd_analyze(args):
         findings = list(findings) + _run_lnk_jumplist_detector(
             lnk_path, jumplist_path, verbose=True
         )
+
+    if has_memory:
+        findings = list(findings) + _run_memory_detector(memory_path, verbose=True)
 
     if has_yara:
         findings = list(findings) + _run_yara_detector(
@@ -1029,6 +1125,15 @@ Examples:
     analyze_parser.add_argument(
         '--jumplist',
         help='Path to Jump List CSV (JLECmd export) for per-application MRU and UNC-share document access detection (optional)'
+    )
+    analyze_parser.add_argument(
+        '--memory',
+        help=(
+            'Path to a memory dump (.dmp, .raw, .lime, .vmem) for Volatility 3 '
+            'analysis (pslist/psscan/netscan/malfind/cmdline). Requires '
+            'volatility3 installed (pip install volatility3). MITRE T1055, '
+            'T1620, T1059.'
+        ),
     )
     analyze_parser.add_argument(
         '--yara-rules',
