@@ -291,11 +291,16 @@ def _parse_json_output(stdout: str) -> list[dict[str, Any]]:
 
 
 def _walk(nodes: list[Any], flat: list[dict[str, Any]]) -> None:
+    # Non-mutating flatten: copy each node without __children rather than
+    # pop()ing on the input tree. Pop() would mutate the parsed JSON in
+    # place, and the same dicts get copied into raw_row downstream — so
+    # the raw_row a detector receives would be missing __children only
+    # because _walk already stripped it. Keep _parse_json_output pure.
     for node in nodes:
         if not isinstance(node, dict):
             continue
-        children = node.pop("__children", None)
-        flat.append(node)
+        children = node.get("__children")
+        flat.append({k: v for k, v in node.items() if k != "__children"})
         if isinstance(children, list) and children:
             _walk(children, flat)
 

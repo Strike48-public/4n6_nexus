@@ -111,7 +111,9 @@ def test_hidden_process_detected_via_psscan_without_pslist() -> None:
     assert len(findings) == 1
     assert findings[0].evidence["pid"] == 9999
     assert findings[0].category == FindingCategory.PROCESS_INJECTION
-    assert "T1620" in findings[0].evidence["mitre_attack"]
+    # DKOM (unlinking from PsActiveProcessHead) is T1014 (Rootkit), not
+    # T1620 (Reflective Code Loading). See SFE-tun review.
+    assert "T1014" in findings[0].evidence["mitre_attack"]
 
 
 def test_system_idle_pids_whitelisted() -> None:

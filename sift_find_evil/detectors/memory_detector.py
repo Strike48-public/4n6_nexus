@@ -11,9 +11,12 @@ emits case-agnostic findings. Three finding classes today:
 
 - ``PROCESS_INJECTION`` (secondary class) for pslist/psscan divergence.
   A process that appears in psscan but not pslist is a classic hidden-
-  process signal (MITRE T1620 / T1055). System Idle / terminated
-  processes can legitimately desync, so we exclude known-good PIDs and
-  cap confidence at medium until the tuning tickets land.
+  process signal — unlinking from PsActiveProcessHead is DKOM (Direct
+  Kernel Object Manipulation), which maps to MITRE T1014 (Rootkit). We
+  do NOT tag T1620 here (that covers reflective in-memory code loading,
+  a different behavior). System Idle / terminated processes can
+  legitimately desync, so we exclude known-good PIDs and cap confidence
+  at medium until the tuning tickets land.
 
 - ``PERSISTENCE`` for cmdline entries whose argv fires the same
   LOLBAS-launcher / hidden-powershell-flags heuristics as
@@ -218,7 +221,7 @@ class MemoryDetector:
                 f"Volatility psscan found PID {row.pid} ({row.name}) "
                 "with no corresponding pslist entry and no exit time. "
                 "Processes unlinked from the active process list are a "
-                "classic rootkit / DKOM signal (MITRE T1620), though "
+                "classic rootkit / DKOM signal (MITRE T1014), though "
                 "System (PID 4) and Idle (PID 0) routinely differ and "
                 "some rootkit-hunting tools themselves trigger this."
             ),
@@ -231,7 +234,7 @@ class MemoryDetector:
                 "process": row.name,
                 "create_time": row.create_time,
                 "source": "psscan_without_pslist",
-                "mitre_attack": ["T1620"],
+                "mitre_attack": ["T1014"],
             },
             confidence=confidence,
             confidence_label="Medium",
@@ -239,7 +242,7 @@ class MemoryDetector:
                 f"psscan reports PID {row.pid} ({row.name}); pslist does not.",
                 "Active processes missing from the doubly-linked process "
                 "list are a classic DKOM (Direct Kernel Object Manipulation) "
-                "signal used to hide malware (MITRE T1620).",
+                "signal used by rootkits to hide malware (MITRE T1014).",
                 "False-positive surface: terminated-before-pslist-pass "
                 "processes, System/Idle PIDs, and some EDR tools.",
             ],

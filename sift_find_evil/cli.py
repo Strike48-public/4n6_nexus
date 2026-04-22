@@ -515,6 +515,17 @@ def _run_memory_detector(
         cmdline=cmdline,
     )
 
+    # If every Windows plugin failed (e.g. analyst pointed --memory at a
+    # Linux dump) the detector silently returns no findings. Surface that
+    # explicitly so the operator doesn't interpret 0 findings as "clean".
+    if all(stream is None for stream in (pslist, psscan, malfind, cmdline)):
+        print(
+            "Warning: no memory plugins returned data. "
+            "Confirm the dump OS matches the plugin set "
+            "(windows.* plugins will not work on Linux dumps).",
+            file=sys.stderr,
+        )
+
     if verbose:
         print(f"  Detected {len(findings)} memory finding(s)")
     return findings
