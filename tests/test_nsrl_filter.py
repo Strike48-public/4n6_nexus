@@ -9,11 +9,11 @@ from sift_find_evil.carving.nsrl_filter import NSRLFilter, find_nsrl_database
 @pytest.fixture
 def mock_nsrl_file():
     """Create a mock NSRLFile.txt for testing."""
-    content = '''"SHA-1","MD5","CRC32","FileName","FileSize","ProductCode","OpSystemCode","SpecialCode"
+    content = """"SHA-1","MD5","CRC32","FileName","FileSize","ProductCode","OpSystemCode","SpecialCode"
 "5d41402abc4b2a76b9719d911017c592","7d793037a0760186574b0282f2f435e7","12345678","kernel32.dll","1024","1001","WindowsXP",""
 "aaf4c61ddcc5e8a2dabede0f3b482cd9","098f6bcd4621d373cade4e832627b4f6","87654321","explorer.exe","2048","1002","WindowsXP",""
 "9c2e4d0d9a1c66c5d6e4e35c6b7d1234","5f4dcc3b5aa765d61d8327deb882cf99","11223344","notepad.exe","512","1003","WindowsXP",""
-'''
+"""
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
         f.write(content)
@@ -63,7 +63,9 @@ def test_is_known_good_sha1_match(mock_nsrl_file):
     nsrl_filter.load()
 
     # kernel32.dll SHA-1
-    assert nsrl_filter.is_known_good("5d41402abc4b2a76b9719d911017c592", hash_type="sha1")
+    assert nsrl_filter.is_known_good(
+        "5d41402abc4b2a76b9719d911017c592", hash_type="sha1"
+    )
 
 
 def test_is_known_good_sha1_no_match(mock_nsrl_file):
@@ -71,7 +73,9 @@ def test_is_known_good_sha1_no_match(mock_nsrl_file):
     nsrl_filter = NSRLFilter(mock_nsrl_file)
     nsrl_filter.load()
 
-    assert not nsrl_filter.is_known_good("ffffffffffffffffffffffffffffffffffffffff", hash_type="sha1")
+    assert not nsrl_filter.is_known_good(
+        "ffffffffffffffffffffffffffffffffffffffff", hash_type="sha1"
+    )
 
 
 def test_is_known_good_md5_match(mock_nsrl_file):
@@ -80,7 +84,9 @@ def test_is_known_good_md5_match(mock_nsrl_file):
     nsrl_filter.load()
 
     # kernel32.dll MD5
-    assert nsrl_filter.is_known_good("7d793037a0760186574b0282f2f435e7", hash_type="md5")
+    assert nsrl_filter.is_known_good(
+        "7d793037a0760186574b0282f2f435e7", hash_type="md5"
+    )
 
 
 def test_is_known_good_md5_no_match(mock_nsrl_file):
@@ -88,7 +94,9 @@ def test_is_known_good_md5_no_match(mock_nsrl_file):
     nsrl_filter = NSRLFilter(mock_nsrl_file)
     nsrl_filter.load()
 
-    assert not nsrl_filter.is_known_good("ffffffffffffffffffffffffffffffff", hash_type="md5")
+    assert not nsrl_filter.is_known_good(
+        "ffffffffffffffffffffffffffffffff", hash_type="md5"
+    )
 
 
 def test_is_known_good_case_insensitive(mock_nsrl_file):
@@ -97,10 +105,14 @@ def test_is_known_good_case_insensitive(mock_nsrl_file):
     nsrl_filter.load()
 
     # Test uppercase SHA-1
-    assert nsrl_filter.is_known_good("5D41402ABC4B2A76B9719D911017C592", hash_type="sha1")
+    assert nsrl_filter.is_known_good(
+        "5D41402ABC4B2A76B9719D911017C592", hash_type="sha1"
+    )
 
     # Test mixed case MD5
-    assert nsrl_filter.is_known_good("7D793037a0760186574B0282f2f435E7", hash_type="md5")
+    assert nsrl_filter.is_known_good(
+        "7D793037a0760186574B0282f2f435E7", hash_type="md5"
+    )
 
 
 def test_is_known_good_sha256_not_supported(mock_nsrl_file):
@@ -127,7 +139,9 @@ def test_is_known_good_auto_loads(mock_nsrl_file):
     assert not nsrl_filter.loaded
 
     # Should auto-load
-    result = nsrl_filter.is_known_good("5d41402abc4b2a76b9719d911017c592", hash_type="sha1")
+    result = nsrl_filter.is_known_good(
+        "5d41402abc4b2a76b9719d911017c592", hash_type="sha1"
+    )
 
     assert nsrl_filter.loaded
     assert result is True
@@ -138,8 +152,14 @@ def test_filter_files(mock_nsrl_file):
     nsrl_filter = NSRLFilter(mock_nsrl_file)
 
     files = [
-        ("/carved/file1.dll", "5d41402abc4b2a76b9719d911017c592"),  # kernel32.dll (known-good)
-        ("/carved/file2.exe", "aaf4c61ddcc5e8a2dabede0f3b482cd9"),  # explorer.exe (known-good)
+        (
+            "/carved/file1.dll",
+            "5d41402abc4b2a76b9719d911017c592",
+        ),  # kernel32.dll (known-good)
+        (
+            "/carved/file2.exe",
+            "aaf4c61ddcc5e8a2dabede0f3b482cd9",
+        ),  # explorer.exe (known-good)
         ("/carved/file3.exe", "0000000000000000000000000000000000000000"),  # unknown
         ("/carved/file4.exe", "1111111111111111111111111111111111111111"),  # unknown
     ]
@@ -219,6 +239,7 @@ def test_get_stats_after_load(mock_nsrl_file):
 
 def test_find_nsrl_database_not_found(monkeypatch):
     """Test find_nsrl_database returns None when not found."""
+
     def mock_exists(self):
         return False
 

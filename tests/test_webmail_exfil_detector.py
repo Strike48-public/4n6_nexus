@@ -74,7 +74,9 @@ def test_sensitive_doc_access_within_window_boosts_confidence() -> None:
     detector = WebmailExfilDetector(window_minutes=10)
     send_ts = datetime(2025, 3, 15, 10, 30, 0, tzinfo=timezone.utc)
     entries = [
-        _history("https://mail.google.com/mail/u/0/#compose", send_ts - timedelta(minutes=5)),
+        _history(
+            "https://mail.google.com/mail/u/0/#compose", send_ts - timedelta(minutes=5)
+        ),
         _history("https://mail.google.com/mail/u/0/#sent", send_ts),
     ]
     mft = [
@@ -94,7 +96,9 @@ def test_doc_access_outside_window_does_not_boost() -> None:
     detector = WebmailExfilDetector(window_minutes=10)
     send_ts = datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc)
     entries = [
-        _history("https://mail.google.com/mail/u/0/#compose", send_ts - timedelta(minutes=5)),
+        _history(
+            "https://mail.google.com/mail/u/0/#compose", send_ts - timedelta(minutes=5)
+        ),
         _history("https://mail.google.com/mail/u/0/#sent", send_ts),
     ]
     mft = [

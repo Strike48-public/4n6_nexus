@@ -6,9 +6,9 @@ from .mft_parser import MFTParser
 from .prefetch_parser import PrefetchParser
 
 __all__ = [
-    'EventLogParser',
-    'JumpListParser',
-    'LnkParser',
-    'MFTParser',
-    'PrefetchParser',
+    "EventLogParser",
+    "JumpListParser",
+    "LnkParser",
+    "MFTParser",
+    "PrefetchParser",
 ]

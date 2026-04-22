@@ -29,6 +29,7 @@ from sift_find_evil.self_correction.engine import Finding, SelfCorrectionEngine
 try:
     from sift_find_evil.detectors.yara_detector import YaraDetector
     from sift_find_evil.yara_scan.scanner import MissingYaraError, YaraScanner
+
     _YARA_AVAILABLE = True
 except ImportError:  # pragma: no cover — hosts without libyara
     YaraDetector = None  # type: ignore[assignment]
@@ -180,9 +181,7 @@ def _run_registry_for_scenario(expectation: ScenarioExpectation) -> list[Finding
             directory / fixtures["shimcache"]
         )
     if fixtures["amcache"]:
-        kwargs["amcache"] = parser.parse_amcache_csv(
-            directory / fixtures["amcache"]
-        )
+        kwargs["amcache"] = parser.parse_amcache_csv(directory / fixtures["amcache"])
     if fixtures["bam"]:
         kwargs["bam"] = parser.parse_bam_csv(directory / fixtures["bam"])
     if fixtures["userassist"]:
@@ -190,9 +189,7 @@ def _run_registry_for_scenario(expectation: ScenarioExpectation) -> list[Finding
             directory / fixtures["userassist"]
         )
     if fixtures["run_keys"]:
-        kwargs["run_keys"] = parser.parse_run_keys_csv(
-            directory / fixtures["run_keys"]
-        )
+        kwargs["run_keys"] = parser.parse_run_keys_csv(directory / fixtures["run_keys"])
 
     return RegistryDetector().analyze(**kwargs)
 
@@ -239,9 +236,7 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
 
     if has_causality:
         mft = MFTParser().parse_csv(directory / expectation.mft_fixture)
-        prefetch = PrefetchParser().parse_csv(
-            directory / expectation.prefetch_fixture
-        )
+        prefetch = PrefetchParser().parse_csv(directory / expectation.prefetch_fixture)
         evtx = EventLogParser().parse_csv(
             directory / expectation.evtx_fixture, filter_event_ids=[4688]
         )
@@ -284,7 +279,8 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     webmail_expected = expectation.finding_counts.get("webmail_exfiltration", 0)
     if webmail_expected:
         matched = [
-            f for f in network_findings
+            f
+            for f in network_findings
             if f.category.value == "data_exfiltration"
             and f.evidence.get("exfil_type") == "webmail"
         ]
@@ -295,7 +291,8 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     cloud_expected = expectation.finding_counts.get("cloud_upload", 0)
     if cloud_expected:
         matched = [
-            f for f in network_findings
+            f
+            for f in network_findings
             if f.category.value == "data_exfiltration"
             and f.evidence.get("exfil_type") == "cloud_upload"
         ]
@@ -306,16 +303,13 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     yara_expected = expectation.finding_counts.get("yara_match", 0)
     if yara_expected:
         matched = [
-            f for f in yara_findings
-            if f.category.value == "malware_classification"
+            f for f in yara_findings if f.category.value == "malware_classification"
         ]
         tp.extend(["yara_match"] * min(yara_expected, len(matched)))
         missing = max(yara_expected - len(matched), 0)
         fn.extend(["yara_match"] * missing)
 
-    avg_conf = (
-        sum(f.confidence for f in findings) / len(findings) if findings else 0.0
-    )
+    avg_conf = sum(f.confidence for f in findings) / len(findings) if findings else 0.0
 
     return ScenarioResult(
         name=expectation.name,

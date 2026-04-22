@@ -142,14 +142,20 @@ def test_lnk_parser_normalizes_various_drive_type_spellings(tmp_path: Path):
     )
     entries = LnkParser().parse_csv(csv_path)
     types = [e.drive_type for e in entries]
-    assert types == ["removable", "removable", "removable", "network", "unknown", "unknown"]
+    assert types == [
+        "removable",
+        "removable",
+        "removable",
+        "network",
+        "unknown",
+        "unknown",
+    ]
 
 
 def test_lnk_parser_tolerates_bad_timestamps(tmp_path: Path):
     csv_path = tmp_path / "lnk.csv"
     csv_path.write_text(
-        "SourceFile,LocalPath,TargetAccessed\n"
-        "C:\\a.lnk,C:\\x,not-a-date\n"
+        "SourceFile,LocalPath,TargetAccessed\n" "C:\\a.lnk,C:\\x,not-a-date\n"
     )
     entries = LnkParser().parse_csv(csv_path)
     assert len(entries) == 1

@@ -33,7 +33,9 @@ def _fake_memory_image(tmp_path: Path) -> Path:
     return image
 
 
-def _patch_which(monkeypatch: pytest.MonkeyPatch, path: str | None = "/fake/vol") -> None:
+def _patch_which(
+    monkeypatch: pytest.MonkeyPatch, path: str | None = "/fake/vol"
+) -> None:
     monkeypatch.setattr(
         "sift_find_evil.memory.volatility_runner.shutil.which",
         lambda name: path,
@@ -118,27 +120,31 @@ def test_run_pslist_invokes_correct_argv(
     assert "--offline" in captured["argv"]  # default offline=True
 
 
-def test_run_pslist_parses_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_pslist_parses_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     image = _fake_memory_image(tmp_path)
     _patch_which(monkeypatch)
-    payload = json.dumps([
-        {
-            "PID": 4,
-            "PPID": 0,
-            "ImageFileName": "System",
-            "CreateTime": "2024-01-01T00:00:00",
-            "ExitTime": None,
-            "__children": [],
-        },
-        {
-            "PID": 1234,
-            "PPID": 4,
-            "ImageFileName": "evil.exe",
-            "CreateTime": "2024-01-01T00:00:05",
-            "ExitTime": None,
-            "__children": [],
-        },
-    ])
+    payload = json.dumps(
+        [
+            {
+                "PID": 4,
+                "PPID": 0,
+                "ImageFileName": "System",
+                "CreateTime": "2024-01-01T00:00:00",
+                "ExitTime": None,
+                "__children": [],
+            },
+            {
+                "PID": 1234,
+                "PPID": 4,
+                "ImageFileName": "evil.exe",
+                "CreateTime": "2024-01-01T00:00:05",
+                "ExitTime": None,
+                "__children": [],
+            },
+        ]
+    )
     monkeypatch.setattr(
         subprocess,
         "run",
@@ -165,23 +171,25 @@ def test_run_malfind_flattens_hexdump_children(
     """
     image = _fake_memory_image(tmp_path)
     _patch_which(monkeypatch)
-    payload = json.dumps([
-        {
-            "PID": 1234,
-            "Process": "evil.exe",
-            "Start VPN": 100,
-            "End VPN": 200,
-            "Tag": "VadS",
-            "Protection": "PAGE_EXECUTE_READWRITE",
-            "CommitCharge": 1,
-            "PrivateMemory": 1,
-            "File output": "Disabled",
-            "Hexdump": "mz...",
-            "__children": [
-                {"Disasm": "...", "__children": []},
-            ],
-        }
-    ])
+    payload = json.dumps(
+        [
+            {
+                "PID": 1234,
+                "Process": "evil.exe",
+                "Start VPN": 100,
+                "End VPN": 200,
+                "Tag": "VadS",
+                "Protection": "PAGE_EXECUTE_READWRITE",
+                "CommitCharge": 1,
+                "PrivateMemory": 1,
+                "File output": "Disabled",
+                "Hexdump": "mz...",
+                "__children": [
+                    {"Disasm": "...", "__children": []},
+                ],
+            }
+        ]
+    )
     monkeypatch.setattr(
         subprocess,
         "run",
@@ -248,16 +256,21 @@ def test_parse_json_output_raises_on_malformed_json() -> None:
 
 
 def test_parse_json_output_flattens_nested_children() -> None:
-    payload = json.dumps([
-        {
-            "PID": 1,
-            "__children": [
-                {"PID": 2, "__children": [
-                    {"PID": 3, "__children": []},
-                ]},
-            ],
-        },
-    ])
+    payload = json.dumps(
+        [
+            {
+                "PID": 1,
+                "__children": [
+                    {
+                        "PID": 2,
+                        "__children": [
+                            {"PID": 3, "__children": []},
+                        ],
+                    },
+                ],
+            },
+        ]
+    )
     rows = _parse_json_output(payload)
     assert [r["PID"] for r in rows] == [1, 2, 3]
 
@@ -265,18 +278,24 @@ def test_parse_json_output_flattens_nested_children() -> None:
 # -- CommandLineRow / NetworkRow smoke -------------------------------------
 
 
-def test_run_cmdline_parses_args(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_cmdline_parses_args(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     image = _fake_memory_image(tmp_path)
     _patch_which(monkeypatch)
-    payload = json.dumps([
-        {
-            "PID": 9876,
-            "Process": "powershell.exe",
-            "Args": "powershell -nop -w hidden -enc aGVsbG8=",
-            "__children": [],
-        },
-    ])
-    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: _FakeCompleted(stdout=payload))
+    payload = json.dumps(
+        [
+            {
+                "PID": 9876,
+                "Process": "powershell.exe",
+                "Args": "powershell -nop -w hidden -enc aGVsbG8=",
+                "__children": [],
+            },
+        ]
+    )
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **kw: _FakeCompleted(stdout=payload)
+    )
 
     rows = VolatilityRunner(image).run_cmdline()
     assert len(rows) == 1
@@ -290,20 +309,24 @@ def test_run_netscan_parses_connection_rows(
 ) -> None:
     image = _fake_memory_image(tmp_path)
     _patch_which(monkeypatch)
-    payload = json.dumps([
-        {
-            "PID": 4444,
-            "Owner": "evil.exe",
-            "Proto": "TCPv4",
-            "LocalAddr": "10.0.0.5",
-            "LocalPort": 49152,
-            "ForeignAddr": "1.2.3.4",
-            "ForeignPort": 443,
-            "State": "ESTABLISHED",
-            "__children": [],
-        },
-    ])
-    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: _FakeCompleted(stdout=payload))
+    payload = json.dumps(
+        [
+            {
+                "PID": 4444,
+                "Owner": "evil.exe",
+                "Proto": "TCPv4",
+                "LocalAddr": "10.0.0.5",
+                "LocalPort": 49152,
+                "ForeignAddr": "1.2.3.4",
+                "ForeignPort": 443,
+                "State": "ESTABLISHED",
+                "__children": [],
+            },
+        ]
+    )
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **kw: _FakeCompleted(stdout=payload)
+    )
 
     rows = VolatilityRunner(image).run_netscan()
     assert len(rows) == 1

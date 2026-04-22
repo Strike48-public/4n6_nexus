@@ -63,7 +63,9 @@ class BrowserHistoryParser:
     # Chrome WebKit epoch offset (seconds from 1601-01-01 to 1970-01-01)
     WEBKIT_EPOCH_OFFSET = 11644473600
 
-    def parse_chrome(self, db_path: Path, profile: str = "Default") -> list[BrowserHistoryEntry]:
+    def parse_chrome(
+        self, db_path: Path, profile: str = "Default"
+    ) -> list[BrowserHistoryEntry]:
         """Parse Chrome History SQLite database.
 
         Args:
@@ -117,14 +119,16 @@ class BrowserHistoryParser:
                 unix_timestamp = (webkit_time / 1_000_000) - self.WEBKIT_EPOCH_OFFSET
                 timestamp = datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
 
-                entries.append(BrowserHistoryEntry(
-                    timestamp=timestamp,
-                    url=url,
-                    title=title,
-                    visit_count=visit_count,
-                    browser="chrome",
-                    profile=profile
-                ))
+                entries.append(
+                    BrowserHistoryEntry(
+                        timestamp=timestamp,
+                        url=url,
+                        title=title,
+                        visit_count=visit_count,
+                        browser="chrome",
+                        profile=profile,
+                    )
+                )
 
             conn.close()
             logger.info(f"Parsed {len(entries)} Chrome history entries from {db_path}")
@@ -135,7 +139,9 @@ class BrowserHistoryParser:
 
         return entries
 
-    def parse_firefox(self, db_path: Path, profile: str = "default") -> list[BrowserHistoryEntry]:
+    def parse_firefox(
+        self, db_path: Path, profile: str = "default"
+    ) -> list[BrowserHistoryEntry]:
         """Parse Firefox places.sqlite database.
 
         Args:
@@ -187,14 +193,16 @@ class BrowserHistoryParser:
                 unix_timestamp = firefox_time / 1_000_000
                 timestamp = datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
 
-                entries.append(BrowserHistoryEntry(
-                    timestamp=timestamp,
-                    url=url,
-                    title=title,
-                    visit_count=visit_count,
-                    browser="firefox",
-                    profile=profile
-                ))
+                entries.append(
+                    BrowserHistoryEntry(
+                        timestamp=timestamp,
+                        url=url,
+                        title=title,
+                        visit_count=visit_count,
+                        browser="firefox",
+                        profile=profile,
+                    )
+                )
 
             conn.close()
             logger.info(f"Parsed {len(entries)} Firefox history entries from {db_path}")
@@ -237,21 +245,27 @@ class BrowserHistoryParser:
 
                 for row in reader:
                     # Parse timestamp (ISO 8601 format)
-                    timestamp = datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00"))
+                    timestamp = datetime.fromisoformat(
+                        row["timestamp"].replace("Z", "+00:00")
+                    )
 
                     # Parse visit count (may be empty string)
                     visit_count = int(row.get("visit_count", "1") or "1")
 
-                    entries.append(BrowserHistoryEntry(
-                        timestamp=timestamp,
-                        url=row["url"],
-                        title=row.get("title") or None,
-                        visit_count=visit_count,
-                        browser=row["browser"],
-                        profile=row.get("profile", "Default")
-                    ))
+                    entries.append(
+                        BrowserHistoryEntry(
+                            timestamp=timestamp,
+                            url=row["url"],
+                            title=row.get("title") or None,
+                            visit_count=visit_count,
+                            browser=row["browser"],
+                            profile=row.get("profile", "Default"),
+                        )
+                    )
 
-            logger.info(f"Parsed {len(entries)} browser history entries from CSV {csv_path}")
+            logger.info(
+                f"Parsed {len(entries)} browser history entries from CSV {csv_path}"
+            )
 
         except (KeyError, ValueError) as e:
             logger.error(f"Invalid CSV format in {csv_path}: {e}")
@@ -274,18 +288,27 @@ class BrowserHistoryParser:
         with output_path.open("w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(
                 f,
-                fieldnames=["timestamp", "url", "title", "visit_count", "browser", "profile"]
+                fieldnames=[
+                    "timestamp",
+                    "url",
+                    "title",
+                    "visit_count",
+                    "browser",
+                    "profile",
+                ],
             )
             writer.writeheader()
 
             for entry in entries:
-                writer.writerow({
-                    "timestamp": entry.timestamp.isoformat(),
-                    "url": entry.url,
-                    "title": entry.title or "",
-                    "visit_count": entry.visit_count,
-                    "browser": entry.browser,
-                    "profile": entry.profile
-                })
+                writer.writerow(
+                    {
+                        "timestamp": entry.timestamp.isoformat(),
+                        "url": entry.url,
+                        "title": entry.title or "",
+                        "visit_count": entry.visit_count,
+                        "browser": entry.browser,
+                        "profile": entry.profile,
+                    }
+                )
 
         logger.info(f"Exported {len(entries)} browser history entries to {output_path}")

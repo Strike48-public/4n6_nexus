@@ -14,6 +14,7 @@ from ..validators.timestamp_comparator import TimestampComparator
 
 class ContradictionType(Enum):
     """Types of contradictions that can be detected."""
+
     CAUSALITY_VIOLATION = "causality_violation"
     TIMESTOMPING = "timestomping"
     MISSING_ARTIFACT = "missing_artifact"
@@ -23,6 +24,7 @@ class ContradictionType(Enum):
 
 class Severity(Enum):
     """Severity levels for contradictions."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -33,6 +35,7 @@ class Severity(Enum):
 @dataclass
 class Contradiction:
     """Represents a detected contradiction between artifacts."""
+
     type: ContradictionType
     severity: Severity
     description: str
@@ -50,12 +53,12 @@ class Contradiction:
     def to_dict(self) -> dict:
         """Convert to dictionary for logging/output."""
         return {
-            'type': self.type.value,
-            'severity': self.severity.value,
-            'description': self.description,
-            'confidence_impact': self.confidence_impact,
-            'details': self.details,
-            'detected_at': self.detected_at.isoformat()
+            "type": self.type.value,
+            "severity": self.severity.value,
+            "description": self.description,
+            "confidence_impact": self.confidence_impact,
+            "details": self.details,
+            "detected_at": self.detected_at.isoformat(),
         }
 
 
@@ -71,9 +74,7 @@ class ContradictionDetector:
         self.comparator = comparator or TimestampComparator()
 
     def detect_causality_violation(
-        self,
-        mft_entry: Any,
-        prefetch_entry: Any
+        self, mft_entry: Any, prefetch_entry: Any
     ) -> Optional[Contradiction]:
         """Detect if file was modified AFTER it was executed (causality violation).
 
@@ -85,7 +86,9 @@ class ContradictionDetector:
             Contradiction if detected, None otherwise
         """
         # Get modification time from MFT (prefer $FN over $SI)
-        mft_modified = mft_entry.get_modification_time(prefer_fn=False)  # Use $SI for this check
+        mft_modified = mft_entry.get_modification_time(
+            prefer_fn=False
+        )  # Use $SI for this check
 
         # Get last execution time from Prefetch
         prefetch_last_run = prefetch_entry.last_run_time
@@ -95,14 +98,12 @@ class ContradictionDetector:
 
         # Check for causality violation
         violation_details = self.comparator.detect_causality_violation(
-            mft_modified,
-            prefetch_last_run,
-            tolerance_seconds=300  # 5-minute tolerance
+            mft_modified, prefetch_last_run, tolerance_seconds=300  # 5-minute tolerance
         )
 
         if violation_details:
             # Determine severity based on time delta
-            time_delta = abs(violation_details['time_delta_seconds'])
+            time_delta = abs(violation_details["time_delta_seconds"])
             if time_delta > 3600:  # > 1 hour
                 severity = Severity.CRITICAL
                 confidence_impact = -0.60
@@ -117,23 +118,20 @@ class ContradictionDetector:
                 type=ContradictionType.CAUSALITY_VIOLATION,
                 severity=severity,
                 description=f"File {mft_entry.file_name} modified at {mft_modified} "
-                          f"but executed at {prefetch_last_run} (causality violation)",
+                f"but executed at {prefetch_last_run} (causality violation)",
                 confidence_impact=confidence_impact,
                 artifacts=[mft_entry, prefetch_entry],
                 details={
-                    'mft_modified': mft_modified.isoformat(),
-                    'prefetch_last_run': prefetch_last_run.isoformat(),
-                    'time_delta_seconds': violation_details['time_delta_seconds'],
-                    'file_path': mft_entry.file_path
-                }
+                    "mft_modified": mft_modified.isoformat(),
+                    "prefetch_last_run": prefetch_last_run.isoformat(),
+                    "time_delta_seconds": violation_details["time_delta_seconds"],
+                    "file_path": mft_entry.file_path,
+                },
             )
 
         return None
 
-    def detect_timestomping(
-        self,
-        mft_entry: Any
-    ) -> Optional[Contradiction]:
+    def detect_timestomping(self, mft_entry: Any) -> Optional[Contradiction]:
         """Detect timestamp manipulation ($SI vs $FN discrepancy).
 
         Args:
@@ -150,9 +148,7 @@ class ContradictionDetector:
 
         # Check for timestomping
         timestomping = self.comparator.detect_timestomping(
-            si_modified,
-            fn_modified,
-            tolerance_seconds=60  # 1-minute tolerance
+            si_modified, fn_modified, tolerance_seconds=60  # 1-minute tolerance
         )
 
         if timestomping:
@@ -160,23 +156,21 @@ class ContradictionDetector:
                 type=ContradictionType.TIMESTOMPING,
                 severity=Severity.CRITICAL,
                 description=f"File {mft_entry.file_name} shows timestomping: "
-                          f"$SI ({si_modified}) earlier than $FN ({fn_modified})",
+                f"$SI ({si_modified}) earlier than $FN ({fn_modified})",
                 confidence_impact=-0.60,
                 artifacts=[mft_entry],
                 details={
-                    'si_modified': si_modified.isoformat(),
-                    'fn_modified': fn_modified.isoformat(),
-                    'time_delta_seconds': timestomping['time_delta_seconds'],
-                    'file_path': mft_entry.file_path
-                }
+                    "si_modified": si_modified.isoformat(),
+                    "fn_modified": fn_modified.isoformat(),
+                    "time_delta_seconds": timestomping["time_delta_seconds"],
+                    "file_path": mft_entry.file_path,
+                },
             )
 
         return None
 
     def detect_missing_execution_artifact(
-        self,
-        mft_entry: Any,
-        prefetch_entries: List[Any]
+        self, mft_entry: Any, prefetch_entries: List[Any]
     ) -> Optional[Contradiction]:
         """Detect if executable exists in MFT but has no Prefetch evidence.
 
@@ -190,14 +184,13 @@ class ContradictionDetector:
             Contradiction if detected, None otherwise
         """
         # Only check .exe files
-        if not mft_entry.file_name.lower().endswith('.exe'):
+        if not mft_entry.file_name.lower().endswith(".exe"):
             return None
 
         # Search for matching Prefetch entry
         exe_name = mft_entry.file_name
         matching_prefetch = [
-            pf for pf in prefetch_entries
-            if pf.executable.lower() == exe_name.lower()
+            pf for pf in prefetch_entries if pf.executable.lower() == exe_name.lower()
         ]
 
         if not matching_prefetch:
@@ -209,10 +202,14 @@ class ContradictionDetector:
                 confidence_impact=-0.30,
                 artifacts=[mft_entry],
                 details={
-                    'file_path': mft_entry.file_path,
-                    'mft_created': mft_entry.get_creation_time().isoformat() if mft_entry.get_creation_time() else None,
-                    'note': 'May indicate Prefetch deletion or disabled Prefetch'
-                }
+                    "file_path": mft_entry.file_path,
+                    "mft_created": (
+                        mft_entry.get_creation_time().isoformat()
+                        if mft_entry.get_creation_time()
+                        else None
+                    ),
+                    "note": "May indicate Prefetch deletion or disabled Prefetch",
+                },
             )
 
         return None
@@ -221,7 +218,7 @@ class ContradictionDetector:
         self,
         prefetch_entry: Any,
         event_log_entries: List[Any],
-        tolerance_seconds: int = 300
+        tolerance_seconds: int = 300,
     ) -> Optional[Contradiction]:
         """Detect if Prefetch execution time doesn't match any Event ID 4688.
 
@@ -245,9 +242,7 @@ class ContradictionDetector:
         matches_found = False
         for event in event_log_entries:
             comparison = self.comparator.compare(
-                event.time_created,
-                prefetch_last_run,
-                tolerance_seconds
+                event.time_created, prefetch_last_run, tolerance_seconds
             )
             if comparison == 0:  # Within tolerance
                 matches_found = True
@@ -261,15 +256,15 @@ class ContradictionDetector:
                 type=ContradictionType.TEMPORAL_MISMATCH,
                 severity=Severity.MEDIUM,
                 description=f"Prefetch shows execution at {prefetch_last_run} but no matching "
-                          f"Event ID 4688 found within ±{tolerance_seconds}s",
+                f"Event ID 4688 found within ±{tolerance_seconds}s",
                 confidence_impact=-0.35,
                 artifacts=[prefetch_entry] + event_log_entries,
                 details={
-                    'prefetch_last_run': prefetch_last_run.isoformat(),
-                    'event_log_times': event_times,
-                    'event_count': len(event_log_entries),
-                    'executable': prefetch_entry.executable
-                }
+                    "prefetch_last_run": prefetch_last_run.isoformat(),
+                    "event_log_times": event_times,
+                    "event_count": len(event_log_entries),
+                    "executable": prefetch_entry.executable,
+                },
             )
 
         return None
@@ -278,7 +273,7 @@ class ContradictionDetector:
         self,
         mft_entries: List[Any],
         prefetch_entries: List[Any],
-        event_log_entries: List[Any]
+        event_log_entries: List[Any],
     ) -> List[Contradiction]:
         """Run all contradiction detection checks.
 
@@ -298,8 +293,7 @@ class ContradictionDetector:
 
             # Find matching MFT entry
             matching_mft = [
-                mft for mft in mft_entries
-                if mft.file_name.lower() == exe_name.lower()
+                mft for mft in mft_entries if mft.file_name.lower() == exe_name.lower()
             ]
 
             if matching_mft:
@@ -317,24 +311,21 @@ class ContradictionDetector:
 
             # Check for temporal mismatch with Event Logs
             matching_events = [
-                evt for evt in event_log_entries
-                if evt.get_executable_name() and
-                   evt.get_executable_name().lower() == exe_name.lower()
+                evt
+                for evt in event_log_entries
+                if evt.get_executable_name()
+                and evt.get_executable_name().lower() == exe_name.lower()
             ]
 
-            temporal = self.detect_temporal_mismatch(
-                prefetch_entry,
-                matching_events
-            )
+            temporal = self.detect_temporal_mismatch(prefetch_entry, matching_events)
             if temporal:
                 contradictions.append(temporal)
 
         # Check for missing Prefetch artifacts
         for mft_entry in mft_entries:
-            if mft_entry.file_name.lower().endswith('.exe'):
+            if mft_entry.file_name.lower().endswith(".exe"):
                 missing = self.detect_missing_execution_artifact(
-                    mft_entry,
-                    prefetch_entries
+                    mft_entry, prefetch_entries
                 )
                 if missing:
                     contradictions.append(missing)
@@ -479,7 +470,10 @@ class ContradictionDetector:
                 continue
 
             # Size + name match
-            if entry.file_size == attachment.size and entry.file_name.lower() == attachment.name.lower():
+            if (
+                entry.file_size == attachment.size
+                and entry.file_name.lower() == attachment.name.lower()
+            ):
                 delta = (email.submit_time - entry.si_created).total_seconds()
                 return Contradiction(
                     type=ContradictionType.EXFIL_CORRELATION,

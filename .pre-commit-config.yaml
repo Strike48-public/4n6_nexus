@@ -1,0 +1,28 @@
+# Pre-commit hooks for sift_find_evil.
+#
+# Install once per clone:
+#
+#     pip install pre-commit
+#     pre-commit install
+#
+# Hooks run on staged Python files before every commit. CI also enforces
+# `black --check` and `ruff check` so this is belt-and-braces; the hook
+# just catches drift before it leaves the developer's machine.
+
+repos:
+  - repo: https://github.com/psf/black
+    rev: 25.9.0
+    hooks:
+      - id: black
+        language_version: python3.12
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+exclude: |
+  (?x)^(
+    rules/yara/community/.*
+  )$

@@ -28,11 +28,16 @@ def _evt_header(start_off: int = 48, end_off: int = 48) -> bytes:
         "<I4sIIIIIIIIII",
         48,
         b"LfLe",
-        1, 1,
-        start_off, end_off,
-        1, 0,
+        1,
+        1,
+        start_off,
+        end_off,
+        1,
+        0,
         65536,
-        0, 0, 48,
+        0,
+        0,
+        48,
     )
 
 
@@ -104,11 +109,11 @@ def test_xp_592_maps_to_process_creation(tmp_path: Path) -> None:
         source="Security",
         computer="JEANPC",
         strings=[
-            "0x4c0",                    # NewProcessId
+            "0x4c0",  # NewProcessId
             "C:\\Program Files\\AIM6\\aim6.exe",  # ImageFileName
-            "0x2b0",                    # CreatorProcessId
-            "User",                     # TargetUserName
-            "JEANPC",                   # TargetDomainName
+            "0x2b0",  # CreatorProcessId
+            "User",  # TargetUserName
+            "JEANPC",  # TargetDomainName
         ],
     )
 
@@ -171,7 +176,9 @@ def test_real_jean_evt_fixtures() -> None:
     """
     base = Path("analysis/m57-jean/extracted/evtlog")
     if not base.exists():
-        pytest.skip("Jean artifacts not extracted; run scripts/extract_jean_artifacts.py")
+        pytest.skip(
+            "Jean artifacts not extracted; run scripts/extract_jean_artifacts.py"
+        )
 
     parser = EvtParser()
     sec = parser.parse_file(base / "SecEvent.Evt")

@@ -202,10 +202,10 @@ def test_parse_jean_pst_critical_message():
     assert len(exfil_message.attachments) == 1, "Expected exactly one attachment"
 
     att = exfil_message.attachments[0]
-    expected_sha256 = (
-        "34456b5f714dc9d8dd23c742d54c3f5f582ecb042bc1c4d3042b88203863779f"
-    )
+    expected_sha256 = "34456b5f714dc9d8dd23c742d54c3f5f582ecb042bc1c4d3042b88203863779f"
     assert (
         att.sha256 == expected_sha256
     ), f"Attachment hash mismatch: got {att.sha256}, expected {expected_sha256}"
-    assert att.size == 291840, f"Attachment size mismatch: got {att.size}, expected 291840"
+    assert (
+        att.size == 291840
+    ), f"Attachment size mismatch: got {att.size}, expected 291840"

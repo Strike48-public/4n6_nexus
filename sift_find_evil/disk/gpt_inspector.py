@@ -167,8 +167,12 @@ class GPTInspection:
             "primary_header_zeroed": self.primary_header_zeroed,
             "primary_wiped": self.primary_wiped,
             "secondary_valid": self.secondary_valid,
-            "primary_header": self.primary_header.to_dict() if self.primary_header else None,
-            "secondary_header": self.secondary_header.to_dict() if self.secondary_header else None,
+            "primary_header": (
+                self.primary_header.to_dict() if self.primary_header else None
+            ),
+            "secondary_header": (
+                self.secondary_header.to_dict() if self.secondary_header else None
+            ),
             "secondary_entries": [e.to_dict() for e in self.secondary_entries],
         }
 
@@ -221,7 +225,9 @@ def _parse_entry(index: int, buf: bytes) -> GPTEntry | None:
     unique_guid = uuid.UUID(bytes_le=buf[16:32])
     first_lba, last_lba, attributes = struct.unpack_from("<QQQ", buf, 32)
     name = buf[56:128].decode("utf-16-le", errors="replace").rstrip("\x00")
-    return GPTEntry(index, type_guid, unique_guid, first_lba, last_lba, attributes, name)
+    return GPTEntry(
+        index, type_guid, unique_guid, first_lba, last_lba, attributes, name
+    )
 
 
 def _read_sector(reader: _Reader, lba: int, total_sectors: int) -> bytes:

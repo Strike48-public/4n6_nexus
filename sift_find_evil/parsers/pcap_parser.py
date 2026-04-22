@@ -18,7 +18,11 @@ from typing import Optional
 
 
 _BYTE_UNITS: dict[str, int] = {
-    "bytes": 1, "B": 1, "kB": 1024, "MB": 1024**2, "GB": 1024**3,
+    "bytes": 1,
+    "B": 1,
+    "kB": 1024,
+    "MB": 1024**2,
+    "GB": 1024**3,
 }
 
 
@@ -233,9 +237,15 @@ class PcapParser:
                 method = clean(fields[4]) if len(fields) > 4 else ""
                 host = clean(fields[5]) if len(fields) > 5 else ""
                 uri = clean(fields[6]) if len(fields) > 6 else ""
-                user_agent = clean(fields[7]) if len(fields) > 7 and fields[7].strip() else None
-                content_type = clean(fields[8]) if len(fields) > 8 and fields[8].strip() else None
-                form_data = clean(fields[9]) if len(fields) > 9 and fields[9].strip() else None
+                user_agent = (
+                    clean(fields[7]) if len(fields) > 7 and fields[7].strip() else None
+                )
+                content_type = (
+                    clean(fields[8]) if len(fields) > 8 and fields[8].strip() else None
+                )
+                form_data = (
+                    clean(fields[9]) if len(fields) > 9 and fields[9].strip() else None
+                )
 
                 requests.append(
                     HTTPRequest(
@@ -400,9 +410,7 @@ class PcapParser:
 
         return queries
 
-    def extract_tcp_conversations(
-        self, pcap_path: Path
-    ) -> list[TCPConversation]:
+    def extract_tcp_conversations(self, pcap_path: Path) -> list[TCPConversation]:
         """Extract TCP conversations (flow stats) from a PCAP.
 
         Wraps ``tshark -q -z conv,tcp``. Each row is parsed into a
@@ -414,8 +422,11 @@ class PcapParser:
 
         cmd = [
             str(self.tshark_path),
-            "-r", str(pcap_path),
-            "-q", "-z", "conv,tcp",
+            "-r",
+            str(pcap_path),
+            "-q",
+            "-z",
+            "conv,tcp",
         ]
         try:
             result = subprocess.run(
@@ -506,9 +517,7 @@ class PcapParser:
         ]
 
         try:
-            subprocess.run(
-                cmd, capture_output=True, text=True, check=True, timeout=60
-            )
+            subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"tshark failed: {e.stderr}") from e
 

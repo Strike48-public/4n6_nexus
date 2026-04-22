@@ -291,10 +291,14 @@ class LnkParser:
                                 _first_nonempty(row, "TargetCreated", "target_created")
                             ),
                             target_modified=_parse_timestamp(
-                                _first_nonempty(row, "TargetModified", "target_modified")
+                                _first_nonempty(
+                                    row, "TargetModified", "target_modified"
+                                )
                             ),
                             target_accessed=_parse_timestamp(
-                                _first_nonempty(row, "TargetAccessed", "target_accessed")
+                                _first_nonempty(
+                                    row, "TargetAccessed", "target_accessed"
+                                )
                             ),
                             working_directory=_first_nonempty(
                                 row, "WorkingDirectory", "working_directory"
@@ -311,9 +315,7 @@ class LnkParser:
                                 row, "VolumeLabel", "volume_label"
                             )
                             or None,
-                            machine_id=_first_nonempty(
-                                row, "MachineID", "machine_id"
-                            )
+                            machine_id=_first_nonempty(row, "MachineID", "machine_id")
                             or None,
                             mac_address=_first_nonempty(
                                 row, "MACAddress", "mac_address"
@@ -372,9 +374,7 @@ class JumpListParser:
                     entry_type_raw = _first_nonempty(
                         row, "EntryType", "entry_type", default="Automatic"
                     ).lower()
-                    entry_type = (
-                        "custom" if "custom" in entry_type_raw else "automatic"
-                    )
+                    entry_type = "custom" if "custom" in entry_type_raw else "automatic"
                     entries.append(
                         JumpListEntry(
                             app_id=app_id,
@@ -397,9 +397,9 @@ class JumpListParser:
                         )
                     )
         except csv.Error as exc:
-            raise ValueError(f"Invalid Jump List CSV format in {csv_path}: {exc}") from exc
+            raise ValueError(
+                f"Invalid Jump List CSV format in {csv_path}: {exc}"
+            ) from exc
 
-        logger.info(
-            "Parsed %d Jump List entries from %s", len(entries), csv_path
-        )
+        logger.info("Parsed %d Jump List entries from %s", len(entries), csv_path)
         return entries

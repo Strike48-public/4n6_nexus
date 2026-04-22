@@ -48,9 +48,7 @@ def _dns(name: str, src: str = "10.0.0.5") -> DNSQuery:
 
 def test_beaconing_detector_flags_uniform_cadence():
     # 8 events spaced every 300 seconds — textbook beacon.
-    requests = [
-        _http("evil.example.com", offset_seconds=i * 300.0) for i in range(8)
-    ]
+    requests = [_http("evil.example.com", offset_seconds=i * 300.0) for i in range(8)]
     findings = BeaconingDetector().analyze(http_requests=requests)
     assert len(findings) == 1
     ev = findings[0].evidence
@@ -64,26 +62,20 @@ def test_beaconing_detector_flags_uniform_cadence():
 def test_beaconing_detector_ignores_jittery_browsing():
     # Wildly varying intervals — user browsing, not a beacon.
     offsets = [0, 35, 120, 300, 800, 810, 2000]
-    requests = [
-        _http("news.example.com", offset_seconds=o) for o in offsets
-    ]
+    requests = [_http("news.example.com", offset_seconds=o) for o in offsets]
     findings = BeaconingDetector().analyze(http_requests=requests)
     assert findings == []
 
 
 def test_beaconing_detector_ignores_below_min_events():
-    requests = [
-        _http("evil.example.com", offset_seconds=i * 300.0) for i in range(3)
-    ]
+    requests = [_http("evil.example.com", offset_seconds=i * 300.0) for i in range(3)]
     findings = BeaconingDetector().analyze(http_requests=requests)
     assert findings == []
 
 
 def test_beaconing_detector_ignores_sub_threshold_mean():
     # Tight, regular, but sub-30s — TCP retries or asset loads, not a beacon.
-    requests = [
-        _http("cdn.example.com", offset_seconds=i * 2.0) for i in range(20)
-    ]
+    requests = [_http("cdn.example.com", offset_seconds=i * 2.0) for i in range(20)]
     findings = BeaconingDetector().analyze(http_requests=requests)
     assert findings == []
 
@@ -99,8 +91,7 @@ def test_beaconing_detector_skips_non_configured_methods():
 
 def test_beaconing_detector_normalizes_host_with_port():
     requests = [
-        _http("evil.example.com:443", offset_seconds=i * 300.0)
-        for i in range(6)
+        _http("evil.example.com:443", offset_seconds=i * 300.0) for i in range(6)
     ]
     findings = BeaconingDetector().analyze(http_requests=requests)
     assert len(findings) == 1
@@ -142,8 +133,7 @@ def test_dns_anomaly_ignores_short_labels():
 
 def test_dns_anomaly_suppresses_aws_elb():
     name = (
-        "internal-some-loadbalancer-1234567890abcdefghij"
-        ".us-east-1.elb.amazonaws.com"
+        "internal-some-loadbalancer-1234567890abcdefghij" ".us-east-1.elb.amazonaws.com"
     )
     findings = DNSAnomalyDetector().analyze(dns_queries=[_dns(name)])
     assert findings == []
@@ -157,15 +147,13 @@ def test_dns_anomaly_suppresses_cloudfront():
 
 def test_dns_anomaly_honors_disable_cdn_suppression():
     name = "d1234567890abcdefghijklmnopqrstuvwxyz.cloudfront.net"
-    findings = DNSAnomalyDetector(
-        ignore_known_cdn_patterns=False
-    ).analyze(dns_queries=[_dns(name)])
+    findings = DNSAnomalyDetector(ignore_known_cdn_patterns=False).analyze(
+        dns_queries=[_dns(name)]
+    )
     # Only flagged if label is both long and high-entropy.
     # "d1234567890abcdefghijklmnopqrstuvwxyz" is 37 chars — under default 40.
     # Make sure the detector can still be configured to flag it.
-    detector = DNSAnomalyDetector(
-        ignore_known_cdn_patterns=False, min_label_length=20
-    )
+    detector = DNSAnomalyDetector(ignore_known_cdn_patterns=False, min_label_length=20)
     findings = detector.analyze(dns_queries=[_dns(name)])
     assert len(findings) == 1
 

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MFTEntry:
     """Represents a single MFT entry with timestamps."""
+
     entry_number: int
     file_name: str
     parent_path: str
@@ -40,13 +41,15 @@ class MFTEntry:
     fn_mft_modified: Optional[datetime]
 
     # Optional content reader for hash-based correlation (SFE-2)
-    content_reader: Optional[Callable[["MFTEntry"], bytes]] = field(default=None, repr=False)
+    content_reader: Optional[Callable[["MFTEntry"], bytes]] = field(
+        default=None, repr=False
+    )
 
     def __post_init__(self):
         """Construct full file path after initialization."""
         if self.parent_path and self.file_name:
             # Ensure proper path separator
-            parent = self.parent_path.rstrip('\\')
+            parent = self.parent_path.rstrip("\\")
             self.file_path = f"{parent}\\{self.file_name}"
 
     def has_timestomping(self, comparator: TimestampComparator) -> Optional[dict]:
@@ -132,7 +135,7 @@ class MFTParser:
 
         entries = []
 
-        with open(csv_file, 'r', encoding='utf-8-sig') as f:
+        with open(csv_file, "r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             _require_columns(reader, self.REQUIRED_COLUMNS, csv_file, "MFT")
 
@@ -157,49 +160,61 @@ class MFTParser:
         """
         try:
             # Parse entry number
-            entry_number = int(row.get('EntryNumber', 0))
+            entry_number = int(row.get("EntryNumber", 0))
 
             # Parse file metadata
-            file_name = row.get('FileName', '')
-            parent_path = row.get('ParentPath', '')
-            file_size = int(row.get('FileSize', 0))
-            is_directory = row.get('IsDirectory', 'False').lower() == 'true'
-            in_use = row.get('InUse', 'False').lower() == 'true'
+            file_name = row.get("FileName", "")
+            parent_path = row.get("ParentPath", "")
+            file_size = int(row.get("FileSize", 0))
+            is_directory = row.get("IsDirectory", "False").lower() == "true"
+            in_use = row.get("InUse", "False").lower() == "true"
 
             # Parse $STANDARD_INFORMATION timestamps
             # MFTECmd uses different column names depending on version
             si_created = self._parse_timestamp(
-                row.get('Created0x10') or row.get('SI_LtCreated')
+                row.get("Created0x10") or row.get("SI_LtCreated")
             )
             si_modified = self._parse_timestamp(
-                row.get('LastModified0x10') or row.get('Modified0x10') or row.get('SI_LtModified')
+                row.get("LastModified0x10")
+                or row.get("Modified0x10")
+                or row.get("SI_LtModified")
             )
             si_accessed = self._parse_timestamp(
-                row.get('LastAccess0x10') or row.get('Accessed0x10') or row.get('SI_LtAccess')
+                row.get("LastAccess0x10")
+                or row.get("Accessed0x10")
+                or row.get("SI_LtAccess")
             )
             si_mft_modified = self._parse_timestamp(
-                row.get('LastRecordChange0x10') or row.get('Changed0x10') or row.get('SI_LtMftModified')
+                row.get("LastRecordChange0x10")
+                or row.get("Changed0x10")
+                or row.get("SI_LtMftModified")
             )
 
             # Parse $FILE_NAME timestamps
             fn_created = self._parse_timestamp(
-                row.get('Created0x30') or row.get('FN_LtCreated')
+                row.get("Created0x30") or row.get("FN_LtCreated")
             )
             fn_modified = self._parse_timestamp(
-                row.get('LastModified0x30') or row.get('Modified0x30') or row.get('FN_LtModified')
+                row.get("LastModified0x30")
+                or row.get("Modified0x30")
+                or row.get("FN_LtModified")
             )
             fn_accessed = self._parse_timestamp(
-                row.get('LastAccess0x30') or row.get('Accessed0x30') or row.get('FN_LtAccess')
+                row.get("LastAccess0x30")
+                or row.get("Accessed0x30")
+                or row.get("FN_LtAccess")
             )
             fn_mft_modified = self._parse_timestamp(
-                row.get('LastRecordChange0x30') or row.get('Changed0x30') or row.get('FN_LtMftModified')
+                row.get("LastRecordChange0x30")
+                or row.get("Changed0x30")
+                or row.get("FN_LtMftModified")
             )
 
             return MFTEntry(
                 entry_number=entry_number,
                 file_name=file_name,
                 parent_path=parent_path,
-                file_path='',  # Will be constructed in __post_init__
+                file_path="",  # Will be constructed in __post_init__
                 file_size=file_size,
                 is_directory=is_directory,
                 in_use=in_use,
@@ -228,7 +243,7 @@ class MFTParser:
         Returns:
             Datetime object, or None if null/invalid
         """
-        if not timestamp_str or timestamp_str.strip() == '':
+        if not timestamp_str or timestamp_str.strip() == "":
             return None
 
         try:
@@ -241,14 +256,16 @@ class MFTParser:
             # Ensure timezone-aware UTC (pypff returns aware, MFT must match)
             if dt.tzinfo is None:
                 import pytz
+
                 dt = dt.replace(tzinfo=pytz.utc)
 
             return dt
         except Exception:
             return None
 
-    def find_by_filename(self, entries: List[MFTEntry], filename: str,
-                        case_sensitive: bool = False) -> List[MFTEntry]:
+    def find_by_filename(
+        self, entries: List[MFTEntry], filename: str, case_sensitive: bool = False
+    ) -> List[MFTEntry]:
         """Find MFT entries by filename.
 
         Args:
@@ -265,8 +282,9 @@ class MFTParser:
             filename_lower = filename.lower()
             return [e for e in entries if e.file_name.lower() == filename_lower]
 
-    def find_by_path(self, entries: List[MFTEntry], path_pattern: str,
-                    case_sensitive: bool = False) -> List[MFTEntry]:
+    def find_by_path(
+        self, entries: List[MFTEntry], path_pattern: str, case_sensitive: bool = False
+    ) -> List[MFTEntry]:
         r"""Find MFT entries by path pattern.
 
         Args:
@@ -301,8 +319,9 @@ class MFTParser:
 
         return timestomped
 
-    def get_recently_modified(self, entries: List[MFTEntry],
-                             within_hours: int = 24) -> List[MFTEntry]:
+    def get_recently_modified(
+        self, entries: List[MFTEntry], within_hours: int = 24
+    ) -> List[MFTEntry]:
         """Get files modified within a time window.
 
         Args:

@@ -20,7 +20,7 @@ from sift_find_evil.self_correction.contradiction_detector import ContradictionT
 
 
 # Test data directory
-TEST_DATA_DIR = Path(__file__).parent / 'fixtures'
+TEST_DATA_DIR = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
@@ -30,18 +30,15 @@ def synthetic_data():
     prefetch_parser = PrefetchParser()
     evtx_parser = EventLogParser()
 
-    mft_entries = mft_parser.parse_csv(TEST_DATA_DIR / 'synthetic_mft.csv')
-    prefetch_entries = prefetch_parser.parse_csv(TEST_DATA_DIR / 'synthetic_prefetch.csv')
+    mft_entries = mft_parser.parse_csv(TEST_DATA_DIR / "synthetic_mft.csv")
+    prefetch_entries = prefetch_parser.parse_csv(
+        TEST_DATA_DIR / "synthetic_prefetch.csv"
+    )
     evtx_entries = evtx_parser.parse_csv(
-        TEST_DATA_DIR / 'synthetic_evtx.csv',
-        filter_event_ids=[4688]
+        TEST_DATA_DIR / "synthetic_evtx.csv", filter_event_ids=[4688]
     )
 
-    return {
-        'mft': mft_entries,
-        'prefetch': prefetch_entries,
-        'evtx': evtx_entries
-    }
+    return {"mft": mft_entries, "prefetch": prefetch_entries, "evtx": evtx_entries}
 
 
 def test_malware_causality_violation_detection(synthetic_data):
@@ -56,20 +53,19 @@ def test_malware_causality_violation_detection(synthetic_data):
     engine = SelfCorrectionEngine()
 
     findings = engine.analyze(
-        synthetic_data['mft'],
-        synthetic_data['prefetch'],
-        synthetic_data['evtx']
+        synthetic_data["mft"], synthetic_data["prefetch"], synthetic_data["evtx"]
     )
 
     # Should find malware.exe with contradictions
-    malware_findings = [f for f in findings if 'malware.exe' in f.title.lower()]
+    malware_findings = [f for f in findings if "malware.exe" in f.title.lower()]
     assert len(malware_findings) >= 1, "Should detect malware.exe contradiction"
 
     malware_finding = malware_findings[0]
 
     # Should have detected causality violation
     causality_contradictions = [
-        c for c in malware_finding.contradictions
+        c
+        for c in malware_finding.contradictions
         if c.type == ContradictionType.CAUSALITY_VIOLATION
     ]
     assert len(causality_contradictions) >= 1, "Should detect causality violation"
@@ -77,9 +73,13 @@ def test_malware_causality_violation_detection(synthetic_data):
     causality = causality_contradictions[0]
 
     # Verify details
-    assert 'malware.exe' in causality.description
+    assert "malware.exe" in causality.description
     assert causality.confidence_impact < 0, "Should reduce confidence"
-    assert causality.severity.value in ['medium', 'high', 'critical'], "Should be serious severity"
+    assert causality.severity.value in [
+        "medium",
+        "high",
+        "critical",
+    ], "Should be serious severity"
 
 
 def test_event_log_resolution(synthetic_data):
@@ -94,12 +94,10 @@ def test_event_log_resolution(synthetic_data):
     engine = SelfCorrectionEngine()
 
     findings = engine.analyze(
-        synthetic_data['mft'],
-        synthetic_data['prefetch'],
-        synthetic_data['evtx']
+        synthetic_data["mft"], synthetic_data["prefetch"], synthetic_data["evtx"]
     )
 
-    malware_findings = [f for f in findings if 'malware.exe' in f.title.lower()]
+    malware_findings = [f for f in findings if "malware.exe" in f.title.lower()]
     assert len(malware_findings) >= 1
 
     malware_finding = malware_findings[0]
@@ -110,16 +108,18 @@ def test_event_log_resolution(synthetic_data):
     resolution = malware_finding.resolutions[0]
 
     # Verify resolution details
-    assert resolution.contradiction_type == 'causality_violation'
-    assert resolution.resolution_method == 'event_log_confirms_prefetch'
+    assert resolution.contradiction_type == "causality_violation"
+    assert resolution.resolution_method == "event_log_confirms_prefetch"
     assert resolution.confidence_recovery > 0, "Should recover confidence"
-    assert resolution.confidence_recovery == pytest.approx(0.30, abs=0.01), "Should recover +0.30"
+    assert resolution.confidence_recovery == pytest.approx(
+        0.30, abs=0.01
+    ), "Should recover +0.30"
 
     # Verify evidence
-    assert 'prefetch_time' in resolution.evidence
-    assert 'event_log_time' in resolution.evidence
-    assert 'event_id' in resolution.evidence
-    assert resolution.evidence['event_id'] == 4688
+    assert "prefetch_time" in resolution.evidence
+    assert "event_log_time" in resolution.evidence
+    assert "event_id" in resolution.evidence
+    assert resolution.evidence["event_id"] == 4688
 
 
 def test_confidence_calculation(synthetic_data):
@@ -135,12 +135,10 @@ def test_confidence_calculation(synthetic_data):
     engine = SelfCorrectionEngine(base_confidence=0.85)
 
     findings = engine.analyze(
-        synthetic_data['mft'],
-        synthetic_data['prefetch'],
-        synthetic_data['evtx']
+        synthetic_data["mft"], synthetic_data["prefetch"], synthetic_data["evtx"]
     )
 
-    malware_findings = [f for f in findings if 'malware.exe' in f.title.lower()]
+    malware_findings = [f for f in findings if "malware.exe" in f.title.lower()]
     assert len(malware_findings) >= 1
 
     malware_finding = malware_findings[0]
@@ -150,20 +148,23 @@ def test_confidence_calculation(synthetic_data):
 
     # With contradiction and resolution, should be moderate confidence
     # (not too high, not too low)
-    assert 0.40 <= malware_finding.confidence <= 0.80, \
-        f"Expected moderate confidence after correction, got {malware_finding.confidence}"
+    assert (
+        0.40 <= malware_finding.confidence <= 0.80
+    ), f"Expected moderate confidence after correction, got {malware_finding.confidence}"
 
     # Verify calculation details exist
-    assert 'initial_confidence' in malware_finding.confidence_calculation
-    assert 'final_confidence' in malware_finding.confidence_calculation
-    assert 'calculation_steps' in malware_finding.confidence_calculation
+    assert "initial_confidence" in malware_finding.confidence_calculation
+    assert "final_confidence" in malware_finding.confidence_calculation
+    assert "calculation_steps" in malware_finding.confidence_calculation
 
     # Initial should be higher than final (contradiction reduces confidence)
-    initial = malware_finding.confidence_calculation['initial_confidence']
-    final = malware_finding.confidence_calculation['final_confidence']
+    initial = malware_finding.confidence_calculation["initial_confidence"]
+    final = malware_finding.confidence_calculation["final_confidence"]
 
     # After contradiction + resolution, final should be lower than initial but not critically low
-    assert final < initial, "Contradiction should reduce confidence even after resolution"
+    assert (
+        final < initial
+    ), "Contradiction should reduce confidence even after resolution"
     assert final >= 0.40, "After resolution, should maintain reasonable confidence"
 
 
@@ -180,28 +181,28 @@ def test_reasoning_chain(synthetic_data):
     engine = SelfCorrectionEngine()
 
     findings = engine.analyze(
-        synthetic_data['mft'],
-        synthetic_data['prefetch'],
-        synthetic_data['evtx']
+        synthetic_data["mft"], synthetic_data["prefetch"], synthetic_data["evtx"]
     )
 
-    malware_findings = [f for f in findings if 'malware.exe' in f.title.lower()]
+    malware_findings = [f for f in findings if "malware.exe" in f.title.lower()]
     assert len(malware_findings) >= 1
 
     malware_finding = malware_findings[0]
 
     # Verify reasoning chain exists and is comprehensive
-    assert len(malware_finding.reasoning_chain) >= 4, \
-        "Should have at least 4 reasoning steps (initial, contradiction, resolution, final)"
+    assert (
+        len(malware_finding.reasoning_chain) >= 4
+    ), "Should have at least 4 reasoning steps (initial, contradiction, resolution, final)"
 
-    reasoning = ' '.join(malware_finding.reasoning_chain).lower()
+    reasoning = " ".join(malware_finding.reasoning_chain).lower()
 
     # Check for key elements
-    assert 'initial confidence' in reasoning, "Should document initial confidence"
-    assert 'causality_violation' in reasoning or 'causality violation' in reasoning, \
-        "Should document causality violation"
-    assert 'event log' in reasoning, "Should document Event Log resolution"
-    assert 'final confidence' in reasoning, "Should document final confidence"
+    assert "initial confidence" in reasoning, "Should document initial confidence"
+    assert (
+        "causality_violation" in reasoning or "causality violation" in reasoning
+    ), "Should document causality violation"
+    assert "event log" in reasoning, "Should document Event Log resolution"
+    assert "final confidence" in reasoning, "Should document final confidence"
 
 
 def test_legitimate_files_no_contradictions(synthetic_data):
@@ -216,24 +217,25 @@ def test_legitimate_files_no_contradictions(synthetic_data):
     engine = SelfCorrectionEngine()
 
     findings = engine.analyze(
-        synthetic_data['mft'],
-        synthetic_data['prefetch'],
-        synthetic_data['evtx']
+        synthetic_data["mft"], synthetic_data["prefetch"], synthetic_data["evtx"]
     )
 
     # Filter for legitimate files
     legit_findings = [
-        f for f in findings
-        if 'legitapp.exe' in f.title.lower() or 'notepad.exe' in f.title.lower()
+        f
+        for f in findings
+        if "legitapp.exe" in f.title.lower() or "notepad.exe" in f.title.lower()
     ]
 
     # Legitimate files should not be flagged
     # (if they are in findings, they should have no contradictions)
     for finding in legit_findings:
-        assert len(finding.contradictions) == 0, \
-            f"{finding.title} should have no contradictions"
-        assert finding.confidence >= 0.80, \
-            f"{finding.title} should have high confidence"
+        assert (
+            len(finding.contradictions) == 0
+        ), f"{finding.title} should have no contradictions"
+        assert (
+            finding.confidence >= 0.80
+        ), f"{finding.title} should have high confidence"
 
 
 def test_artifact_count_affects_confidence(synthetic_data):
@@ -247,24 +249,24 @@ def test_artifact_count_affects_confidence(synthetic_data):
     engine = SelfCorrectionEngine()
 
     findings = engine.analyze(
-        synthetic_data['mft'],
-        synthetic_data['prefetch'],
-        synthetic_data['evtx']
+        synthetic_data["mft"], synthetic_data["prefetch"], synthetic_data["evtx"]
     )
 
     # All test files should have at least 2 artifact types
     for finding in findings:
-        assert len(finding.artifact_sources) >= 2, \
-            f"{finding.title} should have at least 2 artifact sources"
+        assert (
+            len(finding.artifact_sources) >= 2
+        ), f"{finding.title} should have at least 2 artifact sources"
 
         # Initial confidence should reflect artifact count
         calc = finding.confidence_calculation
-        initial = calc['initial_confidence']
+        initial = calc["initial_confidence"]
 
         if len(finding.artifact_sources) >= 3:
             # With 3+ types, initial confidence should be boosted
-            assert initial >= 0.90, \
-                f"With {len(finding.artifact_sources)} types, initial confidence should be high"
+            assert (
+                initial >= 0.90
+            ), f"With {len(finding.artifact_sources)} types, initial confidence should be high"
 
 
 def test_finding_json_serialization(synthetic_data):
@@ -279,9 +281,7 @@ def test_finding_json_serialization(synthetic_data):
     engine = SelfCorrectionEngine()
 
     findings = engine.analyze(
-        synthetic_data['mft'],
-        synthetic_data['prefetch'],
-        synthetic_data['evtx']
+        synthetic_data["mft"], synthetic_data["prefetch"], synthetic_data["evtx"]
     )
 
     assert len(findings) >= 1, "Should have at least one finding"
@@ -290,21 +290,21 @@ def test_finding_json_serialization(synthetic_data):
         finding_dict = finding.to_dict()
 
         # Verify required fields
-        assert 'title' in finding_dict
-        assert 'description' in finding_dict
-        assert 'confidence' in finding_dict
-        assert 'reasoning_chain' in finding_dict
-        assert 'contradictions' in finding_dict
-        assert 'resolutions' in finding_dict
-        assert 'detected_at' in finding_dict
+        assert "title" in finding_dict
+        assert "description" in finding_dict
+        assert "confidence" in finding_dict
+        assert "reasoning_chain" in finding_dict
+        assert "contradictions" in finding_dict
+        assert "resolutions" in finding_dict
+        assert "detected_at" in finding_dict
 
         # Verify types (JSON serializable)
-        assert isinstance(finding_dict['confidence'], (int, float))
-        assert isinstance(finding_dict['reasoning_chain'], list)
-        assert isinstance(finding_dict['detected_at'], str)
+        assert isinstance(finding_dict["confidence"], (int, float))
+        assert isinstance(finding_dict["reasoning_chain"], list)
+        assert isinstance(finding_dict["detected_at"], str)
 
         # Verify contradictions are serialized
-        for contradiction in finding_dict['contradictions']:
+        for contradiction in finding_dict["contradictions"]:
             assert isinstance(contradiction, dict)
-            assert 'type' in contradiction
-            assert 'severity' in contradiction
+            assert "type" in contradiction
+            assert "severity" in contradiction

@@ -112,19 +112,19 @@ def _forge_gpt_header_bytes(
     header = struct.pack(
         "<8sIII I QQQQ 16s Q III",
         GPT_HEADER_SIGNATURE,
-        0x00010000,       # revision
-        92,               # header_size
-        0,                # header_crc
-        0,                # reserved
+        0x00010000,  # revision
+        92,  # header_size
+        0,  # header_crc
+        0,  # reserved
         my_lba,
         alt_lba,
-        34,               # first_usable
-        my_lba - 33,      # last_usable
-        b"\x00" * 16,     # disk_guid
+        34,  # first_usable
+        my_lba - 33,  # last_usable
+        b"\x00" * 16,  # disk_guid
         entry_lba,
         entry_count,
         entry_size,
-        0,                # entries_crc
+        0,  # entries_crc
     )
     return header + b"\x00" * (SECTOR - len(header))
 

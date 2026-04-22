@@ -41,7 +41,9 @@ SIGNATURES: Dict[str, List[FileSignature]] = {
         FileSignature(b"PK\x03\x04", "pptx", "PPTX presentation (check for ppt/ dir)"),
         FileSignature(b"{\\rtf1", "rtf", "RTF document"),
         FileSignature(b"PK\x03\x04", "odt", "OpenDocument text (check for mimetype)"),
-        FileSignature(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "doc", "MS Office 97-2003 document"),
+        FileSignature(
+            b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "doc", "MS Office 97-2003 document"
+        ),
     ],
     "archives": [
         FileSignature(b"PK\x03\x04", "zip", "ZIP archive"),
@@ -68,7 +70,9 @@ SIGNATURES: Dict[str, List[FileSignature]] = {
     "databases": [
         FileSignature(b"SQLite format 3", "sqlite", "SQLite database"),
         FileSignature(b"\x00\x01\x00\x00Standard Jet DB", "mdb", "MS Access database"),
-        FileSignature(b"\x00\x01\x00\x00Standard ACE DB", "accdb", "MS Access 2007+ database"),
+        FileSignature(
+            b"\x00\x01\x00\x00Standard ACE DB", "accdb", "MS Access 2007+ database"
+        ),
     ],
     "windows_artifacts": [
         FileSignature(b"regf", "dat", "Windows registry hive"),
@@ -137,7 +141,10 @@ def detect_file_type(data: bytes) -> tuple[str, str] | None:
                     return ("xlsx", "XLSX spreadsheet")
                 elif b"ppt/" in data[:1024]:
                     return ("pptx", "PPTX presentation")
-                elif b"mimetype" in data[:1024] and b"application/vnd.oasis.opendocument" in data[:1024]:
+                elif (
+                    b"mimetype" in data[:1024]
+                    and b"application/vnd.oasis.opendocument" in data[:1024]
+                ):
                     return ("odt", "OpenDocument text")
                 else:
                     return ("zip", "ZIP archive")

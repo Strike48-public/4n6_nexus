@@ -102,7 +102,9 @@ class EvtParser:
 
         return entries
 
-    def _parse_record(self, data: bytes, off: int, rec_len: int) -> EventLogEntry | None:
+    def _parse_record(
+        self, data: bytes, off: int, rec_len: int
+    ) -> EventLogEntry | None:
         try:
             (
                 _rec_len,
@@ -204,7 +206,9 @@ class EvtParser:
         return out
 
     @staticmethod
-    def _read_user_sid(data: bytes, rec_off: int, sid_off: int, sid_len: int) -> str | None:
+    def _read_user_sid(
+        data: bytes, rec_off: int, sid_off: int, sid_len: int
+    ) -> str | None:
         if sid_len == 0 or sid_off == 0:
             return None
         start = rec_off + sid_off

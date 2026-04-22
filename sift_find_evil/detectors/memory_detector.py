@@ -197,9 +197,7 @@ class MemoryDetector:
         # to downstream triage.
         confidence = 0.70
         return Finding(
-            title=(
-                f"Unbacked RWX memory in PID {row.pid} ({row.process})"
-            ),
+            title=(f"Unbacked RWX memory in PID {row.pid} ({row.process})"),
             description=(
                 f"Volatility malfind reports {row.protection} VAD in "
                 f"PID {row.pid} ({row.process}) at VPN "
@@ -346,9 +344,7 @@ class MemoryDetector:
         else:
             confidence, label, severity = 0.55, "Low", "medium"
         return Finding(
-            title=(
-                f"Suspicious command line: PID {row.pid} ({row.process})"
-            ),
+            title=(f"Suspicious command line: PID {row.pid} ({row.process})"),
             description=(
                 f"Volatility cmdline shows PID {row.pid} ({row.process}) "
                 f"running '{row.args}'. Suspicious because: "
@@ -390,11 +386,7 @@ class MemoryDetector:
             confidence, label, severity = 0.60, "Medium", "medium"
 
         decoded_excerpt = deobf.decoded_payload[:200] if deobf.decoded_payload else ""
-        title_suffix = (
-            f" (decoded: {decoded_excerpt!r})"
-            if decoded_excerpt
-            else ""
-        )
+        title_suffix = f" (decoded: {decoded_excerpt!r})" if decoded_excerpt else ""
         return Finding(
             title=(
                 f"Obfuscated command decoded: PID {row.pid} ({row.process})"
@@ -503,9 +495,7 @@ class MemoryDetector:
 
     def _build_unowned_socket_finding(self, row: NetworkRow) -> Finding:
         return Finding(
-            title=(
-                f"Unowned network socket to {row.foreign_addr}:{row.foreign_port}"
-            ),
+            title=(f"Unowned network socket to {row.foreign_addr}:{row.foreign_port}"),
             description=(
                 "Volatility netscan reports an ESTABLISHED connection with "
                 "no owning PID or process name. Kernel-side sockets exist "
@@ -610,8 +600,7 @@ class MemoryDetector:
         ]
         if is_reverse_shell_port:
             reasons.append(
-                f"Destination port {port} is a known reverse-shell / C2 "
-                "default"
+                f"Destination port {port} is a known reverse-shell / C2 " "default"
             )
             confidence, label, severity = 0.80, "High", "high"
         else:
@@ -657,6 +646,7 @@ class MemoryDetector:
 
 
 # --- module-local helpers -----------------------------------------------
+
 
 def _normalize_basename(process: str) -> str:
     basename = process.strip().lower()

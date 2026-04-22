@@ -185,9 +185,7 @@ class RegistryDetector:
         if run_keys is not None:
             findings.extend(self._analyze_run_keys(run_keys))
 
-        findings.extend(
-            self._analyze_executions(shimcache, amcache, bam)
-        )
+        findings.extend(self._analyze_executions(shimcache, amcache, bam))
 
         if userassist is not None:
             findings.extend(self._analyze_userassist(userassist))
@@ -221,9 +219,8 @@ class RegistryDetector:
         if launcher is not None and launcher in self.lolbas_launchers:
             reasons.append(f"Launcher '{launcher}' is a LOLBAS/script host")
 
-        if (
-            len(command) <= _MAX_COMMAND_LENGTH
-            and _HIDDEN_POWERSHELL_FLAGS.search(command)
+        if len(command) <= _MAX_COMMAND_LENGTH and _HIDDEN_POWERSHELL_FLAGS.search(
+            command
         ):
             reasons.append("Command uses hidden/encoded/bypass launcher flags")
 
@@ -294,9 +291,7 @@ class RegistryDetector:
             executable = stripped.split()[0]
         return _basename(executable).lower()
 
-    def _build_run_key_finding(
-        self, entry: RunKeyEntry, reasons: list[str]
-    ) -> Finding:
+    def _build_run_key_finding(self, entry: RunKeyEntry, reasons: list[str]) -> Finding:
         launcher = self._launcher_basename(entry.command) or "(unknown)"
         target_basename = self._run_key_target_basename(entry.command, launcher)
         confidence, label, severity = self._score_run_key(reasons)

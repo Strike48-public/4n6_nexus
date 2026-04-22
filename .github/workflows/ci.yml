@@ -46,10 +46,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff
+          pip install ruff 'black==25.9.0'
 
       - name: ruff check
         run: ruff check .
+
+      - name: black --check
+        # Pinned to the same version declared in .pre-commit-config.yaml so
+        # local pre-commit and CI never disagree on formatting.
+        run: black --check sift_find_evil tests
 
       - name: pytest (with coverage gate)
         # Coverage threshold starts at 85% (current: 87% after excluding

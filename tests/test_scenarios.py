@@ -18,12 +18,12 @@ def test_scenario_precision_and_recall(expectation):
     """Each scenario must achieve perfect precision and recall on malicious executables."""
     result = run_scenario(expectation)
 
-    assert not result.false_positives, (
-        f"{expectation.name}: unexpected false positives: {result.false_positives}"
-    )
-    assert not result.false_negatives, (
-        f"{expectation.name}: missed detections: {result.false_negatives}"
-    )
+    assert (
+        not result.false_positives
+    ), f"{expectation.name}: unexpected false positives: {result.false_positives}"
+    assert (
+        not result.false_negatives
+    ), f"{expectation.name}: missed detections: {result.false_negatives}"
     assert result.precision == 1.0
     assert result.recall == 1.0
 

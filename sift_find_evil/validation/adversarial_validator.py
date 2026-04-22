@@ -34,7 +34,9 @@ class ValidationReport:
 
     finding_title: str
     checks: list[ValidationCheck]
-    validation_timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    validation_timestamp: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
     @property
     def passed(self) -> bool:
@@ -145,21 +147,35 @@ class AdversarialValidator:
 
         # Check hash claims have full hashes
         if "hash" in reasoning_text.lower() or "sha-256" in reasoning_text.lower():
-            hash_keys = [k for k in evidence.keys() if "sha256" in k.lower() or "hash" in k.lower()]
+            hash_keys = [
+                k
+                for k in evidence.keys()
+                if "sha256" in k.lower() or "hash" in k.lower()
+            ]
             if not hash_keys:
                 issues.append("Reasoning mentions hash but evidence lacks hash field")
 
         # Check timestamp claims have timestamps
         if "saved at" in reasoning_text.lower() or "modified" in reasoning_text.lower():
-            time_keys = [k for k in evidence.keys() if "time" in k.lower() or "modified" in k.lower()]
+            time_keys = [
+                k
+                for k in evidence.keys()
+                if "time" in k.lower() or "modified" in k.lower()
+            ]
             if not time_keys:
-                issues.append("Reasoning mentions timestamps but evidence lacks timestamp fields")
+                issues.append(
+                    "Reasoning mentions timestamps but evidence lacks timestamp fields"
+                )
 
         # Check file path claims have file paths
         if "file" in reasoning_text.lower() and "path" in reasoning_text.lower():
-            path_keys = [k for k in evidence.keys() if "path" in k.lower() or "file" in k.lower()]
+            path_keys = [
+                k for k in evidence.keys() if "path" in k.lower() or "file" in k.lower()
+            ]
             if not path_keys:
-                issues.append("Reasoning mentions file path but evidence lacks path field")
+                issues.append(
+                    "Reasoning mentions file path but evidence lacks path field"
+                )
 
         return ValidationCheck("evidence_completeness", issues)
 
@@ -182,8 +198,12 @@ class AdversarialValidator:
             if file_time_str and email_time_str:
                 try:
                     # Parse timestamps
-                    file_time = datetime.fromisoformat(file_time_str.replace("Z", "+00:00"))
-                    email_time = datetime.fromisoformat(email_time_str.replace("Z", "+00:00"))
+                    file_time = datetime.fromisoformat(
+                        file_time_str.replace("Z", "+00:00")
+                    )
+                    email_time = datetime.fromisoformat(
+                        email_time_str.replace("Z", "+00:00")
+                    )
 
                     if file_time >= email_time:
                         issues.append(
@@ -263,7 +283,10 @@ class AdversarialValidator:
         # Collect all timestamp strings
         timestamps = []
         for key, value in evidence.items():
-            if any(word in key.lower() for word in ["time", "modified", "created", "sent", "accessed"]):
+            if any(
+                word in key.lower()
+                for word in ["time", "modified", "created", "sent", "accessed"]
+            ):
                 if isinstance(value, str):
                     try:
                         # Try to parse ISO format (handle both aware and naive)

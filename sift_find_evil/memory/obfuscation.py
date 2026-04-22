@@ -44,20 +44,28 @@ _ENCODED_COMMAND_RE = re.compile(
 _STAGE_ONE_MARKERS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bIEX\b", re.IGNORECASE), "Invoke-Expression (IEX)"),
     (re.compile(r"Invoke-Expression", re.IGNORECASE), "Invoke-Expression"),
-    (re.compile(r"DownloadString|DownloadFile|DownloadData", re.IGNORECASE),
-     "Net.WebClient download cradle"),
-    (re.compile(r"Invoke-WebRequest|iwr\b", re.IGNORECASE),
-     "Invoke-WebRequest"),
-    (re.compile(r"FromBase64String", re.IGNORECASE),
-     "nested FromBase64String (double-encoded payload)"),
-    (re.compile(r"Reflection\.Assembly", re.IGNORECASE),
-     "Reflection.Assembly::Load (in-memory PE load)"),
-    (re.compile(r"IO\.Compression\.GzipStream", re.IGNORECASE),
-     "Gzip decompression (likely compressed payload)"),
-    (re.compile(r"New-Object\s+Net\.", re.IGNORECASE),
-     "New-Object Net.* (network object creation)"),
-    (re.compile(r"https?://\S+", re.IGNORECASE),
-     "URL literal in decoded payload"),
+    (
+        re.compile(r"DownloadString|DownloadFile|DownloadData", re.IGNORECASE),
+        "Net.WebClient download cradle",
+    ),
+    (re.compile(r"Invoke-WebRequest|iwr\b", re.IGNORECASE), "Invoke-WebRequest"),
+    (
+        re.compile(r"FromBase64String", re.IGNORECASE),
+        "nested FromBase64String (double-encoded payload)",
+    ),
+    (
+        re.compile(r"Reflection\.Assembly", re.IGNORECASE),
+        "Reflection.Assembly::Load (in-memory PE load)",
+    ),
+    (
+        re.compile(r"IO\.Compression\.GzipStream", re.IGNORECASE),
+        "Gzip decompression (likely compressed payload)",
+    ),
+    (
+        re.compile(r"New-Object\s+Net\.", re.IGNORECASE),
+        "New-Object Net.* (network object creation)",
+    ),
+    (re.compile(r"https?://\S+", re.IGNORECASE), "URL literal in decoded payload"),
 )
 
 # Non-`-enc` obfuscation and download-cradle patterns. Each tuple is
@@ -70,7 +78,9 @@ _INLINE_OBFUSCATION_PATTERNS: tuple[
     tuple[re.Pattern[str], str, tuple[str, ...], bool], ...
 ] = (
     (
-        re.compile(r"certutil(?:\.exe)?\s+.*-(?:decode|urlcache|encode)", re.IGNORECASE),
+        re.compile(
+            r"certutil(?:\.exe)?\s+.*-(?:decode|urlcache|encode)", re.IGNORECASE
+        ),
         "certutil used as decoder / downloader (LOLBAS)",
         ("T1140", "T1027", "T1105"),
         False,  # admins occasionally use certutil -decode legitimately
@@ -82,7 +92,9 @@ _INLINE_OBFUSCATION_PATTERNS: tuple[
         True,  # no legitimate use
     ),
     (
-        re.compile(r"mshta(?:\.exe)?\s+.*(?:vbscript:|javascript:|http)", re.IGNORECASE),
+        re.compile(
+            r"mshta(?:\.exe)?\s+.*(?:vbscript:|javascript:|http)", re.IGNORECASE
+        ),
         "mshta script-host abuse",
         ("T1140", "T1218.005", "T1059"),
         True,  # remote mshta invocation has no legitimate use

@@ -237,8 +237,10 @@ class VolatilityRunner:
         argv = [
             self._vol_executable,
             "-q",  # suppress progress bars
-            "-r", "json",
-            "-f", str(self._image_path),
+            "-r",
+            "json",
+            "-f",
+            str(self._image_path),
         ]
         if self._offline:
             argv.append("--offline")

@@ -1,3 +1,21 @@
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+# Match what ruff excludes: vendored YARA community submodule has many black
+# violations we don't own. Keep format surface aligned with lint surface.
+extend-exclude = '''
+/(
+    \.git
+  | \.venv
+  | \.ruff_cache
+  | rules/yara/community
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
 [tool.pytest.ini_options]
 markers = [
     "unit: Fast, isolated unit test",

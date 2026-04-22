@@ -106,7 +106,9 @@ class ImageContentReader:
             self._fs = pytsk3.FS_Info(self._img_info, offset=partition_offset)
         except Exception as e:
             self._ewf_handle.close()
-            raise RuntimeError(f"Failed to open filesystem at offset {partition_offset}: {e}") from e
+            raise RuntimeError(
+                f"Failed to open filesystem at offset {partition_offset}: {e}"
+            ) from e
 
     def _find_ntfs_partition(self) -> int:
         """Find the first NTFS partition in the image.
@@ -121,7 +123,11 @@ class ImageContentReader:
             vol = pytsk3.Volume_Info(self._img_info)
             for part in vol:
                 # NTFS/exFAT has type 0x07
-                desc = part.desc.decode() if isinstance(part.desc, bytes) else str(part.desc)
+                desc = (
+                    part.desc.decode()
+                    if isinstance(part.desc, bytes)
+                    else str(part.desc)
+                )
                 if "NTFS" in desc or "0x07" in desc:
                     return part.start * 512  # Convert sectors to bytes
         except Exception:

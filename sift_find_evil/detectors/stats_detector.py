@@ -32,6 +32,7 @@ from ..self_correction.engine import Finding
 
 # --- beaconing ---------------------------------------------------------------
 
+
 class BeaconingDetector:
     """Flag (src, host) pairs with near-uniform inter-event intervals.
 
@@ -93,8 +94,7 @@ class BeaconingDetector:
                 continue
             timestamps.sort()
             intervals = [
-                timestamps[i + 1] - timestamps[i]
-                for i in range(len(timestamps) - 1)
+                timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)
             ]
             mean = sum(intervals) / len(intervals)
             if mean < self.min_mean_seconds:
@@ -105,7 +105,9 @@ class BeaconingDetector:
             if cov > self.max_cov:
                 continue
             findings.append(
-                self._build_finding(src_ip, host, timestamps, intervals, mean, stddev, cov)
+                self._build_finding(
+                    src_ip, host, timestamps, intervals, mean, stddev, cov
+                )
             )
         return findings
 
@@ -132,6 +134,7 @@ class BeaconingDetector:
         cov: float,
     ) -> Finding:
         from datetime import datetime, timezone
+
         first = datetime.fromtimestamp(timestamps[0], tz=timezone.utc).isoformat()
         last = datetime.fromtimestamp(timestamps[-1], tz=timezone.utc).isoformat()
         confidence = min(0.95, 0.65 + (self.max_cov - cov) * 2.0)

@@ -143,9 +143,7 @@ def test_single_match_emits_one_finding(
     assert f.evidence["source_file"] == str(mz_file)
 
 
-def test_no_match_returns_empty(
-    scanner_high: YaraScanner, clean_file: Path
-) -> None:
+def test_no_match_returns_empty(scanner_high: YaraScanner, clean_file: Path) -> None:
     detector = YaraDetector(scanner=scanner_high)
     assert detector.analyze_file(clean_file) == []
 
@@ -162,9 +160,7 @@ def test_multiple_rules_emit_multiple_findings(
 # -- confidence model ------------------------------------------------------
 
 
-def test_high_severity_confidence(
-    scanner_high: YaraScanner, mz_file: Path
-) -> None:
+def test_high_severity_confidence(scanner_high: YaraScanner, mz_file: Path) -> None:
     detector = YaraDetector(scanner=scanner_high)
     f = detector.analyze_file(mz_file)[0]
     # Base HIGH 0.90 + mitre_attack bonus 0.05 (no family on this rule).
@@ -172,9 +168,7 @@ def test_high_severity_confidence(
     assert f.severity == "high"
 
 
-def test_medium_severity_confidence(
-    scanner_multi: YaraScanner, upx_file: Path
-) -> None:
+def test_medium_severity_confidence(scanner_multi: YaraScanner, upx_file: Path) -> None:
     detector = YaraDetector(scanner=scanner_multi)
     findings = detector.analyze_file(upx_file)
     upx = next(f for f in findings if f.evidence["rule"] == "upx_medium")

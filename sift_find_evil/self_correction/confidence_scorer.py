@@ -13,6 +13,7 @@ from .contradiction_detector import Contradiction
 @dataclass
 class Resolution:
     """Represents a resolution of a contradiction."""
+
     contradiction_type: str
     resolution_method: str
     confidence_recovery: float  # Positive value (how much to recover confidence)
@@ -39,9 +40,7 @@ class ConfidenceScorer:
         self.base_confidence = base_confidence
 
     def calculate_initial_confidence(
-        self,
-        artifact_count: int,
-        artifact_types: List[str]
+        self, artifact_count: int, artifact_types: List[str]
     ) -> float:
         """Calculate initial confidence based on available artifacts.
 
@@ -71,9 +70,7 @@ class ConfidenceScorer:
         return min(1.0, confidence)
 
     def apply_contradiction(
-        self,
-        confidence: float,
-        contradiction: Contradiction
+        self, confidence: float, contradiction: Contradiction
     ) -> float:
         """Apply a contradiction's confidence impact.
 
@@ -91,9 +88,7 @@ class ConfidenceScorer:
         return max(0.0, min(1.0, adjusted))
 
     def apply_contradictions(
-        self,
-        confidence: float,
-        contradictions: List[Contradiction]
+        self, confidence: float, contradictions: List[Contradiction]
     ) -> float:
         """Apply multiple contradictions sequentially.
 
@@ -109,11 +104,7 @@ class ConfidenceScorer:
 
         return confidence
 
-    def apply_resolution(
-        self,
-        confidence: float,
-        resolution: Resolution
-    ) -> float:
+    def apply_resolution(self, confidence: float, resolution: Resolution) -> float:
         """Apply a resolution's confidence recovery.
 
         Args:
@@ -130,9 +121,7 @@ class ConfidenceScorer:
         return max(0.0, min(1.0, adjusted))
 
     def apply_resolutions(
-        self,
-        confidence: float,
-        resolutions: List[Resolution]
+        self, confidence: float, resolutions: List[Resolution]
     ) -> float:
         """Apply multiple resolutions sequentially.
 
@@ -153,7 +142,7 @@ class ConfidenceScorer:
         artifact_count: int,
         artifact_types: List[str],
         contradictions: List[Contradiction],
-        resolutions: List[Resolution]
+        resolutions: List[Resolution],
     ) -> tuple[float, dict]:
         """Calculate final confidence with full audit trail.
 
@@ -172,9 +161,9 @@ class ConfidenceScorer:
         # Track each step
         steps = [
             {
-                'step': 'initial',
-                'confidence': initial,
-                'reason': f"{artifact_count} artifacts, {len(set(artifact_types))} types"
+                "step": "initial",
+                "confidence": initial,
+                "reason": f"{artifact_count} artifacts, {len(set(artifact_types))} types",
             }
         ]
 
@@ -184,32 +173,36 @@ class ConfidenceScorer:
         for contradiction in contradictions:
             before = current
             current = self.apply_contradiction(current, contradiction)
-            steps.append({
-                'step': 'contradiction',
-                'type': contradiction.type.value,
-                'confidence_before': before,
-                'confidence_after': current,
-                'impact': contradiction.confidence_impact
-            })
+            steps.append(
+                {
+                    "step": "contradiction",
+                    "type": contradiction.type.value,
+                    "confidence_before": before,
+                    "confidence_after": current,
+                    "impact": contradiction.confidence_impact,
+                }
+            )
 
         # Apply resolutions
         for resolution in resolutions:
             before = current
             current = self.apply_resolution(current, resolution)
-            steps.append({
-                'step': 'resolution',
-                'method': resolution.resolution_method,
-                'confidence_before': before,
-                'confidence_after': current,
-                'recovery': resolution.confidence_recovery
-            })
+            steps.append(
+                {
+                    "step": "resolution",
+                    "method": resolution.resolution_method,
+                    "confidence_before": before,
+                    "confidence_after": current,
+                    "recovery": resolution.confidence_recovery,
+                }
+            )
 
         details = {
-            'initial_confidence': initial,
-            'final_confidence': current,
-            'total_contradictions': len(contradictions),
-            'total_resolutions': len(resolutions),
-            'calculation_steps': steps
+            "initial_confidence": initial,
+            "final_confidence": current,
+            "total_contradictions": len(contradictions),
+            "total_resolutions": len(resolutions),
+            "calculation_steps": steps,
         }
 
         return current, details

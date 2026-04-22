@@ -82,9 +82,7 @@ class YaraDetector:
     def analyze_file(self, target: Path) -> list[Finding]:
         """Scan one file and return its findings (highest-confidence first)."""
         matches = self._scanner.scan_file(target)
-        return self._rank_and_cap(
-            self._match_to_finding(m) for m in matches
-        )
+        return self._rank_and_cap(self._match_to_finding(m) for m in matches)
 
     def analyze_directory(
         self,
@@ -110,9 +108,7 @@ class YaraDetector:
         return findings
 
     def _rank_and_cap(self, findings_iter: Iterable[Finding]) -> list[Finding]:
-        ranked = sorted(
-            findings_iter, key=lambda f: f.confidence, reverse=True
-        )
+        ranked = sorted(findings_iter, key=lambda f: f.confidence, reverse=True)
         return ranked[: self._max_findings_per_file]
 
     def _match_to_finding(self, match: YaraMatch) -> Finding:
@@ -138,9 +134,7 @@ class YaraDetector:
             [mitre] if isinstance(mitre, str) else (list(mitre) if mitre else [])
         )
 
-        description = match.meta.get(
-            "description", f"YARA rule {match.rule} matched."
-        )
+        description = match.meta.get("description", f"YARA rule {match.rule} matched.")
         family = match.meta.get("family")
 
         return Finding(

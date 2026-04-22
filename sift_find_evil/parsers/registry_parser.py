@@ -212,12 +212,14 @@ class RegistryParser:
                     if exec_flag_str:
                         exec_flag = exec_flag_str.lower() in ("true", "1", "yes")
 
-                    entries.append(ShimcacheEntry(
-                        file_path=row["file_path"],
-                        last_modified=last_modified,
-                        file_size=int(row["file_size"]),
-                        exec_flag=exec_flag
-                    ))
+                    entries.append(
+                        ShimcacheEntry(
+                            file_path=row["file_path"],
+                            last_modified=last_modified,
+                            file_size=int(row["file_size"]),
+                            exec_flag=exec_flag,
+                        )
+                    )
 
             logger.info(f"Parsed {len(entries)} Shimcache entries from {csv_path}")
 
@@ -270,13 +272,15 @@ class RegistryParser:
                     # Publisher may be empty
                     publisher = row.get("publisher", "").strip() or None
 
-                    entries.append(AmcacheEntry(
-                        file_path=row["file_path"],
-                        first_execution=first_execution,
-                        sha1_hash=row["sha1_hash"].lower(),
-                        file_size=int(row["file_size"]),
-                        publisher=publisher
-                    ))
+                    entries.append(
+                        AmcacheEntry(
+                            file_path=row["file_path"],
+                            first_execution=first_execution,
+                            sha1_hash=row["sha1_hash"].lower(),
+                            file_size=int(row["file_size"]),
+                            publisher=publisher,
+                        )
+                    )
 
             logger.info(f"Parsed {len(entries)} Amcache entries from {csv_path}")
 
@@ -326,11 +330,13 @@ class RegistryParser:
                     if execution_time.tzinfo is None:
                         execution_time = execution_time.replace(tzinfo=timezone.utc)
 
-                    entries.append(BAMEntry(
-                        file_path=row["file_path"],
-                        execution_time=execution_time,
-                        user_sid=row["user_sid"]
-                    ))
+                    entries.append(
+                        BAMEntry(
+                            file_path=row["file_path"],
+                            execution_time=execution_time,
+                            user_sid=row["user_sid"],
+                        )
+                    )
 
             logger.info(f"Parsed {len(entries)} BAM entries from {csv_path}")
 
@@ -380,13 +386,15 @@ class RegistryParser:
                     if last_execution.tzinfo is None:
                         last_execution = last_execution.replace(tzinfo=timezone.utc)
 
-                    entries.append(UserAssistEntry(
-                        program_name=row["program_name"],
-                        run_count=int(row["run_count"]),
-                        last_execution=last_execution,
-                        focus_count=int(row.get("focus_count", 0)),
-                        focus_time_ms=int(row.get("focus_time_ms", 0))
-                    ))
+                    entries.append(
+                        UserAssistEntry(
+                            program_name=row["program_name"],
+                            run_count=int(row["run_count"]),
+                            last_execution=last_execution,
+                            focus_count=int(row.get("focus_count", 0)),
+                            focus_time_ms=int(row.get("focus_time_ms", 0)),
+                        )
+                    )
 
             logger.info(f"Parsed {len(entries)} UserAssist entries from {csv_path}")
 
@@ -437,13 +445,15 @@ class RegistryParser:
                     if last_write_time.tzinfo is None:
                         last_write_time = last_write_time.replace(tzinfo=timezone.utc)
 
-                    entries.append(RunKeyEntry(
-                        key_path=row["key_path"],
-                        value_name=row["value_name"],
-                        command=row["command"],
-                        hive=row["hive"],
-                        last_write_time=last_write_time
-                    ))
+                    entries.append(
+                        RunKeyEntry(
+                            key_path=row["key_path"],
+                            value_name=row["value_name"],
+                            command=row["command"],
+                            hive=row["hive"],
+                            last_write_time=last_write_time,
+                        )
+                    )
 
             logger.info(f"Parsed {len(entries)} Run key entries from {csv_path}")
 

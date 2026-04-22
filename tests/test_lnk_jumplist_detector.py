@@ -100,7 +100,9 @@ def test_multi_volume_removable_hits_bump_confidence():
 
 def test_lnk_on_fixed_drive_ignored_even_with_sensitive_ext():
     findings = LnkJumpListDetector().analyze(
-        lnk_entries=[_lnk(drive_type="fixed", target_path="C:\\users\\bob\\budget.xlsx")]
+        lnk_entries=[
+            _lnk(drive_type="fixed", target_path="C:\\users\\bob\\budget.xlsx")
+        ]
     )
     assert findings == []
 
@@ -259,7 +261,9 @@ def test_startup_lnk_survives_pathological_arguments():
     # oversize input.
     persistence = [f for f in findings if f.category == FindingCategory.PERSISTENCE]
     assert len(persistence) == 1
-    assert all("hidden/encoded/bypass" not in r for r in persistence[0].evidence["reasons"])
+    assert all(
+        "hidden/encoded/bypass" not in r for r in persistence[0].evidence["reasons"]
+    )
 
 
 # --- Jump List UNC indicator ------------------------------------------------

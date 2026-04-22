@@ -2,4 +2,4 @@
 
 from .timestamp_comparator import TimestampComparator
 
-__all__ = ['TimestampComparator']
+__all__ = ["TimestampComparator"]

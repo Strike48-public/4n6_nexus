@@ -73,10 +73,7 @@ class TimestampComparator:
         return dt == self.WINDOWS_EPOCH or dt == self.UNIX_EPOCH
 
     def compare(
-        self,
-        dt1: datetime,
-        dt2: datetime,
-        tolerance_seconds: Optional[int] = None
+        self, dt1: datetime, dt2: datetime, tolerance_seconds: Optional[int] = None
     ) -> Optional[int]:
         """Compare two timestamps with tolerance window.
 
@@ -94,7 +91,11 @@ class TimestampComparator:
         if self.is_null(dt1) or self.is_null(dt2):
             return None
 
-        tolerance = tolerance_seconds if tolerance_seconds is not None else self.default_tolerance
+        tolerance = (
+            tolerance_seconds
+            if tolerance_seconds is not None
+            else self.default_tolerance
+        )
         diff = (dt1 - dt2).total_seconds()
 
         if abs(diff) <= tolerance:
@@ -123,7 +124,7 @@ class TimestampComparator:
         self,
         file_modified: datetime,
         process_executed: datetime,
-        tolerance_seconds: int = 300
+        tolerance_seconds: int = 300,
     ) -> Optional[dict]:
         """Detect if file was modified AFTER it was executed.
 
@@ -146,21 +147,18 @@ class TimestampComparator:
             # file_modified > process_executed = VIOLATION
             time_delta = self.time_delta_seconds(file_modified, process_executed)
             return {
-                'type': 'causality_violation',
-                'description': f"File modified at {file_modified} but executed at {process_executed}",
-                'file_modified_time': file_modified,
-                'process_executed_time': process_executed,
-                'time_delta_seconds': time_delta,
-                'severity': 'high' if time_delta > 600 else 'medium'
+                "type": "causality_violation",
+                "description": f"File modified at {file_modified} but executed at {process_executed}",
+                "file_modified_time": file_modified,
+                "process_executed_time": process_executed,
+                "time_delta_seconds": time_delta,
+                "severity": "high" if time_delta > 600 else "medium",
             }
 
         return None  # No violation
 
     def detect_timestomping(
-        self,
-        si_modified: datetime,
-        fn_modified: datetime,
-        tolerance_seconds: int = 60
+        self, si_modified: datetime, fn_modified: datetime, tolerance_seconds: int = 60
     ) -> Optional[dict]:
         """Detect timestamp manipulation by comparing $STANDARD_INFORMATION vs $FILE_NAME.
 
@@ -185,12 +183,12 @@ class TimestampComparator:
         if time_delta < -tolerance_seconds:
             # $SI is earlier than $FN (beyond tolerance) = TIMESTOMPING
             return {
-                'type': 'timestomping_detected',
-                'description': f"$SI timestamp ({si_modified}) is earlier than $FN timestamp ({fn_modified})",
-                'si_modified': si_modified,
-                'fn_modified': fn_modified,
-                'time_delta_seconds': time_delta,
-                'severity': 'critical'
+                "type": "timestomping_detected",
+                "description": f"$SI timestamp ({si_modified}) is earlier than $FN timestamp ({fn_modified})",
+                "si_modified": si_modified,
+                "fn_modified": fn_modified,
+                "time_delta_seconds": time_delta,
+                "severity": "critical",
             }
 
         return None  # No timestomping detected

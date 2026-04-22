@@ -46,6 +46,7 @@ class HashBackend(Protocol):
     def add(self, item: str, /) -> None: ...
     def __contains__(self, item: object, /) -> bool: ...
 
+
 # Bloom filter defaults tuned for NSRL Full RDS (~220M hashes).
 # At p=0.001 the filter fits in ~400 MB and false-positive rate stays
 # below one match per thousand unknown files.

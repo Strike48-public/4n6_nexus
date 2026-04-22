@@ -398,8 +398,7 @@ def _list_rule_files(rules_dir: Path, recursive: bool) -> list[Path]:
     """Return sorted ``*.yar``/``*.yara`` files under ``rules_dir``."""
     pattern_iter = rules_dir.rglob("*") if recursive else rules_dir.glob("*")
     return sorted(
-        p for p in pattern_iter
-        if p.is_file() and p.suffix.lower() in (".yar", ".yara")
+        p for p in pattern_iter if p.is_file() and p.suffix.lower() in (".yar", ".yara")
     )
 
 
@@ -441,7 +440,9 @@ def _flatten_strings(raw_strings: Any) -> list[YaraString]:
         if isinstance(item, tuple) and len(item) == 3:
             offset, identifier, data = item
             flat.append(
-                YaraString(identifier=str(identifier), offset=int(offset), data=bytes(data))
+                YaraString(
+                    identifier=str(identifier), offset=int(offset), data=bytes(data)
+                )
             )
             continue
         # yara-python 4.3+ StringMatch shape

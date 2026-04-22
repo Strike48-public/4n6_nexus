@@ -82,11 +82,17 @@ def test_hash_match_inside_window():
         content_reader=fake_reader,
     )
 
-    attachment = Attachment(name="document.xlsx", size=len(file_content), sha256=file_hash)
-    email = make_email(subject="Here is the file", submit_time=send_time, attachments=[attachment])
+    attachment = Attachment(
+        name="document.xlsx", size=len(file_content), sha256=file_hash
+    )
+    email = make_email(
+        subject="Here is the file", submit_time=send_time, attachments=[attachment]
+    )
 
     detector = ContradictionDetector()
-    contradictions = detector.detect_save_then_exfil([mft_entry], [email], content_reader=fake_reader)
+    contradictions = detector.detect_save_then_exfil(
+        [mft_entry], [email], content_reader=fake_reader
+    )
 
     assert len(contradictions) == 1
     assert contradictions[0].type == ContradictionType.EXFIL_CORRELATION
@@ -100,7 +106,9 @@ def test_hash_match_outside_window():
     file_hash = hashlib.sha256(file_content).hexdigest()
 
     save_time = datetime(2023, 5, 10, 10, 0, 0)
-    send_time = save_time + timedelta(seconds=400)  # 6.67 minutes — outside default 300s window
+    send_time = save_time + timedelta(
+        seconds=400
+    )  # 6.67 minutes — outside default 300s window
 
     def fake_reader(entry: MFTEntry) -> bytes:
         return file_content
@@ -113,11 +121,17 @@ def test_hash_match_outside_window():
         content_reader=fake_reader,
     )
 
-    attachment = Attachment(name="old_file.txt", size=len(file_content), sha256=file_hash)
-    email = make_email(subject="Sending old file", submit_time=send_time, attachments=[attachment])
+    attachment = Attachment(
+        name="old_file.txt", size=len(file_content), sha256=file_hash
+    )
+    email = make_email(
+        subject="Sending old file", submit_time=send_time, attachments=[attachment]
+    )
 
     detector = ContradictionDetector()
-    contradictions = detector.detect_save_then_exfil([mft_entry], [email], content_reader=fake_reader)
+    contradictions = detector.detect_save_then_exfil(
+        [mft_entry], [email], content_reader=fake_reader
+    )
 
     assert len(contradictions) == 0, "File saved >5min before email should not match"
 
@@ -136,11 +150,15 @@ def test_size_name_fallback():
     )
 
     attachment = Attachment(name="report.pdf", size=5000, sha256="dummy_hash")
-    email = make_email(subject="Report attached", submit_time=send_time, attachments=[attachment])
+    email = make_email(
+        subject="Report attached", submit_time=send_time, attachments=[attachment]
+    )
 
     detector = ContradictionDetector()
     # content_reader=None triggers size+name fallback
-    contradictions = detector.detect_save_then_exfil([mft_entry], [email], content_reader=None)
+    contradictions = detector.detect_save_then_exfil(
+        [mft_entry], [email], content_reader=None
+    )
 
     assert len(contradictions) == 1
     assert contradictions[0].type == ContradictionType.EXFIL_CORRELATION
@@ -161,10 +179,14 @@ def test_no_match_wrong_size():
     )
 
     attachment = Attachment(name="file.txt", size=2000, sha256="hash")  # Different size
-    email = make_email(subject="Sending file", submit_time=send_time, attachments=[attachment])
+    email = make_email(
+        subject="Sending file", submit_time=send_time, attachments=[attachment]
+    )
 
     detector = ContradictionDetector()
-    contradictions = detector.detect_save_then_exfil([mft_entry], [email], content_reader=None)
+    contradictions = detector.detect_save_then_exfil(
+        [mft_entry], [email], content_reader=None
+    )
 
     assert len(contradictions) == 0, "Different sizes should not match in fallback mode"
 
@@ -189,7 +211,9 @@ def test_engine_generates_exfil_finding():
     )
 
     attachment = Attachment(name="data.xlsx", size=len(file_content), sha256=file_hash)
-    email = make_email(subject="Data attached", submit_time=send_time, attachments=[attachment])
+    email = make_email(
+        subject="Data attached", submit_time=send_time, attachments=[attachment]
+    )
 
     engine = SelfCorrectionEngine()
     findings = engine.analyze(
@@ -279,7 +303,9 @@ def test_confidence_score_size_name_fallback():
     )
 
     attachment = Attachment(name="fallback.txt", size=500, sha256="hash")
-    email = make_email(subject="Fallback test", submit_time=send_time, attachments=[attachment])
+    email = make_email(
+        subject="Fallback test", submit_time=send_time, attachments=[attachment]
+    )
 
     engine = SelfCorrectionEngine()
     findings = engine.analyze(

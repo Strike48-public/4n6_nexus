@@ -234,6 +234,7 @@ def _parse_message(folder_path: tuple[str, ...], msg: PstMessage) -> EmailMessag
 
     # Normalize PST timestamps to UTC-aware (pypff returns naive datetimes)
     import pytz
+
     submit_time = msg.client_submit_time
     delivery_time = msg.delivery_time
     if submit_time and submit_time.tzinfo is None:

@@ -41,19 +41,57 @@ from ..self_correction.engine import Finding
 _SENSITIVE_EXTENSIONS: frozenset[str] = frozenset(
     {
         # Office / documents
-        "doc", "docx", "docm", "dot", "dotx",
-        "xls", "xlsx", "xlsm", "xlsb", "xlt", "xltx",
-        "ppt", "pptx", "pptm", "pps", "ppsx",
-        "pdf", "rtf", "odt", "ods", "odp",
-        "csv", "tsv",
+        "doc",
+        "docx",
+        "docm",
+        "dot",
+        "dotx",
+        "xls",
+        "xlsx",
+        "xlsm",
+        "xlsb",
+        "xlt",
+        "xltx",
+        "ppt",
+        "pptx",
+        "pptm",
+        "pps",
+        "ppsx",
+        "pdf",
+        "rtf",
+        "odt",
+        "ods",
+        "odp",
+        "csv",
+        "tsv",
         # Source / config (often carries secrets)
-        "pem", "key", "pfx", "p12", "pgp", "asc",
+        "pem",
+        "key",
+        "pfx",
+        "p12",
+        "pgp",
+        "asc",
         # Databases / dumps
-        "sql", "sqlite", "db", "mdb", "accdb", "bak", "dmp",
+        "sql",
+        "sqlite",
+        "db",
+        "mdb",
+        "accdb",
+        "bak",
+        "dmp",
         # Archives (staged exfil)
-        "zip", "rar", "7z", "tar", "gz", "tgz", "iso",
+        "zip",
+        "rar",
+        "7z",
+        "tar",
+        "gz",
+        "tgz",
+        "iso",
         # Mail
-        "pst", "ost", "msg", "eml",
+        "pst",
+        "ost",
+        "msg",
+        "eml",
     }
 )
 
@@ -245,7 +283,9 @@ class LnkJumpListDetector:
                 target_path=target,
                 source="lnk",
                 drive_type=entry.drive_type,
-                timestamp=_iso_or_empty(entry.target_accessed or entry.target_modified or entry.created),
+                timestamp=_iso_or_empty(
+                    entry.target_accessed or entry.target_modified or entry.created
+                ),
                 detail={
                     "lnk_path": entry.lnk_path,
                     "volume_serial": entry.volume_serial,
@@ -277,8 +317,7 @@ class LnkJumpListDetector:
             )
 
         return [
-            self._build_media_finding(bundle)
-            for _, bundle in sorted(grouped.items())
+            self._build_media_finding(bundle) for _, bundle in sorted(grouped.items())
         ]
 
     def _is_sensitive(self, target_path: str) -> bool:
@@ -399,7 +438,9 @@ class LnkJumpListDetector:
                 f"Startup shortcut launches LOLBAS/script host '{target_basename}'"
             )
         writable_fragment = _in_user_writable(entry.target_path)
-        if writable_fragment is not None and not _is_known_signed_autostart(entry.target_path):
+        if writable_fragment is not None and not _is_known_signed_autostart(
+            entry.target_path
+        ):
             reasons.append(
                 f"Startup shortcut target lives under '{writable_fragment}' (user-writable)"
             )
@@ -414,9 +455,7 @@ class LnkJumpListDetector:
             )
         return reasons
 
-    def _build_startup_finding(
-        self, entry: LnkEntry, reasons: list[str]
-    ) -> Finding:
+    def _build_startup_finding(self, entry: LnkEntry, reasons: list[str]) -> Finding:
         target_basename = _basename(entry.target_path) or "(no target)"
         confidence, label, severity = self._score_startup(reasons)
         return Finding(

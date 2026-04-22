@@ -33,6 +33,7 @@ from .validation import AdversarialValidator
 try:
     from .detectors.yara_detector import YaraDetector
     from .yara_scan.scanner import MissingYaraError, YaraScanner
+
     _YARA_AVAILABLE = True
 except ImportError:  # pragma: no cover — hosts without libyara
     YaraDetector = None  # type: ignore[assignment]
@@ -58,7 +59,7 @@ def print_section(title: str):
     """Print section header."""
     print(f"\n{'='*70}")
     print(f"  {title}")
-    print('='*70)
+    print("=" * 70)
 
 
 def print_finding(finding, index: int, validation_status: Optional[str] = None):
@@ -73,14 +74,16 @@ def print_finding(finding, index: int, validation_status: Optional[str] = None):
     print()
 
     print("  Description:")
-    for line in finding.description.split('\n'):
+    for line in finding.description.split("\n"):
         print(f"    {line}")
     print()
 
     if finding.contradictions:
         print(f"  Contradictions Detected: {len(finding.contradictions)}")
         for i, contradiction in enumerate(finding.contradictions, 1):
-            print(f"    {i}. {contradiction.type.value} ({contradiction.severity.value})")
+            print(
+                f"    {i}. {contradiction.type.value} ({contradiction.severity.value})"
+            )
             print(f"       Impact: {contradiction.confidence_impact:.2f}")
             print(f"       {contradiction.description}")
         print()
@@ -156,6 +159,7 @@ def analyze_artifacts(
         if verbose:
             print(f"  Loading emails from: {pst_path}")
         from .parsers.pst_parser import PstParser
+
         pst_parser = PstParser()
         emails = pst_parser.parse_file(pst_path)
         if verbose:
@@ -165,6 +169,7 @@ def analyze_artifacts(
     content_reader = None
     if image_path:
         from .parsers.image_content_reader import make_content_reader
+
         content_reader = make_content_reader(image_path)
         if verbose:
             print(f"  Created content reader for: {image_path}")
@@ -180,7 +185,7 @@ def analyze_artifacts(
         prefetch_entries,
         evtx_entries,
         content_reader=content_reader,
-        emails=emails
+        emails=emails,
     )
 
     if verbose:
@@ -196,23 +201,25 @@ def analyze_artifacts(
         if exfil_finding:
             findings = [exfil_finding] + list(findings)
             if verbose:
-                print(f"  Detected exfiltration: {len(exfil_finding.matches)} correlation(s)")
+                print(
+                    f"  Detected exfiltration: {len(exfil_finding.matches)} correlation(s)"
+                )
         elif verbose:
             print("  No exfiltration patterns detected")
 
     # Output JSON if requested
     if output_json:
         output_data = {
-            'findings': [f.to_dict() for f in findings],
-            'summary': {
-                'total_findings': len(findings),
-                'mft_entries': len(mft_entries),
-                'prefetch_entries': len(prefetch_entries),
-                'event_log_entries': len(evtx_entries)
-            }
+            "findings": [f.to_dict() for f in findings],
+            "summary": {
+                "total_findings": len(findings),
+                "mft_entries": len(mft_entries),
+                "prefetch_entries": len(prefetch_entries),
+                "event_log_entries": len(evtx_entries),
+            },
         }
 
-        with open(output_json, 'w') as f:
+        with open(output_json, "w") as f:
             json.dump(output_data, f, indent=2)
 
         if verbose:
@@ -226,10 +233,10 @@ def _write_output(findings: list, output_path: Optional[Path]) -> None:
     if output_path is None:
         return
     payload = {
-        'findings': [f.to_dict() for f in findings],
-        'summary': {'total_findings': len(findings)},
+        "findings": [f.to_dict() for f in findings],
+        "summary": {"total_findings": len(findings)},
     }
-    with open(output_path, 'w') as fh:
+    with open(output_path, "w") as fh:
         json.dump(payload, fh, indent=2, default=str)
 
 
@@ -249,7 +256,9 @@ def _render_findings(findings: list, validation_reports: Optional[dict] = None) 
                 else:
                     validation_status = "PASSED"
             else:
-                validation_status = f"FAILED ({len(report.critical_issues)} critical issues)"
+                validation_status = (
+                    f"FAILED ({len(report.critical_issues)} critical issues)"
+                )
         print_finding(finding, idx, validation_status)
 
 
@@ -295,6 +304,7 @@ def _run_network_detector(
         if verbose:
             print(f"  Loading HTTP/DNS/TCP from PCAP: {pcap_path}")
         from .parsers.pcap_parser import PcapParser
+
         parser = PcapParser()
         http_requests = parser.extract_http_requests(pcap_path)
         dns_queries = parser.extract_dns_queries(pcap_path)
@@ -334,7 +344,9 @@ def _run_registry_detector(
     verbose: bool,
 ) -> list:
     """Parse any supplied registry CSVs and run RegistryDetector."""
-    if not any([shimcache_path, amcache_path, bam_path, userassist_path, run_keys_path]):
+    if not any(
+        [shimcache_path, amcache_path, bam_path, userassist_path, run_keys_path]
+    ):
         return []
 
     parser = RegistryParser()
@@ -578,40 +590,42 @@ def cmd_analyze(args):
     """Handle analyze command."""
     print_banner()
 
-    image_path: Optional[Path] = Path(args.image) if getattr(args, 'image', None) else None
-    pst_path: Optional[Path] = Path(args.pst) if getattr(args, 'pst', None) else None
-    pcap_path: Optional[Path] = Path(args.pcap) if getattr(args, 'pcap', None) else None
+    image_path: Optional[Path] = (
+        Path(args.image) if getattr(args, "image", None) else None
+    )
+    pst_path: Optional[Path] = Path(args.pst) if getattr(args, "pst", None) else None
+    pcap_path: Optional[Path] = Path(args.pcap) if getattr(args, "pcap", None) else None
     browser_history_path: Optional[Path] = (
-        Path(args.browser_history) if getattr(args, 'browser_history', None) else None
+        Path(args.browser_history) if getattr(args, "browser_history", None) else None
     )
     shimcache_path: Optional[Path] = (
-        Path(args.shimcache) if getattr(args, 'shimcache', None) else None
+        Path(args.shimcache) if getattr(args, "shimcache", None) else None
     )
     amcache_path: Optional[Path] = (
-        Path(args.amcache) if getattr(args, 'amcache', None) else None
+        Path(args.amcache) if getattr(args, "amcache", None) else None
     )
-    bam_path: Optional[Path] = Path(args.bam) if getattr(args, 'bam', None) else None
+    bam_path: Optional[Path] = Path(args.bam) if getattr(args, "bam", None) else None
     userassist_path: Optional[Path] = (
-        Path(args.userassist) if getattr(args, 'userassist', None) else None
+        Path(args.userassist) if getattr(args, "userassist", None) else None
     )
     run_keys_path: Optional[Path] = (
-        Path(args.run_keys) if getattr(args, 'run_keys', None) else None
+        Path(args.run_keys) if getattr(args, "run_keys", None) else None
     )
-    lnk_path: Optional[Path] = Path(args.lnk) if getattr(args, 'lnk', None) else None
+    lnk_path: Optional[Path] = Path(args.lnk) if getattr(args, "lnk", None) else None
     jumplist_path: Optional[Path] = (
-        Path(args.jumplist) if getattr(args, 'jumplist', None) else None
+        Path(args.jumplist) if getattr(args, "jumplist", None) else None
     )
     memory_path: Optional[Path] = (
-        Path(args.memory) if getattr(args, 'memory', None) else None
+        Path(args.memory) if getattr(args, "memory", None) else None
     )
     if memory_path is not None and not memory_path.is_file():
         print(f"Error: memory image not found: {memory_path}", file=sys.stderr)
         sys.exit(1)
     yara_rules_path: Optional[Path] = (
-        Path(args.yara_rules) if getattr(args, 'yara_rules', None) else None
+        Path(args.yara_rules) if getattr(args, "yara_rules", None) else None
     )
     yara_scan_path: Optional[Path] = (
-        Path(args.yara_scan) if getattr(args, 'yara_scan', None) else None
+        Path(args.yara_scan) if getattr(args, "yara_scan", None) else None
     )
     if (yara_rules_path is None) != (yara_scan_path is None):
         print(
@@ -629,9 +643,9 @@ def cmd_analyze(args):
         print(f"Error: --yara-scan target not found: {yara_scan_path}", file=sys.stderr)
         sys.exit(1)
     nsrl_db_path: Optional[Path] = (
-        Path(args.nsrl_db) if getattr(args, 'nsrl_db', None) else None
+        Path(args.nsrl_db) if getattr(args, "nsrl_db", None) else None
     )
-    nsrl_use_bloom: bool = bool(getattr(args, 'nsrl_bloom', False))
+    nsrl_use_bloom: bool = bool(getattr(args, "nsrl_bloom", False))
     if nsrl_use_bloom:
         try:
             import rbloom  # noqa: F401
@@ -642,8 +656,18 @@ def cmd_analyze(args):
             )
             sys.exit(1)
 
-    registry_paths = [shimcache_path, amcache_path, bam_path, userassist_path, run_keys_path]
-    artifact_args = [getattr(args, 'mft', None), getattr(args, 'prefetch', None), getattr(args, 'evtx', None)]
+    registry_paths = [
+        shimcache_path,
+        amcache_path,
+        bam_path,
+        userassist_path,
+        run_keys_path,
+    ]
+    artifact_args = [
+        getattr(args, "mft", None),
+        getattr(args, "prefetch", None),
+        getattr(args, "evtx", None),
+    ]
     has_artifacts = any(artifact_args)
     has_network = pcap_path is not None or browser_history_path is not None
     has_registry = any(registry_paths)
@@ -673,7 +697,10 @@ def cmd_analyze(args):
         sys.exit(1)
 
     if has_artifacts and not all(artifact_args):
-        print("Error: --mft, --prefetch, and --evtx must be provided together", file=sys.stderr)
+        print(
+            "Error: --mft, --prefetch, and --evtx must be provided together",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if pcap_path is not None and not pcap_path.exists():
@@ -681,7 +708,10 @@ def cmd_analyze(args):
         sys.exit(1)
 
     if browser_history_path is not None and not browser_history_path.exists():
-        print(f"Error: browser history CSV not found: {browser_history_path}", file=sys.stderr)
+        print(
+            f"Error: browser history CSV not found: {browser_history_path}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     _registry_path_labels = [
@@ -754,9 +784,7 @@ def cmd_analyze(args):
                 lnk_path, jumplist_path, verbose=True
             )
         if has_memory:
-            findings = list(findings) + _run_memory_detector(
-                memory_path, verbose=True
-            )
+            findings = list(findings) + _run_memory_detector(memory_path, verbose=True)
         if has_yara:
             findings = list(findings) + _run_yara_detector(
                 yara_rules_path, yara_scan_path, verbose=True
@@ -788,7 +816,7 @@ def cmd_analyze(args):
         output_json=None,  # we write combined output below
         verbose=True,
         pst_path=pst_path,
-        image_path=image_path
+        image_path=image_path,
     )
 
     if disk_finding is not None:
@@ -848,7 +876,9 @@ def cmd_analyze(args):
                 # Finding passed validation
                 validated_findings.append(finding)
                 if report.warnings:
-                    print(f"  [PASSED] {finding.title} ({len(report.warnings)} warning(s))")
+                    print(
+                        f"  [PASSED] {finding.title} ({len(report.warnings)} warning(s))"
+                    )
                 else:
                     print(f"  [PASSED] {finding.title}")
         else:
@@ -856,7 +886,9 @@ def cmd_analyze(args):
             validated_findings.append(finding)
 
     if suppressed_count > 0:
-        print(f"\n  Suppressed {suppressed_count} finding(s) due to validation failures")
+        print(
+            f"\n  Suppressed {suppressed_count} finding(s) due to validation failures"
+        )
 
     findings = validated_findings
 
@@ -884,9 +916,9 @@ def cmd_analyze(args):
 
     # Summary
     print_section("Summary")
-    critical_count = sum(1 for f in findings if f.severity == 'critical')
-    high_count = sum(1 for f in findings if f.severity == 'high')
-    medium_count = sum(1 for f in findings if f.severity == 'medium')
+    critical_count = sum(1 for f in findings if f.severity == "critical")
+    high_count = sum(1 for f in findings if f.severity == "high")
+    medium_count = sum(1 for f in findings if f.severity == "medium")
 
     print(f"\n  Total Findings: {len(findings)}")
     if critical_count:
@@ -912,16 +944,19 @@ def cmd_demo(args):
 
     # Find test fixtures directory (consolidated under tests/fixtures/).
     module_dir = Path(__file__).parent.parent
-    test_data_dir = module_dir / 'tests' / 'fixtures'
+    test_data_dir = module_dir / "tests" / "fixtures"
 
     if not test_data_dir.exists():
-        print(f"Error: Test fixtures directory not found: {test_data_dir}", file=sys.stderr)
+        print(
+            f"Error: Test fixtures directory not found: {test_data_dir}",
+            file=sys.stderr,
+        )
         print("Expected structure: tests/fixtures/synthetic_*.csv", file=sys.stderr)
         sys.exit(1)
 
-    mft_path = test_data_dir / 'synthetic_mft.csv'
-    prefetch_path = test_data_dir / 'synthetic_prefetch.csv'
-    evtx_path = test_data_dir / 'synthetic_evtx.csv'
+    mft_path = test_data_dir / "synthetic_mft.csv"
+    prefetch_path = test_data_dir / "synthetic_prefetch.csv"
+    evtx_path = test_data_dir / "synthetic_evtx.csv"
 
     if not all([mft_path.exists(), prefetch_path.exists(), evtx_path.exists()]):
         print("Error: Synthetic test data files not found", file=sys.stderr)
@@ -942,7 +977,7 @@ def cmd_demo(args):
         prefetch_path,
         evtx_path,
         output_json=Path(args.output) if args.output else None,
-        verbose=True
+        verbose=True,
     )
 
     # Display findings
@@ -961,7 +996,7 @@ def cmd_demo(args):
     # Validation
     print_section("Validation")
 
-    malware_findings = [f for f in findings if 'malware.exe' in f.title.lower()]
+    malware_findings = [f for f in findings if "malware.exe" in f.title.lower()]
 
     if not malware_findings:
         print("\n  WARNING: Did not detect malware.exe contradiction")
@@ -985,15 +1020,23 @@ def cmd_demo(args):
 
         # Check confidence in expected range
         if 0.40 <= malware_finding.confidence <= 0.80:
-            print(f"    [PASS] Confidence in expected range: {malware_finding.confidence:.2f}")
+            print(
+                f"    [PASS] Confidence in expected range: {malware_finding.confidence:.2f}"
+            )
         else:
-            print(f"    [WARN] Confidence outside expected range: {malware_finding.confidence:.2f}")
+            print(
+                f"    [WARN] Confidence outside expected range: {malware_finding.confidence:.2f}"
+            )
 
         # Check reasoning chain
         if len(malware_finding.reasoning_chain) >= 4:
-            print(f"    [PASS] Comprehensive reasoning chain ({len(malware_finding.reasoning_chain)} steps)")
+            print(
+                f"    [PASS] Comprehensive reasoning chain ({len(malware_finding.reasoning_chain)} steps)"
+            )
         else:
-            print(f"    [WARN] Reasoning chain seems short ({len(malware_finding.reasoning_chain)} steps)")
+            print(
+                f"    [WARN] Reasoning chain seems short ({len(malware_finding.reasoning_chain)} steps)"
+            )
 
     print("\n  Demo completed successfully!")
     print("  The self-correction engine detected the planted contradiction,")
@@ -1026,7 +1069,7 @@ def cmd_run(args):
         print(f"  Status:      SKIPPED ({report.skip_reason})")
         # --strict treats skips as failures so CI gates cannot be silently
         # greenlit by missing evidence. Default preserves local-dev ergonomics.
-        sys.exit(1 if getattr(args, 'strict', False) else 0)
+        sys.exit(1 if getattr(args, "strict", False) else 0)
 
     print(f"  Findings:    {report.findings_count}")
     print(f"  Precision:   {report.precision:.2f}")
@@ -1045,7 +1088,7 @@ def cmd_run(args):
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='SIFT Find Evil - Autonomous DFIR Agent with Self-Correction',
+        description="SIFT Find Evil - Autonomous DFIR Agent with Self-Correction",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -1063,150 +1106,136 @@ Examples:
 
   # Run a scenario manifest end-to-end
   python -m sift_find_evil.cli run --scenario scenarios/synthetic/02_ransomware
-        """
+        """,
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Demo command
     demo_parser = subparsers.add_parser(
-        'demo',
-        help='Run demonstration with synthetic test data'
+        "demo", help="Run demonstration with synthetic test data"
     )
-    demo_parser.add_argument(
-        '--output', '-o',
-        help='Write findings to JSON file'
-    )
+    demo_parser.add_argument("--output", "-o", help="Write findings to JSON file")
 
     # Analyze command
-    analyze_parser = subparsers.add_parser(
-        'analyze',
-        help='Analyze forensic artifacts'
+    analyze_parser = subparsers.add_parser("analyze", help="Analyze forensic artifacts")
+    analyze_parser.add_argument(
+        "--mft", "-m", help="Path to MFT CSV file (MFTECmd output)"
     )
     analyze_parser.add_argument(
-        '--mft', '-m',
-        help='Path to MFT CSV file (MFTECmd output)'
+        "--prefetch", "-p", help="Path to Prefetch CSV file (PECmd output)"
     )
     analyze_parser.add_argument(
-        '--prefetch', '-p',
-        help='Path to Prefetch CSV file (PECmd output)'
+        "--evtx", "-e", help="Path to Event Log CSV file (EvtxECmd output)"
     )
     analyze_parser.add_argument(
-        '--evtx', '-e',
-        help='Path to Event Log CSV file (EvtxECmd output)'
+        "--pst", help="Path to PST file for email exfiltration detection (optional)"
     )
     analyze_parser.add_argument(
-        '--pst',
-        help='Path to PST file for email exfiltration detection (optional)'
+        "--image",
+        "-i",
+        help="Path to disk image (.E01 or .dd) for wipe detection and/or content reading (optional)",
     )
     analyze_parser.add_argument(
-        '--image', '-i',
-        help='Path to disk image (.E01 or .dd) for wipe detection and/or content reading (optional)'
+        "--pcap", help="Path to PCAP file for network-layer detectors (optional)"
     )
     analyze_parser.add_argument(
-        '--pcap',
-        help='Path to PCAP file for network-layer detectors (optional)'
+        "--browser-history",
+        dest="browser_history",
+        help="Path to browser history CSV (Chrome/Firefox/Edge export) for webmail-exfil detection (optional)",
     )
     analyze_parser.add_argument(
-        '--browser-history',
-        dest='browser_history',
-        help='Path to browser history CSV (Chrome/Firefox/Edge export) for webmail-exfil detection (optional)'
+        "--shimcache",
+        help="Path to Shimcache CSV (RegRipper/RECmd export) for registry detection (optional)",
     )
     analyze_parser.add_argument(
-        '--shimcache',
-        help='Path to Shimcache CSV (RegRipper/RECmd export) for registry detection (optional)'
+        "--amcache",
+        help="Path to Amcache CSV (RECmd/AmcacheParser export) for registry detection (optional)",
     )
     analyze_parser.add_argument(
-        '--amcache',
-        help='Path to Amcache CSV (RECmd/AmcacheParser export) for registry detection (optional)'
+        "--bam", help="Path to BAM/DAM CSV export for registry detection (optional)"
     )
     analyze_parser.add_argument(
-        '--bam',
-        help='Path to BAM/DAM CSV export for registry detection (optional)'
+        "--userassist",
+        help="Path to UserAssist CSV export for registry detection (optional)",
     )
     analyze_parser.add_argument(
-        '--userassist',
-        help='Path to UserAssist CSV export for registry detection (optional)'
+        "--run-keys",
+        dest="run_keys",
+        help="Path to Run keys CSV (RegRipper/RECmd export) for persistence detection (optional)",
     )
     analyze_parser.add_argument(
-        '--run-keys',
-        dest='run_keys',
-        help='Path to Run keys CSV (RegRipper/RECmd export) for persistence detection (optional)'
+        "--lnk",
+        help="Path to LNK CSV (LECmd export) for document-access, removable-media, and Startup-folder persistence detection (optional)",
     )
     analyze_parser.add_argument(
-        '--lnk',
-        help='Path to LNK CSV (LECmd export) for document-access, removable-media, and Startup-folder persistence detection (optional)'
+        "--jumplist",
+        help="Path to Jump List CSV (JLECmd export) for per-application MRU and UNC-share document access detection (optional)",
     )
     analyze_parser.add_argument(
-        '--jumplist',
-        help='Path to Jump List CSV (JLECmd export) for per-application MRU and UNC-share document access detection (optional)'
-    )
-    analyze_parser.add_argument(
-        '--memory',
+        "--memory",
         help=(
-            'Path to a memory dump (.dmp, .raw, .lime, .vmem) for Volatility 3 '
-            'analysis (pslist/psscan/netscan/malfind/cmdline). Requires '
-            'volatility3 installed (pip install volatility3). MITRE T1055, '
-            'T1620, T1059.'
+            "Path to a memory dump (.dmp, .raw, .lime, .vmem) for Volatility 3 "
+            "analysis (pslist/psscan/netscan/malfind/cmdline). Requires "
+            "volatility3 installed (pip install volatility3). MITRE T1055, "
+            "T1620, T1059."
         ),
     )
     analyze_parser.add_argument(
-        '--yara-rules',
-        dest='yara_rules',
+        "--yara-rules",
+        dest="yara_rules",
         help=(
-            'Directory of .yar/.yara rule files for malware classification '
-            '(MITRE T1587.001 / T1027). Must be paired with --yara-scan.'
+            "Directory of .yar/.yara rule files for malware classification "
+            "(MITRE T1587.001 / T1027). Must be paired with --yara-scan."
         ),
     )
     analyze_parser.add_argument(
-        '--yara-scan',
-        dest='yara_scan',
+        "--yara-scan",
+        dest="yara_scan",
         help=(
-            'File or directory to scan with the compiled YARA rules. '
-            'Must be paired with --yara-rules.'
+            "File or directory to scan with the compiled YARA rules. "
+            "Must be paired with --yara-rules."
         ),
     )
     analyze_parser.add_argument(
-        '--nsrl-db',
-        dest='nsrl_db',
+        "--nsrl-db",
+        dest="nsrl_db",
         help=(
-            'Path to NSRLFile.txt for known-good hash filtering. '
-            'Auto-discovered if omitted (~/.sift_find_evil/nsrl/NSRLFile.txt, '
-            './nsrl/NSRLFile.txt, /cases/nsrl/NSRLFile.txt). Used by carving triage.'
+            "Path to NSRLFile.txt for known-good hash filtering. "
+            "Auto-discovered if omitted (~/.sift_find_evil/nsrl/NSRLFile.txt, "
+            "./nsrl/NSRLFile.txt, /cases/nsrl/NSRLFile.txt). Used by carving triage."
         ),
     )
     analyze_parser.add_argument(
-        '--nsrl-bloom',
-        dest='nsrl_bloom',
-        action='store_true',
+        "--nsrl-bloom",
+        dest="nsrl_bloom",
+        action="store_true",
         help=(
-            'Use bloom filter backend for NSRL (requires rbloom; ~400 MB RAM '
-            'vs 2-10 GB for exact set; tunable false-positive rate)'
+            "Use bloom filter backend for NSRL (requires rbloom; ~400 MB RAM "
+            "vs 2-10 GB for exact set; tunable false-positive rate)"
         ),
     )
-    analyze_parser.add_argument(
-        '--output', '-o',
-        help='Write findings to JSON file'
-    )
+    analyze_parser.add_argument("--output", "-o", help="Write findings to JSON file")
 
     # Run command
     run_parser = subparsers.add_parser(
-        'run',
-        help='Run a scenario.yaml manifest end-to-end',
+        "run",
+        help="Run a scenario.yaml manifest end-to-end",
     )
     run_parser.add_argument(
-        '--scenario',
+        "--scenario",
         required=True,
-        help='Path to a scenario directory or scenario.yaml file',
+        help="Path to a scenario directory or scenario.yaml file",
     )
     run_parser.add_argument(
-        '--output', '-o',
-        help='Write scenario report to JSON file',
+        "--output",
+        "-o",
+        help="Write scenario report to JSON file",
     )
     run_parser.add_argument(
-        '--strict',
-        action='store_true',
-        help='Treat SKIPPED scenarios as failures (exit 1). Use in CI to prevent silent passes from missing evidence.',
+        "--strict",
+        action="store_true",
+        help="Treat SKIPPED scenarios as failures (exit 1). Use in CI to prevent silent passes from missing evidence.",
     )
 
     args = parser.parse_args()
@@ -1215,13 +1244,13 @@ Examples:
         parser.print_help()
         sys.exit(1)
 
-    if args.command == 'demo':
+    if args.command == "demo":
         cmd_demo(args)
-    elif args.command == 'analyze':
+    elif args.command == "analyze":
         cmd_analyze(args)
-    elif args.command == 'run':
+    elif args.command == "run":
         cmd_run(args)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

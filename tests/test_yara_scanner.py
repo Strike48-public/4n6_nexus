@@ -219,9 +219,7 @@ def test_scan_file_matches_multiple_rules(rules_dir: Path, tmp_path: Path) -> No
     assert rule_names == {"mz_header", "upx_packed"}
 
 
-def test_scan_file_no_match_returns_empty(
-    rules_dir: Path, clean_file: Path
-) -> None:
+def test_scan_file_no_match_returns_empty(rules_dir: Path, clean_file: Path) -> None:
     scanner = YaraScanner.compile_from_directory(rules_dir)
     assert scanner.scan_file(clean_file) == []
 
@@ -232,9 +230,7 @@ def test_scan_file_nonexistent_raises(rules_dir: Path, tmp_path: Path) -> None:
         scanner.scan_file(tmp_path / "missing.bin")
 
 
-def test_scan_file_respects_size_cap(
-    rules_dir: Path, tmp_path: Path
-) -> None:
+def test_scan_file_respects_size_cap(rules_dir: Path, tmp_path: Path) -> None:
     big = tmp_path / "big.bin"
     big.write_bytes(b"MZ" + b"\x00" * 2048)
     scanner = YaraScanner.compile_from_directory(rules_dir, max_file_size=1024)
@@ -418,9 +414,7 @@ def test_yara_match_is_immutable(rules_dir: Path, mz_file: Path) -> None:
         match.rule = "hacked"  # type: ignore[misc]
 
 
-def test_yara_match_carries_string_offsets(
-    rules_dir: Path, mz_file: Path
-) -> None:
+def test_yara_match_carries_string_offsets(rules_dir: Path, mz_file: Path) -> None:
     scanner = YaraScanner.compile_from_directory(rules_dir)
     match = scanner.scan_file(mz_file)[0]
     assert match.strings

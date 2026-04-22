@@ -19,11 +19,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PrefetchEntry:
     """Represents a single Prefetch file with execution timestamps."""
+
     source_filename: str  # Prefetch file name (e.g., MALWARE.EXE-ABCD1234.pf)
     executable: str  # Executable name (e.g., MALWARE.EXE)
     run_count: int
     last_run_time: Optional[datetime]
-    previous_run_times: List[datetime] = field(default_factory=list)  # Up to 7 additional runs
+    previous_run_times: List[datetime] = field(
+        default_factory=list
+    )  # Up to 7 additional runs
     files_loaded: List[str] = field(default_factory=list)  # DLLs and files loaded
     volume_name: Optional[str] = None
     volume_serial: Optional[str] = None
@@ -50,8 +53,9 @@ class PrefetchEntry:
         all_times = self.get_all_run_times()
         return min(all_times) if all_times else None
 
-    def was_executed_at(self, target_time: datetime,
-                       tolerance_seconds: int = 5) -> bool:
+    def was_executed_at(
+        self, target_time: datetime, tolerance_seconds: int = 5
+    ) -> bool:
         """Check if executable was run within tolerance window of target time.
 
         Args:
@@ -106,7 +110,7 @@ class PrefetchParser:
 
         entries = []
 
-        with open(csv_file, 'r', encoding='utf-8') as f:
+        with open(csv_file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             _require_columns(reader, self.REQUIRED_COLUMNS, csv_file, "Prefetch")
 
@@ -128,26 +132,26 @@ class PrefetchParser:
         """
         try:
             # Parse basic metadata
-            source_filename = row.get('SourceFilename', '')
-            executable = row.get('Executable', '')
-            run_count = int(row.get('RunCount', 0))
-            hash_value = row.get('Hash', '')
-            volume_name = row.get('Volume0Name', '')
-            volume_serial = row.get('Volume0Serial', '')
+            source_filename = row.get("SourceFilename", "")
+            executable = row.get("Executable", "")
+            run_count = int(row.get("RunCount", 0))
+            hash_value = row.get("Hash", "")
+            volume_name = row.get("Volume0Name", "")
+            volume_serial = row.get("Volume0Serial", "")
 
             # Parse last run time
-            last_run_time = self._parse_timestamp(row.get('LastRunTime'))
+            last_run_time = self._parse_timestamp(row.get("LastRunTime"))
 
             # Parse previous run times (PreviousRunTime0 through PreviousRunTime6)
             previous_run_times = []
             for i in range(7):
-                prev_time = self._parse_timestamp(row.get(f'PreviousRunTime{i}'))
+                prev_time = self._parse_timestamp(row.get(f"PreviousRunTime{i}"))
                 if prev_time:
                     previous_run_times.append(prev_time)
 
             # Parse files loaded (comma-separated list)
-            files_loaded_str = row.get('FilesLoaded', '')
-            files_loaded = [f.strip() for f in files_loaded_str.split(',') if f.strip()]
+            files_loaded_str = row.get("FilesLoaded", "")
+            files_loaded = [f.strip() for f in files_loaded_str.split(",") if f.strip()]
 
             return PrefetchEntry(
                 source_filename=source_filename,
@@ -158,7 +162,7 @@ class PrefetchParser:
                 files_loaded=files_loaded,
                 volume_name=volume_name or None,
                 volume_serial=volume_serial or None,
-                hash_value=hash_value or None
+                hash_value=hash_value or None,
             )
 
         except Exception as e:
@@ -175,7 +179,7 @@ class PrefetchParser:
         Returns:
             Datetime object, or None if null/invalid
         """
-        if not timestamp_str or timestamp_str.strip() == '':
+        if not timestamp_str or timestamp_str.strip() == "":
             return None
 
         try:
@@ -189,8 +193,12 @@ class PrefetchParser:
         except Exception:
             return None
 
-    def find_by_executable(self, entries: List[PrefetchEntry], executable_name: str,
-                          case_sensitive: bool = False) -> List[PrefetchEntry]:
+    def find_by_executable(
+        self,
+        entries: List[PrefetchEntry],
+        executable_name: str,
+        case_sensitive: bool = False,
+    ) -> List[PrefetchEntry]:
         """Find Prefetch entries by executable name.
 
         Args:
@@ -207,8 +215,9 @@ class PrefetchParser:
             exe_lower = executable_name.lower()
             return [e for e in entries if e.executable.lower() == exe_lower]
 
-    def find_by_dll_loaded(self, entries: List[PrefetchEntry], dll_name: str,
-                          case_sensitive: bool = False) -> List[PrefetchEntry]:
+    def find_by_dll_loaded(
+        self, entries: List[PrefetchEntry], dll_name: str, case_sensitive: bool = False
+    ) -> List[PrefetchEntry]:
         """Find executables that loaded a specific DLL.
 
         Args:
@@ -232,8 +241,9 @@ class PrefetchParser:
 
         return matches
 
-    def get_most_recent_executions(self, entries: List[PrefetchEntry],
-                                  limit: int = 10) -> List[PrefetchEntry]:
+    def get_most_recent_executions(
+        self, entries: List[PrefetchEntry], limit: int = 10
+    ) -> List[PrefetchEntry]:
         """Get most recently executed programs.
 
         Args:
@@ -247,14 +257,15 @@ class PrefetchParser:
         valid_entries = [e for e in entries if e.last_run_time]
 
         # Sort by last_run_time descending
-        sorted_entries = sorted(valid_entries,
-                              key=lambda e: e.last_run_time,
-                              reverse=True)
+        sorted_entries = sorted(
+            valid_entries, key=lambda e: e.last_run_time, reverse=True
+        )
 
         return sorted_entries[:limit]
 
-    def get_frequently_run(self, entries: List[PrefetchEntry],
-                          min_run_count: int = 10) -> List[PrefetchEntry]:
+    def get_frequently_run(
+        self, entries: List[PrefetchEntry], min_run_count: int = 10
+    ) -> List[PrefetchEntry]:
         """Get frequently executed programs.
 
         Args:
@@ -269,9 +280,12 @@ class PrefetchParser:
         # Sort by run_count descending
         return sorted(frequent, key=lambda e: e.run_count, reverse=True)
 
-    def correlate_with_mft(self, prefetch_entry: PrefetchEntry,
-                          mft_entries: List,
-                          comparator: TimestampComparator) -> Optional[dict]:
+    def correlate_with_mft(
+        self,
+        prefetch_entry: PrefetchEntry,
+        mft_entries: List,
+        comparator: TimestampComparator,
+    ) -> Optional[dict]:
         """Correlate Prefetch execution with MFT file timestamps.
 
         Args:
@@ -304,13 +318,17 @@ class PrefetchParser:
             return None
 
         # Detect causality violation
-        violation = comparator.detect_causality_violation(mft_modified, prefetch_last_run)
+        violation = comparator.detect_causality_violation(
+            mft_modified, prefetch_last_run
+        )
 
         return {
-            'mft_entry': mft_entry,
-            'prefetch_entry': prefetch_entry,
-            'mft_modified': mft_modified,
-            'prefetch_last_run': prefetch_last_run,
-            'time_delta_seconds': comparator.time_delta_seconds(mft_modified, prefetch_last_run),
-            'causality_violation': violation
+            "mft_entry": mft_entry,
+            "prefetch_entry": prefetch_entry,
+            "mft_modified": mft_modified,
+            "prefetch_last_run": prefetch_last_run,
+            "time_delta_seconds": comparator.time_delta_seconds(
+                mft_modified, prefetch_last_run
+            ),
+            "causality_violation": violation,
         }

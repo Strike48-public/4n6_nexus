@@ -39,30 +39,64 @@ from ..self_correction.engine import Finding
 
 _DEFAULT_HOST_CATEGORIES: dict[str, tuple[str, ...]] = {
     "paste_drops": (
-        "pastebin.com", "pastebin.pl", "pastebin.bl", "ghostbin.com",
-        "hastebin.com", "ix.io", "privatebin.net", "dpaste.org", "paste.ee",
+        "pastebin.com",
+        "pastebin.pl",
+        "pastebin.bl",
+        "ghostbin.com",
+        "hastebin.com",
+        "ix.io",
+        "privatebin.net",
+        "dpaste.org",
+        "paste.ee",
         "0x0.st",
     ),
     "hacking_tutorials": (
-        "null-byte.wonderhowto.com", "wonderhowto.com",
-        "offensive-security.com", "hackthebox.com", "hackthebox.eu",
-        "tryhackme.com", "exploit-db.com",
+        "null-byte.wonderhowto.com",
+        "wonderhowto.com",
+        "offensive-security.com",
+        "hackthebox.com",
+        "hackthebox.eu",
+        "tryhackme.com",
+        "exploit-db.com",
     ),
     "offensive_package_mirrors": (
-        "downloads.metasploit.com", "archive.kali.org", "http.kali.org",
+        "downloads.metasploit.com",
+        "archive.kali.org",
+        "http.kali.org",
         "john.openwall.com",
     ),
     "anon_file_hosts": (
-        "anonfiles.com", "transfer.sh", "file.io", "mega.nz",
-        "mediafire.com", "4shared.com", "sendspace.com", "wetransfer.com",
+        "anonfiles.com",
+        "transfer.sh",
+        "file.io",
+        "mega.nz",
+        "mediafire.com",
+        "4shared.com",
+        "sendspace.com",
+        "wetransfer.com",
     ),
 }
 
 _DEFAULT_OFFENSIVE_PACKAGES: tuple[str, ...] = (
-    "metasploit-framework", "john", "hydra", "hashcat", "sqlmap",
-    "aircrack-ng", "responder", "impacket", "bloodhound", "powersploit",
-    "nikto", "dirb", "gobuster", "ettercap", "burpsuite", "mimikatz",
-    "crackmapexec", "bettercap", "wifite",
+    "metasploit-framework",
+    "john",
+    "hydra",
+    "hashcat",
+    "sqlmap",
+    "aircrack-ng",
+    "responder",
+    "impacket",
+    "bloodhound",
+    "powersploit",
+    "nikto",
+    "dirb",
+    "gobuster",
+    "ettercap",
+    "burpsuite",
+    "mimikatz",
+    "crackmapexec",
+    "bettercap",
+    "wifite",
 )
 
 _DEFAULT_CLEARTEXT_PORTS: dict[int, str] = {
@@ -95,6 +129,7 @@ class HostMatch:
 
 
 # --- suspicious hosts --------------------------------------------------------
+
 
 class SuspiciousHostDetector:
     """Flag DNS queries and HTTP hosts that match a category watchlist."""
@@ -208,12 +243,9 @@ class OffensivePackageInstallDetector:
         package_names: Optional[Iterable[str]] = None,
         offensive_mirrors: Optional[Iterable[str]] = None,
     ):
-        self.package_names = frozenset(
-            (package_names or _DEFAULT_OFFENSIVE_PACKAGES)
-        )
+        self.package_names = frozenset((package_names or _DEFAULT_OFFENSIVE_PACKAGES))
         self.offensive_mirrors = frozenset(
-            offensive_mirrors
-            or _DEFAULT_HOST_CATEGORIES["offensive_package_mirrors"]
+            offensive_mirrors or _DEFAULT_HOST_CATEGORIES["offensive_package_mirrors"]
         )
 
     def analyze(
@@ -230,13 +262,16 @@ class OffensivePackageInstallDetector:
             if pkg is None and not mirror_hit:
                 continue
             key = (r.src_ip, pkg or r.host.lower())
-            entry = hits.setdefault(key, {
-                "timestamps": [],
-                "uris": [],
-                "hosts": set(),
-                "matched_mirror": False,
-                "package": pkg,
-            })
+            entry = hits.setdefault(
+                key,
+                {
+                    "timestamps": [],
+                    "uris": [],
+                    "hosts": set(),
+                    "matched_mirror": False,
+                    "package": pkg,
+                },
+            )
             entry["timestamps"].append(r.timestamp.isoformat())
             entry["uris"].append(r.uri)
             entry["hosts"].add(r.host.lower())
@@ -262,15 +297,15 @@ class OffensivePackageInstallDetector:
             lowered == m or lowered.endswith("." + m) for m in self.offensive_mirrors
         )
 
-    def _build_finding(
-        self, key: tuple[str, str], entry: dict
-    ) -> Finding:
+    def _build_finding(self, key: tuple[str, str], entry: dict) -> Finding:
         src_ip, pkg_or_host = key
         timestamps = sorted(entry["timestamps"])
         hosts = sorted(entry["hosts"])
         pkg = entry["package"]
         title_subject = (
-            f"offensive package {pkg}" if pkg else f"offensive-tool mirror {pkg_or_host}"
+            f"offensive package {pkg}"
+            if pkg
+            else f"offensive-tool mirror {pkg_or_host}"
         )
         return Finding(
             title=f"Offensive tool install from {src_ip}: {title_subject}",
@@ -279,7 +314,8 @@ class OffensivePackageInstallDetector:
                 f"{', '.join(hosts)} at {timestamps[0]}."
                 + (
                     " Download source is a known offensive-tool mirror."
-                    if entry["matched_mirror"] else ""
+                    if entry["matched_mirror"]
+                    else ""
                 )
             ),
             finding_type="behavior",
@@ -307,6 +343,7 @@ class OffensivePackageInstallDetector:
 
 # --- cleartext sensitive protocols ------------------------------------------
 
+
 class CleartextProtocolDetector:
     """Flag TCP conversations on sensitive ports that should be encrypted."""
 
@@ -332,12 +369,15 @@ class CleartextProtocolDetector:
                 continue
             if conv.total_frames < self.min_frames:
                 continue
-            entry = by_port.setdefault(port, {
-                "label": self.cleartext_ports[port],
-                "total_frames": 0,
-                "total_bytes": 0,
-                "pairs": set(),
-            })
+            entry = by_port.setdefault(
+                port,
+                {
+                    "label": self.cleartext_ports[port],
+                    "total_frames": 0,
+                    "total_bytes": 0,
+                    "pairs": set(),
+                },
+            )
             entry["total_frames"] += conv.total_frames
             entry["total_bytes"] += conv.total_bytes
             entry["pairs"].add((conv.endpoint_a_ip, conv.endpoint_b_ip))

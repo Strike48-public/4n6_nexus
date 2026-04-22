@@ -157,10 +157,7 @@ def test_load_scenario_rejects_non_string_malicious_list(tmp_path: Path) -> None
 def test_load_scenario_rejects_non_numeric_min_precision(tmp_path: Path) -> None:
     _write_manifest(
         tmp_path,
-        "name: bad\n"
-        "tier: synthetic\n"
-        "expected:\n"
-        "  min_precision: high\n",
+        "name: bad\n" "tier: synthetic\n" "expected:\n" "  min_precision: high\n",
     )
 
     with pytest.raises(ScenarioLoadError, match="must be numeric"):

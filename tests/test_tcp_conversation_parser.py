@@ -40,8 +40,8 @@ def test_parse_tcp_conv_converts_units():
 
 def test_service_port_picks_well_known_side():
     rows = PcapParser._parse_tcp_conv_table(SAMPLE)
-    assert rows[0].service_port() == 443   # :33274 <-> :443
-    assert rows[1].service_port() == 514   # :46300 <-> :514
+    assert rows[0].service_port() == 443  # :33274 <-> :443
+    assert rows[1].service_port() == 514  # :46300 <-> :514
     assert rows[2].service_port() == 443
 
 

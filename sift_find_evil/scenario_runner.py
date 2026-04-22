@@ -30,6 +30,7 @@ from .self_correction.engine import SelfCorrectionEngine
 try:
     from .detectors.yara_detector import YaraDetector
     from .yara_scan.scanner import MissingYaraError, YaraScanner
+
     _YARA_AVAILABLE = True
 except ImportError:  # pragma: no cover — only exercised on hosts without libyara
     YaraDetector = None  # type: ignore[assignment]
@@ -50,9 +51,7 @@ def _resolve_inside(directory: Path, relative: str) -> Path:
     candidate = (directory / relative).resolve()
     base = directory.resolve()
     if not candidate.is_relative_to(base):
-        raise ScenarioLoadError(
-            f"path escapes scenario directory: {relative!r}"
-        )
+        raise ScenarioLoadError(f"path escapes scenario directory: {relative!r}")
     return candidate
 
 
@@ -204,7 +203,9 @@ def load_scenario(path: Path) -> ScenarioManifest:
 
     expected = data.get("expected") or {}
     malicious = expected.get("malicious_executables") or []
-    if not isinstance(malicious, list) or not all(isinstance(m, str) for m in malicious):
+    if not isinstance(malicious, list) or not all(
+        isinstance(m, str) for m in malicious
+    ):
         raise ScenarioLoadError(
             f"{manifest_path}: expected.malicious_executables must be a list of strings"
         )
@@ -332,9 +333,7 @@ def _run_registry(manifest: ScenarioManifest) -> list:
     directory = manifest.directory
     kwargs: dict[str, Any] = {}
     if paths["shimcache"]:
-        kwargs["shimcache"] = parser.parse_shimcache_csv(
-            directory / paths["shimcache"]
-        )
+        kwargs["shimcache"] = parser.parse_shimcache_csv(directory / paths["shimcache"])
     if paths["amcache"]:
         kwargs["amcache"] = parser.parse_amcache_csv(directory / paths["amcache"])
     if paths["bam"]:
@@ -344,9 +343,7 @@ def _run_registry(manifest: ScenarioManifest) -> list:
             directory / paths["userassist"]
         )
     if paths["run_keys"]:
-        kwargs["run_keys"] = parser.parse_run_keys_csv(
-            directory / paths["run_keys"]
-        )
+        kwargs["run_keys"] = parser.parse_run_keys_csv(directory / paths["run_keys"])
 
     return RegistryDetector().analyze(**kwargs)
 
@@ -383,11 +380,7 @@ def _run_evidence_scenario(manifest: ScenarioManifest) -> ScenarioReport:
         for entry in manifest.evidence
         if (directory / str(entry.get("path", ""))).is_file()
     ]
-    required = [
-        entry
-        for entry in manifest.evidence
-        if entry.get("required")
-    ]
+    required = [entry for entry in manifest.evidence if entry.get("required")]
     required_present = [
         entry
         for entry in required
@@ -446,7 +439,8 @@ def _score(
     webmail_expected = manifest.expected_finding_counts.get("webmail_exfiltration", 0)
     if webmail_expected:
         matched = [
-            f for f in network_findings
+            f
+            for f in network_findings
             if f.category.value == "data_exfiltration"
             and f.evidence.get("exfil_type") == "webmail"
         ]
@@ -457,7 +451,8 @@ def _score(
     cloud_expected = manifest.expected_finding_counts.get("cloud_upload", 0)
     if cloud_expected:
         matched = [
-            f for f in network_findings
+            f
+            for f in network_findings
             if f.category.value == "data_exfiltration"
             and f.evidence.get("exfil_type") == "cloud_upload"
         ]
@@ -468,16 +463,13 @@ def _score(
     yara_expected = manifest.expected_finding_counts.get("yara_match", 0)
     if yara_expected:
         matched = [
-            f for f in yara_findings
-            if f.category.value == "malware_classification"
+            f for f in yara_findings if f.category.value == "malware_classification"
         ]
         tp.extend(["yara_match"] * min(yara_expected, len(matched)))
         missing = max(yara_expected - len(matched), 0)
         fn.extend(["yara_match"] * missing)
 
-    avg_conf = (
-        sum(f.confidence for f in findings) / len(findings) if findings else 0.0
-    )
+    avg_conf = sum(f.confidence for f in findings) / len(findings) if findings else 0.0
 
     return ScenarioReport(
         manifest=manifest,

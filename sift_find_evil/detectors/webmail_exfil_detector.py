@@ -58,8 +58,24 @@ _SEND_FRAGMENTS: tuple[str, ...] = ("#compose", "#sent", "#drafts")
 # provided. These are the typical exfiltration targets seen in corporate IP
 # theft cases. Not exhaustive — callers can override via `sensitive_extensions`.
 _DEFAULT_SENSITIVE_EXTENSIONS: frozenset[str] = frozenset(
-    {".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".zip",
-     ".rar", ".7z", ".csv", ".json", ".sql", ".key", ".pem", ".dwg"}
+    {
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".pdf",
+        ".zip",
+        ".rar",
+        ".7z",
+        ".csv",
+        ".json",
+        ".sql",
+        ".key",
+        ".pem",
+        ".dwg",
+    }
 )
 
 # Hosts considered webmail providers for PCAP corroboration. Matches are
@@ -149,10 +165,9 @@ class WebmailExfilDetector:
         url = entry.url.lower()
         if "#compose" in url or "#sent" in url:
             return True
-        return any(
-            fragment in url
-            for fragment in _SEND_FRAGMENTS
-        ) and any(host in url for host in _WEBMAIL_HOSTS)
+        return any(fragment in url for fragment in _SEND_FRAGMENTS) and any(
+            host in url for host in _WEBMAIL_HOSTS
+        )
 
     def _cluster_send_events(
         self, events: list[BrowserHistoryEntry]
@@ -190,7 +205,9 @@ class WebmailExfilDetector:
         provider = self._identify_provider(session)
 
         accessed_docs = self._find_sensitive_document_accesses(
-            mft_records, session_start - self.window, session_end + self.window,
+            mft_records,
+            session_start - self.window,
+            session_end + self.window,
         )
 
         confidence = 0.55
@@ -260,10 +277,13 @@ class WebmailExfilDetector:
             artifact_sources.append("pcap")
 
         confidence_label = (
-            "Very High" if confidence >= 0.9
-            else "High" if confidence >= 0.75
-            else "Medium" if confidence >= 0.5
-            else "Low"
+            "Very High"
+            if confidence >= 0.9
+            else (
+                "High"
+                if confidence >= 0.75
+                else "Medium" if confidence >= 0.5 else "Low"
+            )
         )
 
         return Finding(
@@ -347,9 +367,7 @@ class WebmailExfilDetector:
         raising.
         """
         if (ts.tzinfo is None) != (window_start.tzinfo is None):
-            return (
-                ts.replace(tzinfo=None)
-                >= window_start.replace(tzinfo=None)
-                and ts.replace(tzinfo=None) <= window_end.replace(tzinfo=None)
-            )
+            return ts.replace(tzinfo=None) >= window_start.replace(
+                tzinfo=None
+            ) and ts.replace(tzinfo=None) <= window_end.replace(tzinfo=None)
         return window_start <= ts <= window_end

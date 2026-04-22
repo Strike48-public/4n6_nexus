@@ -118,7 +118,9 @@ def test_was_executed_at_returns_true_within_tolerance():
 def test_was_executed_at_returns_false_outside_tolerance():
     """Test was_executed_at() returns False when outside tolerance window."""
     run_time = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-    target_time = datetime(2023, 1, 1, 12, 0, 10, tzinfo=timezone.utc)  # 10 seconds later
+    target_time = datetime(
+        2023, 1, 1, 12, 0, 10, tzinfo=timezone.utc
+    )  # 10 seconds later
 
     entry = PrefetchEntry(
         source_filename="test.pf",
@@ -207,7 +209,9 @@ def test_find_by_executable_case_sensitive_match():
     )
 
     parser = PrefetchParser()
-    result = parser.find_by_executable([entry1, entry2], "Malware.exe", case_sensitive=True)
+    result = parser.find_by_executable(
+        [entry1, entry2], "Malware.exe", case_sensitive=True
+    )
 
     assert len(result) == 1
     assert result[0] == entry1
@@ -229,7 +233,9 @@ def test_find_by_executable_case_insensitive_match():
     )
 
     parser = PrefetchParser()
-    result = parser.find_by_executable([entry1, entry2], "MALWARE.EXE", case_sensitive=False)
+    result = parser.find_by_executable(
+        [entry1, entry2], "MALWARE.EXE", case_sensitive=False
+    )
 
     assert len(result) == 2
 
@@ -252,7 +258,9 @@ def test_find_by_dll_loaded_case_sensitive():
     )
 
     parser = PrefetchParser()
-    result = parser.find_by_dll_loaded([entry1, entry2], "kernel32.dll", case_sensitive=True)
+    result = parser.find_by_dll_loaded(
+        [entry1, entry2], "kernel32.dll", case_sensitive=True
+    )
 
     assert len(result) == 1
     assert result[0] == entry1
@@ -276,7 +284,9 @@ def test_find_by_dll_loaded_case_insensitive():
     )
 
     parser = PrefetchParser()
-    result = parser.find_by_dll_loaded([entry1, entry2], "KERNEL32", case_sensitive=False)
+    result = parser.find_by_dll_loaded(
+        [entry1, entry2], "KERNEL32", case_sensitive=False
+    )
 
     assert len(result) == 2
 
@@ -311,13 +321,22 @@ def test_get_most_recent_executions_sorts_by_time():
     time3 = datetime(2023, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
 
     entry1 = PrefetchEntry(
-        source_filename="test1.pf", executable="app1.exe", run_count=1, last_run_time=time1
+        source_filename="test1.pf",
+        executable="app1.exe",
+        run_count=1,
+        last_run_time=time1,
     )
     entry2 = PrefetchEntry(
-        source_filename="test2.pf", executable="app2.exe", run_count=1, last_run_time=time2
+        source_filename="test2.pf",
+        executable="app2.exe",
+        run_count=1,
+        last_run_time=time2,
     )
     entry3 = PrefetchEntry(
-        source_filename="test3.pf", executable="app3.exe", run_count=1, last_run_time=time3
+        source_filename="test3.pf",
+        executable="app3.exe",
+        run_count=1,
+        last_run_time=time3,
     )
 
     parser = PrefetchParser()
@@ -332,13 +351,22 @@ def test_get_most_recent_executions_sorts_by_time():
 def test_get_frequently_run_filters_by_min_run_count():
     """Test get_frequently_run() filters entries below min_run_count."""
     entry1 = PrefetchEntry(
-        source_filename="test1.pf", executable="app1.exe", run_count=5, last_run_time=None
+        source_filename="test1.pf",
+        executable="app1.exe",
+        run_count=5,
+        last_run_time=None,
     )
     entry2 = PrefetchEntry(
-        source_filename="test2.pf", executable="app2.exe", run_count=15, last_run_time=None
+        source_filename="test2.pf",
+        executable="app2.exe",
+        run_count=15,
+        last_run_time=None,
     )
     entry3 = PrefetchEntry(
-        source_filename="test3.pf", executable="app3.exe", run_count=20, last_run_time=None
+        source_filename="test3.pf",
+        executable="app3.exe",
+        run_count=20,
+        last_run_time=None,
     )
 
     parser = PrefetchParser()
@@ -353,13 +381,22 @@ def test_get_frequently_run_filters_by_min_run_count():
 def test_get_frequently_run_sorts_by_run_count():
     """Test get_frequently_run() sorts by run_count descending."""
     entry1 = PrefetchEntry(
-        source_filename="test1.pf", executable="app1.exe", run_count=15, last_run_time=None
+        source_filename="test1.pf",
+        executable="app1.exe",
+        run_count=15,
+        last_run_time=None,
     )
     entry2 = PrefetchEntry(
-        source_filename="test2.pf", executable="app2.exe", run_count=20, last_run_time=None
+        source_filename="test2.pf",
+        executable="app2.exe",
+        run_count=20,
+        last_run_time=None,
     )
     entry3 = PrefetchEntry(
-        source_filename="test3.pf", executable="app3.exe", run_count=10, last_run_time=None
+        source_filename="test3.pf",
+        executable="app3.exe",
+        run_count=10,
+        last_run_time=None,
     )
 
     parser = PrefetchParser()
@@ -383,7 +420,9 @@ def test_correlate_with_mft_no_matching_mft_entry():
     mock_mft_entry.file_name = "different.exe"
 
     parser = PrefetchParser()
-    result = parser.correlate_with_mft(prefetch_entry, [mock_mft_entry], parser.comparator)
+    result = parser.correlate_with_mft(
+        prefetch_entry, [mock_mft_entry], parser.comparator
+    )
 
     assert result is None
 
@@ -402,7 +441,9 @@ def test_correlate_with_mft_no_timestamps():
     mock_mft_entry.get_modification_time.return_value = None
 
     parser = PrefetchParser()
-    result = parser.correlate_with_mft(prefetch_entry, [mock_mft_entry], parser.comparator)
+    result = parser.correlate_with_mft(
+        prefetch_entry, [mock_mft_entry], parser.comparator
+    )
 
     assert result is None
 
@@ -424,7 +465,9 @@ def test_correlate_with_mft_success():
     mock_mft_entry.get_modification_time.return_value = mft_time
 
     parser = PrefetchParser()
-    result = parser.correlate_with_mft(prefetch_entry, [mock_mft_entry], parser.comparator)
+    result = parser.correlate_with_mft(
+        prefetch_entry, [mock_mft_entry], parser.comparator
+    )
 
     assert result is not None
     assert result["mft_entry"] == mock_mft_entry

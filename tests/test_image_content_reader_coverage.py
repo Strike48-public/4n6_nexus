@@ -407,9 +407,9 @@ def test_image_content_reader_read_file_reads_in_chunks(
     result = reader.read_file(entry, window_mb=4)
 
     assert len(result) == file_size
-    assert result[:len(chunk1)] == chunk1
-    assert result[len(chunk1):len(chunk1)+len(chunk2)] == chunk2
-    assert result[len(chunk1)+len(chunk2):] == chunk3
+    assert result[: len(chunk1)] == chunk1
+    assert result[len(chunk1) : len(chunk1) + len(chunk2)] == chunk2
+    assert result[len(chunk1) + len(chunk2) :] == chunk3
 
     # Should have called read_random 3 times
     assert mock_file_obj.read_random.call_count == 3

@@ -10,7 +10,7 @@ from typing import Callable, List, Optional, Any
 from .contradiction_detector import (
     ContradictionDetector,
     Contradiction,
-    ContradictionType
+    ContradictionType,
 )
 from .confidence_scorer import ConfidenceScorer, Resolution
 from ..validators.timestamp_comparator import TimestampComparator
@@ -47,6 +47,7 @@ def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
 @dataclass
 class Finding:
     """Represents a forensic finding with confidence and reasoning."""
+
     # Core finding information
     title: str
     description: str
@@ -74,27 +75,28 @@ class Finding:
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
-            'title': self.title,
-            'description': self.description,
-            'type': self.finding_type,
-            'severity': self.severity,
-            'category': self.category.value,
-            'evidence': self.evidence,
-            'confidence': round(self.confidence, 2),
-            'confidence_label': self.confidence_label,
-            'reasoning_chain': self.reasoning_chain,
-            'contradictions': [c.to_dict() for c in self.contradictions],
-            'resolutions': [
+            "title": self.title,
+            "description": self.description,
+            "type": self.finding_type,
+            "severity": self.severity,
+            "category": self.category.value,
+            "evidence": self.evidence,
+            "confidence": round(self.confidence, 2),
+            "confidence_label": self.confidence_label,
+            "reasoning_chain": self.reasoning_chain,
+            "contradictions": [c.to_dict() for c in self.contradictions],
+            "resolutions": [
                 {
-                    'type': r.contradiction_type,
-                    'method': r.resolution_method,
-                    'recovery': r.confidence_recovery,
-                    'evidence': r.evidence
-                } for r in self.resolutions
+                    "type": r.contradiction_type,
+                    "method": r.resolution_method,
+                    "recovery": r.confidence_recovery,
+                    "evidence": r.evidence,
+                }
+                for r in self.resolutions
             ],
-            'confidence_calculation': self.confidence_calculation,
-            'detected_at': self.detected_at.isoformat(),
-            'artifact_sources': self.artifact_sources
+            "confidence_calculation": self.confidence_calculation,
+            "detected_at": self.detected_at.isoformat(),
+            "artifact_sources": self.artifact_sources,
         }
 
 
@@ -112,7 +114,7 @@ class SelfCorrectionEngine:
     def __init__(
         self,
         comparator: Optional[TimestampComparator] = None,
-        base_confidence: float = 0.85
+        base_confidence: float = 0.85,
     ):
         """Initialize self-correction engine.
 
@@ -152,9 +154,7 @@ class SelfCorrectionEngine:
 
         # Detect process-execution contradictions (MFT/Prefetch/EventLog)
         contradictions = self.detector.detect_all(
-            mft_entries,
-            prefetch_entries,
-            event_log_entries
+            mft_entries, prefetch_entries, event_log_entries
         )
 
         # Group contradictions by executable
@@ -167,7 +167,7 @@ class SelfCorrectionEngine:
                 exec_contradictions,
                 mft_entries,
                 prefetch_entries,
-                event_log_entries
+                event_log_entries,
             )
             findings.append(finding)
 
@@ -183,8 +183,7 @@ class SelfCorrectionEngine:
         return findings
 
     def _group_contradictions_by_executable(
-        self,
-        contradictions: List[Contradiction]
+        self, contradictions: List[Contradiction]
     ) -> dict:
         """Group contradictions by executable name.
 
@@ -201,10 +200,10 @@ class SelfCorrectionEngine:
             executable = None
 
             for artifact in contradiction.artifacts:
-                if hasattr(artifact, 'file_name'):
+                if hasattr(artifact, "file_name"):
                     executable = artifact.file_name
                     break
-                elif hasattr(artifact, 'executable'):
+                elif hasattr(artifact, "executable"):
                     executable = artifact.executable
                     break
 
@@ -221,7 +220,7 @@ class SelfCorrectionEngine:
         contradictions: List[Contradiction],
         mft_entries: List[Any],
         prefetch_entries: List[Any],
-        event_log_entries: List[Any]
+        event_log_entries: List[Any],
     ) -> Finding:
         """Generate a finding with self-correction applied.
 
@@ -241,12 +240,15 @@ class SelfCorrectionEngine:
         # Determine artifact types available
         artifact_types = []
         if any(e.file_name == executable for e in mft_entries):
-            artifact_types.append('MFT')
+            artifact_types.append("MFT")
         if any(p.executable.lower() == executable.lower() for p in prefetch_entries):
-            artifact_types.append('Prefetch')
-        if any(e.get_executable_name() and e.get_executable_name().lower() == executable.lower()
-               for e in event_log_entries):
-            artifact_types.append('EventLog')
+            artifact_types.append("Prefetch")
+        if any(
+            e.get_executable_name()
+            and e.get_executable_name().lower() == executable.lower()
+            for e in event_log_entries
+        ):
+            artifact_types.append("EventLog")
 
         artifact_count = len(artifact_types)
 
@@ -257,10 +259,7 @@ class SelfCorrectionEngine:
 
         # Calculate initial confidence
         initial_confidence, calc_details = self.scorer.calculate_final_confidence(
-            artifact_count,
-            artifact_types,
-            contradictions,
-            resolutions
+            artifact_count, artifact_types, contradictions, resolutions
         )
 
         reasoning_chain.append(
@@ -279,10 +278,7 @@ class SelfCorrectionEngine:
         for contradiction in contradictions:
             if contradiction.type == ContradictionType.CAUSALITY_VIOLATION:
                 resolution = self._resolve_causality_violation(
-                    executable,
-                    contradiction,
-                    prefetch_entries,
-                    event_log_entries
+                    executable, contradiction, prefetch_entries, event_log_entries
                 )
                 if resolution:
                     resolutions.append(resolution)
@@ -293,10 +289,7 @@ class SelfCorrectionEngine:
 
         # Recalculate final confidence with resolutions
         final_confidence, calc_details = self.scorer.calculate_final_confidence(
-            artifact_count,
-            artifact_types,
-            contradictions,
-            resolutions
+            artifact_count, artifact_types, contradictions, resolutions
         )
 
         reasoning_chain.append(
@@ -309,17 +302,19 @@ class SelfCorrectionEngine:
 
         # Build evidence
         evidence = {
-            'executable': executable,
-            'contradictions_detected': len(contradictions),
-            'resolutions_applied': len(resolutions),
-            'artifact_types': artifact_types
+            "executable": executable,
+            "contradictions_detected": len(contradictions),
+            "resolutions_applied": len(resolutions),
+            "artifact_types": artifact_types,
         }
 
         # Create finding
         finding = Finding(
             title=f"Suspicious Activity: {executable}",
-            description=self._generate_description(executable, contradictions, resolutions),
-            finding_type='indicator',
+            description=self._generate_description(
+                executable, contradictions, resolutions
+            ),
+            finding_type="indicator",
             severity=severity,
             category=_pick_category(contradictions),
             evidence=evidence,
@@ -329,7 +324,7 @@ class SelfCorrectionEngine:
             contradictions=contradictions,
             resolutions=resolutions,
             confidence_calculation=calc_details,
-            artifact_sources=artifact_types
+            artifact_sources=artifact_types,
         )
 
         return finding
@@ -416,7 +411,7 @@ class SelfCorrectionEngine:
         executable: str,
         contradiction: Contradiction,
         prefetch_entries: List[Any],
-        event_log_entries: List[Any]
+        event_log_entries: List[Any],
     ) -> Optional[Resolution]:
         """Attempt to resolve causality violation using Event Log tiebreaker.
 
@@ -432,7 +427,7 @@ class SelfCorrectionEngine:
         # Find Prefetch entry for this executable
         prefetch_entry = next(
             (p for p in prefetch_entries if p.executable.lower() == executable.lower()),
-            None
+            None,
         )
 
         if not prefetch_entry or not prefetch_entry.last_run_time:
@@ -440,9 +435,10 @@ class SelfCorrectionEngine:
 
         # Find matching Event Log entries
         matching_events = [
-            e for e in event_log_entries
-            if e.get_executable_name() and
-            e.get_executable_name().lower() == executable.lower()
+            e
+            for e in event_log_entries
+            if e.get_executable_name()
+            and e.get_executable_name().lower() == executable.lower()
         ]
 
         if not matching_events:
@@ -454,23 +450,23 @@ class SelfCorrectionEngine:
             comparison = self.comparator.compare(
                 event.time_created,
                 prefetch_time,
-                tolerance_seconds=10  # Tight tolerance for high confidence
+                tolerance_seconds=10,  # Tight tolerance for high confidence
             )
 
             if comparison == 0:  # Within tolerance
                 # Event Log confirms Prefetch time
                 return Resolution(
-                    contradiction_type='causality_violation',
-                    resolution_method='event_log_confirms_prefetch',
+                    contradiction_type="causality_violation",
+                    resolution_method="event_log_confirms_prefetch",
                     confidence_recovery=0.30,
                     evidence={
-                        'prefetch_time': prefetch_time.isoformat(),
-                        'event_log_time': event.time_created.isoformat(),
-                        'event_id': event.event_id,
-                        'time_delta_seconds': abs(
+                        "prefetch_time": prefetch_time.isoformat(),
+                        "event_log_time": event.time_created.isoformat(),
+                        "event_id": event.event_id,
+                        "time_delta_seconds": abs(
                             (event.time_created - prefetch_time).total_seconds()
-                        )
-                    }
+                        ),
+                    },
                 )
 
         return None
@@ -485,15 +481,17 @@ class SelfCorrectionEngine:
             Severity label (critical, high, medium, low)
         """
         if not contradictions:
-            return 'info'
+            return "info"
 
         # Use highest severity from contradictions
-        severity_order = ['info', 'low', 'medium', 'high', 'critical']
-        max_severity = 'info'
+        severity_order = ["info", "low", "medium", "high", "critical"]
+        max_severity = "info"
 
         for contradiction in contradictions:
             severity_value = contradiction.severity.value
-            if severity_order.index(severity_value) > severity_order.index(max_severity):
+            if severity_order.index(severity_value) > severity_order.index(
+                max_severity
+            ):
                 max_severity = severity_value
 
         return max_severity
@@ -502,7 +500,7 @@ class SelfCorrectionEngine:
         self,
         executable: str,
         contradictions: List[Contradiction],
-        resolutions: List[Resolution]
+        resolutions: List[Resolution],
     ) -> str:
         """Generate human-readable description of finding.
 
@@ -514,7 +512,9 @@ class SelfCorrectionEngine:
         Returns:
             Description string
         """
-        lines = [f"Analysis of {executable} detected {len(contradictions)} contradiction(s):"]
+        lines = [
+            f"Analysis of {executable} detected {len(contradictions)} contradiction(s):"
+        ]
 
         for contradiction in contradictions:
             lines.append(f"- {contradiction.description}")
@@ -524,4 +524,4 @@ class SelfCorrectionEngine:
             for resolution in resolutions:
                 lines.append(f"- {resolution.resolution_method}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)

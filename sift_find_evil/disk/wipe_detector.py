@@ -117,7 +117,9 @@ def _build_evidence(inspection: GPTInspection, source: Path | None) -> dict[str,
         evidence["image_path"] = str(source)
     if inspection.secondary_header:
         evidence["secondary_header"] = inspection.secondary_header.to_dict()
-        evidence["secondary_entries"] = [e.to_dict() for e in inspection.secondary_entries]
+        evidence["secondary_entries"] = [
+            e.to_dict() for e in inspection.secondary_entries
+        ]
     return evidence
 
 

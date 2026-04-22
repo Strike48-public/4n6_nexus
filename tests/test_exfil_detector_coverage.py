@@ -294,7 +294,9 @@ def test_filter_mft_by_email_timeframe_handles_multiple_emails():
     file_time = datetime(2009, 12, 11, 16, 0, 0, tzinfo=timezone.utc)
     mft_entry = create_test_mft_entry(fn_modified=file_time)
 
-    result = _filter_mft_by_email_timeframe([mft_entry], [email1, email2], buffer_days=1)
+    result = _filter_mft_by_email_timeframe(
+        [mft_entry], [email1, email2], buffer_days=1
+    )
 
     assert len(result) == 1
 
@@ -397,7 +399,9 @@ def test_correlate_hashes_matches_file_to_email_within_time_window():
         subject="Test Email",
         submit_time=email_time,
         sender_email="sender@test.com",
-        attachments=[create_test_attachment(name="test.doc", size=2048, sha256="abc123")],
+        attachments=[
+            create_test_attachment(name="test.doc", size=2048, sha256="abc123")
+        ],
     )
 
     result = _correlate_hashes(file_hashes, [email], time_window_seconds=300)
@@ -588,7 +592,9 @@ def test_detect_exfiltration_with_no_successful_hashes_returns_none():
     file_time = datetime(2009, 12, 11, 16, 0, 0, tzinfo=timezone.utc)
     mft_entries = [create_test_mft_entry(fn_modified=file_time)]
     emails = [
-        create_test_email(submit_time=datetime(2009, 12, 11, 16, 0, 0, tzinfo=timezone.utc))
+        create_test_email(
+            submit_time=datetime(2009, 12, 11, 16, 0, 0, tzinfo=timezone.utc)
+        )
     ]
 
     with patch(
@@ -644,7 +650,9 @@ def test_detect_exfiltration_returns_finding_with_correlation():
     file_time = datetime(2009, 12, 11, 16, 30, 0, tzinfo=timezone.utc)
     mft_entries = [
         create_test_mft_entry(
-            file_path="C:\\sensitive.doc", file_size=len(file_content), fn_modified=file_time
+            file_path="C:\\sensitive.doc",
+            file_size=len(file_content),
+            fn_modified=file_time,
         )
     ]
 
@@ -655,7 +663,9 @@ def test_detect_exfiltration_returns_finding_with_correlation():
             submit_time=email_time,
             sender_email="attacker@evil.com",
             attachments=[
-                create_test_attachment(name="sensitive.doc", size=len(file_content), sha256=file_hash)
+                create_test_attachment(
+                    name="sensitive.doc", size=len(file_content), sha256=file_hash
+                )
             ],
         )
     ]
@@ -691,15 +701,11 @@ def test_detect_exfiltration_marks_primary_match_with_shortest_delta():
 
     # File 1: 10 second delta (should be primary)
     file1_time = datetime(2009, 12, 11, 16, 0, 0, tzinfo=timezone.utc)
-    mft1 = create_test_mft_entry(
-        file_path="C:\\file1.txt", fn_modified=file1_time
-    )
+    mft1 = create_test_mft_entry(file_path="C:\\file1.txt", fn_modified=file1_time)
 
     # File 2: 50 second delta
     file2_time = datetime(2009, 12, 11, 16, 0, 0, tzinfo=timezone.utc)
-    mft2 = create_test_mft_entry(
-        file_path="C:\\file2.txt", fn_modified=file2_time
-    )
+    mft2 = create_test_mft_entry(file_path="C:\\file2.txt", fn_modified=file2_time)
 
     # Email 1: 10 seconds after file1
     email1_time = datetime(2009, 12, 11, 16, 0, 10, tzinfo=timezone.utc)

@@ -5,10 +5,10 @@ from .confidence_scorer import ConfidenceScorer, Resolution
 from .engine import SelfCorrectionEngine, Finding
 
 __all__ = [
-    'ContradictionDetector',
-    'Contradiction',
-    'ConfidenceScorer',
-    'Resolution',
-    'SelfCorrectionEngine',
-    'Finding'
+    "ContradictionDetector",
+    "Contradiction",
+    "ConfidenceScorer",
+    "Resolution",
+    "SelfCorrectionEngine",
+    "Finding",
 ]

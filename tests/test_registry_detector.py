@@ -89,7 +89,7 @@ def test_run_key_flags_suspicious_temp_path_launcher():
 
 def test_run_key_flags_powershell_encoded():
     entry = _run_key(
-        command='powershell.exe -w hidden -encodedcommand ABCDEFG==',
+        command="powershell.exe -w hidden -encodedcommand ABCDEFG==",
     )
     findings = RegistryDetector().analyze(run_keys=[entry])
     assert len(findings) == 1
@@ -155,7 +155,7 @@ def test_run_key_survives_pathological_long_command():
 
 def test_run_key_multiple_powershell_flags():
     entry = _run_key(
-        command='powershell.exe -NoProfile -WindowStyle hidden -ExecutionPolicy Bypass -EncodedCommand AAAA'
+        command="powershell.exe -NoProfile -WindowStyle hidden -ExecutionPolicy Bypass -EncodedCommand AAAA"
     )
     findings = RegistryDetector().analyze(run_keys=[entry])
     assert len(findings) == 1
@@ -274,7 +274,10 @@ def test_userassist_ignores_launcher_with_focus():
 def test_empty_inputs_produce_no_findings():
     detector = RegistryDetector()
     assert detector.analyze() == []
-    assert detector.analyze(shimcache=[], amcache=[], bam=[], userassist=[], run_keys=[]) == []
+    assert (
+        detector.analyze(shimcache=[], amcache=[], bam=[], userassist=[], run_keys=[])
+        == []
+    )
 
 
 def test_run_key_evidence_prefers_payload_basename_over_lolbas_launcher():
@@ -324,7 +327,7 @@ def test_userassist_evidence_has_executable_basename():
 def test_full_pipeline_produces_mixed_findings():
     findings = RegistryDetector().analyze(
         run_keys=[
-            _run_key(command='powershell.exe -nop -w hidden -enc AAAA'),
+            _run_key(command="powershell.exe -nop -w hidden -enc AAAA"),
             _run_key(command='"C:\\Program Files\\Signed\\app.exe"'),
         ],
         shimcache=[_shimcache("C:\\Users\\Public\\mimi.exe")],

@@ -74,8 +74,24 @@ _CLOUD_HOSTS: tuple[str, ...] = (
 )
 
 _DEFAULT_SENSITIVE_EXTENSIONS: frozenset[str] = frozenset(
-    {".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".zip",
-     ".rar", ".7z", ".csv", ".json", ".sql", ".key", ".pem", ".dwg"}
+    {
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".pdf",
+        ".zip",
+        ".rar",
+        ".7z",
+        ".csv",
+        ".json",
+        ".sql",
+        ".key",
+        ".pem",
+        ".dwg",
+    }
 )
 
 
@@ -167,7 +183,9 @@ class CloudUploadDetector:
         provider = self._identify_provider(session)
 
         accessed_docs = self._find_sensitive_document_accesses(
-            mft_records, session_start - self.window, session_end + self.window,
+            mft_records,
+            session_start - self.window,
+            session_end + self.window,
         )
         http_corroboration = self._find_http_corroboration(session, http_requests)
 
@@ -237,10 +255,13 @@ class CloudUploadDetector:
             artifact_sources.append("pcap")
 
         confidence_label = (
-            "Very High" if confidence >= 0.9
-            else "High" if confidence >= 0.75
-            else "Medium" if confidence >= 0.5
-            else "Low"
+            "Very High"
+            if confidence >= 0.9
+            else (
+                "High"
+                if confidence >= 0.75
+                else "Medium" if confidence >= 0.5 else "Low"
+            )
         )
 
         return Finding(
@@ -318,9 +339,7 @@ class CloudUploadDetector:
     ) -> bool:
         """True if ts falls inside the window. Handles timezone drift gracefully."""
         if (ts.tzinfo is None) != (window_start.tzinfo is None):
-            return (
-                ts.replace(tzinfo=None)
-                >= window_start.replace(tzinfo=None)
-                and ts.replace(tzinfo=None) <= window_end.replace(tzinfo=None)
-            )
+            return ts.replace(tzinfo=None) >= window_start.replace(
+                tzinfo=None
+            ) and ts.replace(tzinfo=None) <= window_end.replace(tzinfo=None)
         return window_start <= ts <= window_end

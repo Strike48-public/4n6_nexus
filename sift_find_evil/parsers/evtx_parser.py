@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EventLogEntry:
     """Represents a single Windows Event Log entry."""
+
     time_created: datetime
     event_id: int
     record_id: int
@@ -82,10 +83,10 @@ class EventLogEntry:
             return None
 
         # Extract filename from path (handle both \ and /)
-        if '\\' in process_path:
-            return process_path.split('\\')[-1]
-        elif '/' in process_path:
-            return process_path.split('/')[-1]
+        if "\\" in process_path:
+            return process_path.split("\\")[-1]
+        elif "/" in process_path:
+            return process_path.split("/")[-1]
         else:
             return process_path
 
@@ -104,7 +105,9 @@ class EventLogParser:
     # silently parsing non-EvtxECmd CSVs into empty EventLogEntry rows (SFE-2lr).
     REQUIRED_COLUMNS: tuple[str, ...] = ("TimeCreated", "EventId")
 
-    def parse_csv(self, csv_path: str, filter_event_ids: Optional[List[int]] = None) -> List[EventLogEntry]:
+    def parse_csv(
+        self, csv_path: str, filter_event_ids: Optional[List[int]] = None
+    ) -> List[EventLogEntry]:
         """Parse EvtxECmd CSV file.
 
         Args:
@@ -125,7 +128,7 @@ class EventLogParser:
 
         entries = []
 
-        with open(csv_file, 'r', encoding='utf-8') as f:
+        with open(csv_file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             _require_columns(reader, self.REQUIRED_COLUMNS, csv_file, "Event Log")
 
@@ -149,27 +152,27 @@ class EventLogParser:
         """
         try:
             # Parse required fields
-            time_created = self._parse_timestamp(row.get('TimeCreated'))
+            time_created = self._parse_timestamp(row.get("TimeCreated"))
             if not time_created:
                 return None  # Skip entries without timestamp
 
-            event_id = int(row.get('EventId', 0))
-            record_id = int(row.get('RecordId', 0))
-            computer = row.get('Computer', '')
-            channel = row.get('Channel', '')
-            level = row.get('Level', '')
+            event_id = int(row.get("EventId", 0))
+            record_id = int(row.get("RecordId", 0))
+            computer = row.get("Computer", "")
+            channel = row.get("Channel", "")
+            level = row.get("Level", "")
 
             # Parse optional fields
-            user_id = row.get('UserId') or None
-            map_description = row.get('MapDescription') or None
+            user_id = row.get("UserId") or None
+            map_description = row.get("MapDescription") or None
 
             # Parse payload data (Maps-extracted fields)
-            payload_data1 = row.get('PayloadData1') or None
-            payload_data2 = row.get('PayloadData2') or None
-            payload_data3 = row.get('PayloadData3') or None
-            payload_data4 = row.get('PayloadData4') or None
-            payload_data5 = row.get('PayloadData5') or None
-            payload_data6 = row.get('PayloadData6') or None
+            payload_data1 = row.get("PayloadData1") or None
+            payload_data2 = row.get("PayloadData2") or None
+            payload_data3 = row.get("PayloadData3") or None
+            payload_data4 = row.get("PayloadData4") or None
+            payload_data5 = row.get("PayloadData5") or None
+            payload_data6 = row.get("PayloadData6") or None
 
             return EventLogEntry(
                 time_created=time_created,
@@ -185,7 +188,7 @@ class EventLogParser:
                 payload_data4=payload_data4,
                 payload_data5=payload_data5,
                 payload_data6=payload_data6,
-                map_description=map_description
+                map_description=map_description,
             )
 
         except Exception as e:
@@ -202,7 +205,7 @@ class EventLogParser:
         Returns:
             Datetime object, or None if null/invalid
         """
-        if not timestamp_str or timestamp_str.strip() == '':
+        if not timestamp_str or timestamp_str.strip() == "":
             return None
 
         try:
@@ -216,7 +219,9 @@ class EventLogParser:
         except Exception:
             return None
 
-    def get_process_creation_events(self, entries: List[EventLogEntry]) -> List[EventLogEntry]:
+    def get_process_creation_events(
+        self, entries: List[EventLogEntry]
+    ) -> List[EventLogEntry]:
         """Filter to process-creation events across Windows generations.
 
         Matches Event ID 4688 (Vista+) and 592 (XP / Server 2003).
@@ -229,8 +234,12 @@ class EventLogParser:
         """
         return [e for e in entries if e.is_process_creation()]
 
-    def find_by_executable(self, entries: List[EventLogEntry], executable_name: str,
-                          case_sensitive: bool = False) -> List[EventLogEntry]:
+    def find_by_executable(
+        self,
+        entries: List[EventLogEntry],
+        executable_name: str,
+        case_sensitive: bool = False,
+    ) -> List[EventLogEntry]:
         """Find events for a specific executable.
 
         Args:
@@ -257,9 +266,12 @@ class EventLogParser:
 
         return matches
 
-    def find_by_time_window(self, entries: List[EventLogEntry],
-                           target_time: datetime,
-                           tolerance_seconds: int = 300) -> List[EventLogEntry]:
+    def find_by_time_window(
+        self,
+        entries: List[EventLogEntry],
+        target_time: datetime,
+        tolerance_seconds: int = 300,
+    ) -> List[EventLogEntry]:
         """Find events within a time window.
 
         Args:
@@ -274,9 +286,7 @@ class EventLogParser:
 
         for entry in entries:
             comparison = self.comparator.compare(
-                entry.time_created,
-                target_time,
-                tolerance_seconds
+                entry.time_created, target_time, tolerance_seconds
             )
 
             if comparison == 0:  # Within tolerance
@@ -284,11 +294,14 @@ class EventLogParser:
 
         return matches
 
-    def resolve_contradiction(self, executable_name: str,
-                            prefetch_time: datetime,
-                            mft_time: datetime,
-                            entries: List[EventLogEntry],
-                            tolerance_seconds: int = 300) -> dict:
+    def resolve_contradiction(
+        self,
+        executable_name: str,
+        prefetch_time: datetime,
+        mft_time: datetime,
+        entries: List[EventLogEntry],
+        tolerance_seconds: int = 300,
+    ) -> dict:
         """Use process-creation events (4688 or 592) as MFT vs Prefetch tiebreaker.
 
         Args:
@@ -307,52 +320,54 @@ class EventLogParser:
 
         if not exe_events:
             return {
-                'resolution': 'uncertain_no_event_log',
-                'confidence_recovery': 0.0,
-                'reasoning': f'No Event ID 4688 found for {executable_name}',
-                'event_count': 0
+                "resolution": "uncertain_no_event_log",
+                "confidence_recovery": 0.0,
+                "reasoning": f"No Event ID 4688 found for {executable_name}",
+                "event_count": 0,
             }
 
         # Find events within tolerance of Prefetch time
         matching_events = self.find_by_time_window(
-            exe_events,
-            prefetch_time,
-            tolerance_seconds
+            exe_events, prefetch_time, tolerance_seconds
         )
 
         if matching_events:
             # Event Log confirms Prefetch time
             closest_event = min(
                 matching_events,
-                key=lambda e: abs(self.comparator.time_delta_seconds(e.time_created, prefetch_time) or float('inf'))
+                key=lambda e: abs(
+                    self.comparator.time_delta_seconds(e.time_created, prefetch_time)
+                    or float("inf")
+                ),
             )
 
             time_delta = self.comparator.time_delta_seconds(
-                closest_event.time_created,
-                prefetch_time
+                closest_event.time_created, prefetch_time
             )
 
             return {
-                'resolution': 'event_log_confirms_prefetch',
-                'ground_truth_time': closest_event.time_created,
-                'confidence_recovery': 0.30,  # Recover 30% confidence
-                'reasoning': f'Event ID 4688 confirms execution at {closest_event.time_created}, '
-                           f'aligning with Prefetch (Δ{time_delta:.1f}s)',
-                'event_count': len(matching_events),
-                'closest_event': closest_event
+                "resolution": "event_log_confirms_prefetch",
+                "ground_truth_time": closest_event.time_created,
+                "confidence_recovery": 0.30,  # Recover 30% confidence
+                "reasoning": f"Event ID 4688 confirms execution at {closest_event.time_created}, "
+                f"aligning with Prefetch (Δ{time_delta:.1f}s)",
+                "event_count": len(matching_events),
+                "closest_event": closest_event,
             }
         else:
             # Events found but not within tolerance window
             return {
-                'resolution': 'event_log_mismatch',
-                'confidence_recovery': 0.0,
-                'reasoning': f'Found {len(exe_events)} Event ID 4688 entries but none within '
-                           f'±{tolerance_seconds}s of Prefetch time',
-                'event_count': len(exe_events),
-                'all_event_times': [e.time_created for e in exe_events]
+                "resolution": "event_log_mismatch",
+                "confidence_recovery": 0.0,
+                "reasoning": f"Found {len(exe_events)} Event ID 4688 entries but none within "
+                f"±{tolerance_seconds}s of Prefetch time",
+                "event_count": len(exe_events),
+                "all_event_times": [e.time_created for e in exe_events],
             }
 
-    def get_events_by_id(self, entries: List[EventLogEntry], event_id: int) -> List[EventLogEntry]:
+    def get_events_by_id(
+        self, entries: List[EventLogEntry], event_id: int
+    ) -> List[EventLogEntry]:
         """Filter events by Event ID.
 
         Args:
@@ -364,9 +379,12 @@ class EventLogParser:
         """
         return [e for e in entries if e.event_id == event_id]
 
-    def get_timeline(self, entries: List[EventLogEntry],
-                    start_time: Optional[datetime] = None,
-                    end_time: Optional[datetime] = None) -> List[EventLogEntry]:
+    def get_timeline(
+        self,
+        entries: List[EventLogEntry],
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+    ) -> List[EventLogEntry]:
         """Get events within a time range.
 
         Args:

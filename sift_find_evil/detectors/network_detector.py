@@ -51,12 +51,8 @@ class NetworkDetector:
         self.webmail_exfil = webmail_exfil or WebmailExfilDetector()
         self.cloud_upload = cloud_upload or CloudUploadDetector()
         self.suspicious_host = suspicious_host or SuspiciousHostDetector()
-        self.offensive_package = (
-            offensive_package or OffensivePackageInstallDetector()
-        )
-        self.cleartext_protocol = (
-            cleartext_protocol or CleartextProtocolDetector()
-        )
+        self.offensive_package = offensive_package or OffensivePackageInstallDetector()
+        self.cleartext_protocol = cleartext_protocol or CleartextProtocolDetector()
         self.beaconing = beaconing or BeaconingDetector()
         self.dns_anomaly = dns_anomaly or DNSAnomalyDetector()
         self.exfil_ratio = exfil_ratio or ExfilRatioDetector()
@@ -110,24 +106,16 @@ class NetworkDetector:
             )
 
         if http_list is not None:
-            findings.extend(
-                self.offensive_package.analyze(http_requests=http_list)
-            )
-            findings.extend(
-                self.beaconing.analyze(http_requests=http_list)
-            )
+            findings.extend(self.offensive_package.analyze(http_requests=http_list))
+            findings.extend(self.beaconing.analyze(http_requests=http_list))
 
         if dns_list is not None:
-            findings.extend(
-                self.dns_anomaly.analyze(dns_queries=dns_list)
-            )
+            findings.extend(self.dns_anomaly.analyze(dns_queries=dns_list))
 
         if tcp_conversations is not None:
             conv_list = list(tcp_conversations)
             findings.extend(
-                self.cleartext_protocol.analyze(
-                    tcp_conversations=conv_list
-                )
+                self.cleartext_protocol.analyze(tcp_conversations=conv_list)
             )
             findings.extend(
                 self.exfil_ratio.analyze(

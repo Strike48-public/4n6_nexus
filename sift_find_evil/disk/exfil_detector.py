@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # Time window for correlation: file modified → email sent
 DEFAULT_TIME_WINDOW_SECONDS = 300
 
+
 # Graduated confidence thresholds based on time delta
 def _calculate_confidence(time_delta_seconds: float) -> tuple[float, str]:
     """Calculate confidence score based on time delta.
@@ -73,7 +74,9 @@ class ExfilMatch:
         return {
             "file_path": self.file_path,
             "file_size": self.file_size,
-            "file_modified": self.file_modified.isoformat() if self.file_modified else None,
+            "file_modified": (
+                self.file_modified.isoformat() if self.file_modified else None
+            ),
             "file_sha256": self.file_sha256,
             "email_subject": self.email_subject,
             "email_sent": self.email_sent.isoformat() if self.email_sent else None,
@@ -177,7 +180,9 @@ def _filter_mft_by_email_timeframe(
     ]
 
     if not email_dates:
-        logger.warning("No emails with timestamps found, cannot filter MFT by timeframe")
+        logger.warning(
+            "No emails with timestamps found, cannot filter MFT by timeframe"
+        )
         return []
 
     earliest = min(email_dates) - timedelta(days=buffer_days)
@@ -193,7 +198,9 @@ def _filter_mft_by_email_timeframe(
         if mod_time and earliest <= mod_time <= latest:
             candidates.append(entry)
 
-    logger.info(f"Filtered {len(mft_entries)} MFT entries → {len(candidates)} candidates")
+    logger.info(
+        f"Filtered {len(mft_entries)} MFT entries → {len(candidates)} candidates"
+    )
     return candidates
 
 
@@ -353,7 +360,9 @@ def detect_exfiltration(
     stats["candidates"] = len(candidates)
 
     if not candidates:
-        logger.info("No MFT entries in email timeframe, skipping exfiltration detection")
+        logger.info(
+            "No MFT entries in email timeframe, skipping exfiltration detection"
+        )
         return None
 
     # Step 2: Hash candidate files
@@ -383,9 +392,7 @@ def detect_exfiltration(
 
     # Step 4: Mark primary evidence (shortest time delta)
     matches.sort(key=lambda m: m.time_delta_seconds)
-    primary_match = ExfilMatch(
-        **{**matches[0].__dict__, "is_primary": True}
-    )
+    primary_match = ExfilMatch(**{**matches[0].__dict__, "is_primary": True})
     matches[0] = primary_match
 
     # Step 5: Build finding
@@ -393,7 +400,9 @@ def detect_exfiltration(
     evidence = _build_evidence(matches, stats)
 
     # Calculate confidence based on primary match time delta
-    confidence, confidence_label = _calculate_confidence(primary_match.time_delta_seconds)
+    confidence, confidence_label = _calculate_confidence(
+        primary_match.time_delta_seconds
+    )
 
     return ExfilFinding(
         title=f"Data exfiltration detected: {len(matches)} file(s) emailed within {time_window_seconds}s",
