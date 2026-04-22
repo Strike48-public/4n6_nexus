@@ -393,10 +393,31 @@ class MemoryDetector:
             return None
         if _is_loopback(row.foreign_addr):
             return None
+        # IPv6 — we do not yet have scenario coverage to tune the ULA /
+        # link-local / public-v6 policy, and mis-classifying fc00::/7 as
+        # external exfil is worse than skipping it. Revisit when the
+        # Linux plugin coverage ticket (SFE-35e) lands real v6 fixtures.
+        if _is_ipv6(row.foreign_addr):
+            return None
         # LISTENING sockets have no committed remote endpoint; skip them
         # to avoid flagging every service-waiting-for-clients as suspicious.
+        # Half-dead states (CLOSE_WAIT, TIME_WAIT, FIN_WAIT*) represent
+        # torn-down connections — the socket existed at snapshot time but
+        # is no longer carrying traffic. We skip them to avoid double-
+        # counting the same conversation whose ESTABLISHED half already
+        # fired (or was missed, in which case it is lost regardless).
         state = (row.state or "").upper()
-        if state in {"LISTENING", "LISTEN", "CLOSED"}:
+        if state in {
+            "LISTENING",
+            "LISTEN",
+            "CLOSED",
+            "CLOSE_WAIT",
+            "TIME_WAIT",
+            "FIN_WAIT1",
+            "FIN_WAIT2",
+            "CLOSING",
+            "LAST_ACK",
+        }:
             return None
 
         basename = _normalize_basename(row.owner or "")
@@ -505,6 +526,11 @@ class MemoryDetector:
                 *reasons,
                 "Remote Services abuse (MITRE T1021) is how operators "
                 "pivot from initial foothold to additional hosts.",
+                "False-positive surface: legitimate administration "
+                "(PSRemoting over WinRM, RDP sessions, SMB admin "
+                "shares) will match this pattern. Confirm the source "
+                "context — user, timeline, expected maintenance window "
+                "— before escalation.",
             ],
             artifact_sources=["memory"],
         )
@@ -606,5 +632,12 @@ def _is_rfc1918(addr: str) -> bool:
 def _is_loopback(addr: str) -> bool:
     try:
         return ipaddress.ip_address(addr).is_loopback
+    except ValueError:
+        return False
+
+
+def _is_ipv6(addr: str) -> bool:
+    try:
+        return isinstance(ipaddress.ip_address(addr), ipaddress.IPv6Address)
     except ValueError:
         return False

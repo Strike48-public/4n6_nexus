@@ -317,6 +317,67 @@ def test_netscan_loopback_ignored() -> None:
     assert findings == []
 
 
+def test_netscan_ipv6_skipped_until_policy() -> None:
+    """IPv6 ULA / link-local / public-v6 policy is unset. Skip rather
+    than mis-classify fc00::/7 as external exfiltration. SFE-35e will
+    revisit once Linux plugin coverage brings v6 fixtures."""
+    for addr in ("fc00::1", "fe80::dead:beef", "2001:db8::1"):
+        row = _netscan_row(owner="powershell.exe", foreign_addr=addr)
+        findings = MemoryDetector().analyze(netscan=[row])
+        assert findings == [], f"IPv6 {addr} should be skipped"
+
+
+def test_netscan_half_dead_states_skipped() -> None:
+    """Torn-down TCP states (CLOSE_WAIT, TIME_WAIT, FIN_WAIT*) represent
+    connections no longer carrying traffic. Skip to avoid double-counting
+    against the ESTABLISHED half of the same conversation."""
+    for state in (
+        "CLOSE_WAIT",
+        "TIME_WAIT",
+        "FIN_WAIT1",
+        "FIN_WAIT2",
+        "CLOSING",
+        "LAST_ACK",
+    ):
+        row = _netscan_row(
+            owner="powershell.exe",
+            foreign_addr="203.0.113.50",
+            foreign_port=4444,
+            state=state,
+        )
+        findings = MemoryDetector().analyze(netscan=[row])
+        assert findings == [], f"state={state} should be skipped"
+
+
+def test_netscan_port_zero_fires_low_confidence() -> None:
+    """Port 0 / None coalesces to 0; still a LOLBAS-holding-external-
+    socket signal, just not on a known reverse-shell port."""
+    row = _netscan_row(
+        owner="powershell.exe",
+        foreign_addr="203.0.113.10",
+        foreign_port=None,
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 1
+    assert findings[0].confidence == 0.55
+    assert findings[0].severity == "medium"
+
+
+def test_netscan_lm_finding_mentions_admin_false_positive() -> None:
+    """Lateral-movement reasoning chain must call out legitimate remote
+    admin (PSRemoting, RDP) as a false-positive surface so triage does
+    not treat every 0.80 hit as confirmed pivot."""
+    row = _netscan_row(
+        owner="powershell.exe",
+        foreign_addr="10.0.0.50",
+        foreign_port=5985,
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 1
+    chain = " ".join(findings[0].reasoning_chain).lower()
+    assert "psremoting" in chain or "remote administration" in chain
+
+
 # -- multi-stream integration ---------------------------------------------
 
 
