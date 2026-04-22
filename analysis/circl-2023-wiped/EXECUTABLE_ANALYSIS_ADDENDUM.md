@@ -234,3 +234,73 @@ Successfully implemented and executed comprehensive executable analysis for CIRC
 **Analyst**: SIFT Find Evil Engine  
 **Date**: 2026-04-18  
 **Status**: Analysis Complete
+
+---
+
+## YARA Pass (SFE-zbc · 2026-04-22)
+
+### Approach
+
+Ran the sift_find_evil YaraDetector over every file in `analysis/circl-2023-wiped/carved_executables/` using the in-repo seed rules (`rules/yara/seed/*.yar`).
+
+- Script: `scripts/scan_circl_yara.py`
+- Rules compiled: 6 (pe_header, elf_header, upx_packed, suspicious_cmd_execution_strings, suspicious_network_api_strings, eicar_test_string)
+- Rule compile errors: 0
+- Report: `analysis/circl-2023-wiped/yara_scan_report.json`
+
+### Runtime
+
+| Metric | Value |
+|---|---|
+| Files scanned | 5 |
+| Total bytes | 50,629,531 (48.3 MiB) |
+| Rule compile time | 33 ms |
+| Scan wall time | 0.09 s |
+| Throughput | ~553 MiB/s |
+| Per-file wall time | 12 - 28 ms |
+
+### Matches
+
+| File | Size | Matches | Rule(s) |
+|---|---|---|---|
+| exe_001.exe | 10 MiB | 1 | pe_header |
+| exe_002.exe | 10 MiB | 1 | pe_header |
+| exe_003.exe | 10 MiB | 1 | pe_header |
+| exe_004.exe | 10 MiB | 1 | pe_header |
+| exe_005.exe | 8.7 MiB | 1 | pe_header |
+
+- Total matches: 5 (one per file)
+- Rule breakdown: `pe_header: 5`
+- Family breakdown: `unknown: 5`
+- Severity breakdown: `low: 5`
+
+No matches from `upx_packed`, `suspicious_cmd_execution_strings`, `suspicious_network_api_strings`, `elf_header`, or `eicar_test_string`.
+
+### Interpretation
+
+The seed ruleset is intentionally minimal — it is tuned to smoke-test the detector pipeline, not to produce triage-quality classifications. The `pe_header` hit on all five files only confirms that signature carving recovered valid MZ-prefixed buffers; it does not flag any file as malicious.
+
+For real triage signal on CIRCL-class artifacts we need the community rulesets pending in SFE-qmh (YARA-Rules, Signature-Base). Once those land, rerunning this same script against the same `carved_executables/` directory should surface family-level matches (packers, known C2 stubs, common RATs) and populate the `family_breakdown` with something more informative than `unknown`.
+
+### Triage Time: Baseline vs YARA-Assisted
+
+Epic SFE-86p targeted "triage drops from 60-90 min to 5-10 min per file." Measured here:
+
+- Manual triage baseline (per SFE-86p epic description, pre-YARA): 60 - 90 min per file to establish maliciousness by hand (strings, PE header inspection, VirusTotal hash lookup, entropy).
+- YARA-assisted, seed rules only (this pass): ~18 ms per file of automated analysis, reducing an analyst's first pass to "look at the report, decide which files need deeper investigation." Files with zero suspicious-rule hits can be deprioritized immediately; only the subset with meaningful rule fires needs manual work.
+- Realistic per-file analyst time under this pipeline, once community rules are in: 5 - 10 min for the files YARA does not classify as benign, zero time for everything else.
+
+The seed-rule pass does not by itself land in the 5 - 10 min band because it cannot yet distinguish benign from malicious with confidence. What it does prove is that the pipeline's throughput (hundreds of MiB/s on this hardware) is orders of magnitude faster than any human workflow, so the speedup claim in SFE-86p becomes rule-quality-bound, not engine-bound.
+
+### Follow-Up
+
+- SFE-qmh: ship community rulesets, rerun `scripts/scan_circl_yara.py`, diff the new `rule_breakdown` against this baseline.
+- SFE-e9p: surface oversized-file skips and YARA 4.3+ StringMatch branches in the scanner; relevant once rules generate per-string evidence at scale.
+- (Data gap) The epic-era "403 files" figure reflected an upper bound across the full 8 GiB logical disk; the sparse E01 only preserves 5 fragments. Re-carving is out of scope for SFE-zbc.
+
+### Reproducing
+
+```bash
+PYTHONPATH=. python scripts/scan_circl_yara.py
+# Writes analysis/circl-2023-wiped/yara_scan_report.json
+```
