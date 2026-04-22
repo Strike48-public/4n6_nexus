@@ -51,5 +51,22 @@ jobs:
       - name: ruff check
         run: ruff check .
 
-      - name: pytest
-        run: pytest -q
+      - name: pytest (with coverage gate)
+        # Coverage threshold starts at 85% (current: 87% after excluding
+        # cli.py/__main__.py, which are exercised E2E rather than by unit
+        # tests — see [tool.coverage.run] omit in pyproject.toml). Bump this
+        # when coverage rises; never lower it to accommodate new code.
+        run: |
+          pytest -q \
+            --cov=sift_find_evil \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=85
+
+      - name: Upload coverage.xml artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
