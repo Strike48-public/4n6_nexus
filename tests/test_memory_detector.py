@@ -15,6 +15,8 @@ from sift_find_evil.memory.volatility_runner import (
     BashHistoryRow,
     CommandLineRow,
     InjectionRow,
+    LinuxNetworkRow,
+    LinuxProcessRow,
     NetworkRow,
     ProcessRow,
 )
@@ -675,3 +677,135 @@ def test_bash_base64_decode_pipe_sh_fires() -> None:
     findings = MemoryDetector().analyze(linux_bash=[row])
     assert len(findings) == 1
     assert "T1140" in findings[0].evidence["mitre_attack"]
+
+
+# -- linux pslist (SFE-xc7) ------------------------------------------------
+#
+# linux.pslist rows gain two heuristics: processes launched from a deleted
+# on-disk binary (COMM ends with "(deleted)") and kthread-style impersonators
+# (non-kthread process with kthread-looking comms like "[kworker/0:1]"). The
+# signal is tighter than on Windows because Linux processes routinely fork
+# helpers; we only fire on shapes that correspond to attacker TTPs.
+
+
+def _linux_proc_row(
+    pid: int,
+    name: str,
+    *,
+    ppid: int = 1,
+    euid: int | None = 0,
+) -> LinuxProcessRow:
+    return LinuxProcessRow(
+        pid=pid,
+        ppid=ppid,
+        name=name,
+        euid=euid,
+        create_time="2020-09-20T10:00:00",
+        raw_row={},
+    )
+
+
+def test_linux_pslist_deleted_binary_fires() -> None:
+    """A process whose backing executable was unlinked while running is a
+    canonical Linux malware evasion trick (defense evasion T1070)."""
+    row = _linux_proc_row(4242, "evil (deleted)")
+    findings = MemoryDetector().analyze(linux_pslist=[row])
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.PROCESS_INJECTION
+    assert findings[0].evidence["pid"] == 4242
+    assert "T1070.004" in findings[0].evidence["mitre_attack"]
+
+
+def test_linux_pslist_kthread_impersonator_fires() -> None:
+    """Masquerading as a kernel worker (PPID != 2, bracketed comm) is a
+    common rootkit hiding shape mapping to MITRE T1036."""
+    row = _linux_proc_row(4242, "[kworker/0:evil]", ppid=1)
+    findings = MemoryDetector().analyze(linux_pslist=[row])
+    assert len(findings) == 1
+    assert "T1036" in findings[0].evidence["mitre_attack"]
+
+
+def test_linux_pslist_real_kthread_does_not_fire() -> None:
+    """Genuine kernel workers are children of PID 2 (kthreadd) and must
+    not alert; otherwise every healthy Linux box trips the detector."""
+    row = _linux_proc_row(42, "[kworker/0:1]", ppid=2)
+    findings = MemoryDetector().analyze(linux_pslist=[row])
+    assert findings == []
+
+
+def test_linux_pslist_benign_process_does_not_fire() -> None:
+    row = _linux_proc_row(100, "systemd")
+    assert MemoryDetector().analyze(linux_pslist=[row]) == []
+
+
+# -- linux sockstat (SFE-xc7) ---------------------------------------------
+#
+# linux.sockstat mirrors Windows netscan. The same RFC1918/public-IP split
+# applies; LOLBAS on Linux is a different shell list (bash/sh/python/perl)
+# so the detector has its own basename set.
+
+
+def _linux_netscan_row(
+    *,
+    pid: int | None = 4242,
+    process: str | None = "bash",
+    protocol: str = "TCP",
+    local_addr: str | None = "10.0.0.5",
+    local_port: int | None = 55302,
+    foreign_addr: str | None = "198.51.100.7",
+    foreign_port: int | None = 4444,
+    state: str | None = "ESTABLISHED",
+) -> LinuxNetworkRow:
+    return LinuxNetworkRow(
+        pid=pid,
+        process=process,
+        protocol=protocol,
+        local_addr=local_addr,
+        local_port=local_port,
+        foreign_addr=foreign_addr,
+        foreign_port=foreign_port,
+        state=state,
+        raw_row={},
+    )
+
+
+def test_linux_sockstat_shell_external_peer_reverse_shell_port_fires_high() -> None:
+    row = _linux_netscan_row(
+        process="bash",
+        foreign_addr="198.51.100.7",
+        foreign_port=4444,
+    )
+    findings = MemoryDetector().analyze(linux_sockstat=[row])
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.DATA_EXFILTRATION
+    assert findings[0].confidence >= 0.80
+    assert "T1071" in findings[0].evidence["mitre_attack"]
+
+
+def test_linux_sockstat_shell_rfc1918_peer_fires_lateral_movement() -> None:
+    row = _linux_netscan_row(
+        process="python3",
+        foreign_addr="10.0.0.50",
+        foreign_port=22,
+    )
+    findings = MemoryDetector().analyze(linux_sockstat=[row])
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.LATERAL_MOVEMENT
+    assert "T1021" in findings[0].evidence["mitre_attack"]
+
+
+def test_linux_sockstat_loopback_skipped() -> None:
+    row = _linux_netscan_row(foreign_addr="127.0.0.1", foreign_port=8080)
+    assert MemoryDetector().analyze(linux_sockstat=[row]) == []
+
+
+def test_linux_sockstat_non_shell_process_does_not_fire() -> None:
+    """sshd / nginx holding external sockets is normal server traffic.
+    We only escalate when the owning process is a shell/interpreter."""
+    row = _linux_netscan_row(process="nginx", foreign_addr="198.51.100.7")
+    assert MemoryDetector().analyze(linux_sockstat=[row]) == []
+
+
+def test_linux_sockstat_listening_state_skipped() -> None:
+    row = _linux_netscan_row(state="LISTEN", foreign_addr=None, foreign_port=None)
+    assert MemoryDetector().analyze(linux_sockstat=[row]) == []

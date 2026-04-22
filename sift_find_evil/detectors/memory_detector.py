@@ -50,6 +50,8 @@ from ..memory.volatility_runner import (
     BashHistoryRow,
     CommandLineRow,
     InjectionRow,
+    LinuxNetworkRow,
+    LinuxProcessRow,
     NetworkRow,
     ProcessRow,
 )
@@ -172,6 +174,47 @@ _BASH_BASE64_EXEC = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
+# Linux equivalent of LOLBAS — shells and scripting interpreters that
+# attackers routinely repurpose for reverse shells, exfil, and lateral
+# movement. Deliberately narrower than the Windows list: daemons like sshd
+# and nginx hold long-lived sockets legitimately and firing on them would
+# drown the signal.
+_LINUX_LOLBAS: frozenset[str] = frozenset(
+    {
+        "sh",
+        "bash",
+        "dash",
+        "zsh",
+        "ksh",
+        "python",
+        "python2",
+        "python3",
+        "perl",
+        "ruby",
+        "nc",
+        "ncat",
+        "socat",
+    }
+)
+
+# Linux-specific lateral-movement ports: SSH carries session hijacking and
+# is rarer as a benign cross-host channel inside a single subnet; NFS
+# covers share-based pivots; the Windows SMB/WinRM/RPC set still matters
+# on mixed networks where a compromised Linux host targets a Windows box.
+_LINUX_LM_PORTS: frozenset[int] = frozenset(
+    {
+        22,  # SSH
+        111,  # NFS portmapper
+        2049,  # NFS
+        *_SMB_WINRM_RPC_PORTS,
+    }
+)
+
+# PID of kthreadd on Linux — the sole legitimate parent of bracketed-comm
+# kernel workers. Any process whose name looks like a kernel worker but
+# whose PPID is not 2 is a masquerade attempt (MITRE T1036).
+_KTHREADD_PID = 2
+
 
 class MemoryDetector:
     """Convert Volatility plugin rows into Findings.
@@ -197,6 +240,8 @@ class MemoryDetector:
         cmdline: Optional[Iterable[CommandLineRow]] = None,
         netscan: Optional[Iterable[NetworkRow]] = None,
         linux_bash: Optional[Iterable[BashHistoryRow]] = None,
+        linux_pslist: Optional[Iterable[LinuxProcessRow]] = None,
+        linux_sockstat: Optional[Iterable[LinuxNetworkRow]] = None,
     ) -> list[Finding]:
         """Return findings derived from any supplied plugin streams.
 
@@ -213,6 +258,8 @@ class MemoryDetector:
         findings.extend(self._analyze_cmdline(cmdline or ()))
         findings.extend(self._analyze_netscan(netscan or ()))
         findings.extend(self._analyze_linux_bash(linux_bash or ()))
+        findings.extend(self._analyze_linux_pslist(linux_pslist or ()))
+        findings.extend(self._analyze_linux_sockstat(linux_sockstat or ()))
         return findings
 
     # --- malfind (unbacked RWX memory) -------------------------------------
@@ -759,6 +806,254 @@ class MemoryDetector:
                 "False-positive surface: installer scripts and package "
                 "managers occasionally use curl|sh patterns; confirm the "
                 "destination URL and timing before escalation.",
+            ],
+            artifact_sources=["memory"],
+        )
+
+    # --- linux pslist (T1070.004 deleted-binary / T1036 masquerade) -------
+
+    def _analyze_linux_pslist(self, rows: Iterable[LinuxProcessRow]) -> list[Finding]:
+        findings: list[Finding] = []
+        for row in rows:
+            name = (row.name or "").strip()
+            if not name:
+                continue
+            if name.endswith("(deleted)"):
+                findings.append(self._build_linux_deleted_binary_finding(row))
+                continue
+            if (
+                name.startswith("[")
+                and name.endswith("]")
+                and row.ppid != _KTHREADD_PID
+            ):
+                findings.append(self._build_linux_kthread_masquerade_finding(row))
+        return findings
+
+    def _build_linux_deleted_binary_finding(self, row: LinuxProcessRow) -> Finding:
+        return Finding(
+            title=(f"Process running from deleted binary: PID {row.pid} ({row.name})"),
+            description=(
+                f"Volatility linux.pslist shows PID {row.pid} with COMM "
+                f"{row.name!r}. The '(deleted)' suffix means the on-disk "
+                "executable was unlinked while the process was still "
+                "running — a canonical Linux malware trick to hide from "
+                "filesystem-based IR tools (MITRE T1070.004)."
+            ),
+            finding_type="behavior",
+            severity="high",
+            category=FindingCategory.PROCESS_INJECTION,
+            evidence={
+                "pid": row.pid,
+                "ppid": row.ppid,
+                "process": row.name,
+                "euid": row.euid,
+                "mitre_attack": ["T1070.004"],
+            },
+            confidence=0.80,
+            confidence_label="High",
+            reasoning_chain=[
+                f"PID {row.pid} has COMM {row.name!r} ending in '(deleted)'.",
+                "The kernel appends '(deleted)' to /proc/<pid>/exe when the "
+                "backing inode has been unlinked; attackers use this to "
+                "evade forensic tools that only scan the filesystem.",
+                "False-positive surface: package upgrades briefly leave "
+                "old binary instances running as '(deleted)' until the "
+                "service restarts. Correlate with process age and parent "
+                "before escalation.",
+            ],
+            artifact_sources=["memory"],
+        )
+
+    def _build_linux_kthread_masquerade_finding(self, row: LinuxProcessRow) -> Finding:
+        return Finding(
+            title=(
+                f"Kernel-worker masquerade: PID {row.pid} ({row.name}) "
+                f"ppid={row.ppid}"
+            ),
+            description=(
+                f"Volatility linux.pslist shows PID {row.pid} with COMM "
+                f"{row.name!r} (bracketed, kernel-worker style) but parent "
+                f"PID is {row.ppid} rather than 2 (kthreadd). Only kernel "
+                "threads spawn with PPID=2; a user-space process using a "
+                "bracketed comm is masquerading (MITRE T1036)."
+            ),
+            finding_type="behavior",
+            severity="high",
+            category=FindingCategory.PROCESS_INJECTION,
+            evidence={
+                "pid": row.pid,
+                "ppid": row.ppid,
+                "process": row.name,
+                "euid": row.euid,
+                "mitre_attack": ["T1036"],
+            },
+            confidence=0.80,
+            confidence_label="High",
+            reasoning_chain=[
+                f"PID {row.pid} has bracketed COMM {row.name!r}.",
+                f"Its PPID is {row.ppid}; genuine kernel workers are "
+                "always children of PID 2 (kthreadd).",
+                "Renaming a user-space process with prctl(PR_SET_NAME) to "
+                "a bracketed string is a well-documented defense-evasion "
+                "shape (MITRE T1036).",
+            ],
+            artifact_sources=["memory"],
+        )
+
+    # --- linux sockstat (T1071 exfil / T1021 lateral-movement) ------------
+
+    def _analyze_linux_sockstat(self, rows: Iterable[LinuxNetworkRow]) -> list[Finding]:
+        findings: list[Finding] = []
+        for row in rows:
+            finding = self._classify_linux_sockstat_row(row)
+            if finding is not None:
+                findings.append(finding)
+        return findings
+
+    def _classify_linux_sockstat_row(self, row: LinuxNetworkRow) -> Optional[Finding]:
+        if not row.foreign_addr:
+            return None
+        if _is_loopback(row.foreign_addr):
+            return None
+        # IPv6 — same reasoning as Windows netscan: we do not yet have
+        # tuned fixtures, and fc00::/7 vs. public-v6 misclassification is
+        # worse than skipping. Revisit when v6 scenario coverage exists.
+        if _is_ipv6(row.foreign_addr):
+            return None
+        state = (row.state or "").upper()
+        if state in {
+            "LISTEN",
+            "LISTENING",
+            "CLOSED",
+            "CLOSE_WAIT",
+            "TIME_WAIT",
+            "FIN_WAIT1",
+            "FIN_WAIT2",
+            "CLOSING",
+            "LAST_ACK",
+        }:
+            return None
+
+        basename = _normalize_basename(row.process or "")
+        if basename not in _LINUX_LOLBAS:
+            return None
+
+        is_private = _is_rfc1918(row.foreign_addr)
+        port = row.foreign_port or 0
+
+        if is_private:
+            return self._build_linux_lateral_movement_finding(row, basename, port)
+        return self._build_linux_exfil_finding(row, basename, port)
+
+    def _build_linux_lateral_movement_finding(
+        self, row: LinuxNetworkRow, basename: str, port: int
+    ) -> Finding:
+        is_lm_port = port in _LINUX_LM_PORTS
+        reasons = [
+            f"Shell/interpreter process '{basename}' owns the socket",
+            f"Foreign address {row.foreign_addr} is RFC1918 (internal peer)",
+        ]
+        if is_lm_port:
+            reasons.append(
+                f"Destination port {port} is SSH/NFS/SMB — canonical "
+                "lateral-movement channel"
+            )
+            confidence, label, severity = 0.80, "High", "high"
+        else:
+            confidence, label, severity = 0.55, "Low", "medium"
+        return Finding(
+            title=(
+                f"Shell to internal peer: PID {row.pid} "
+                f"({row.process}) -> {row.foreign_addr}:{port}"
+            ),
+            description=(
+                f"Volatility linux.sockstat shows {row.process} "
+                f"(PID {row.pid}) connected to {row.foreign_addr}:{port}. "
+                "A shell/interpreter process talking to an RFC1918 peer is "
+                f"a lateral-movement signal (MITRE T1021). Suspicious "
+                f"because: {'; '.join(reasons)}."
+            ),
+            finding_type="behavior",
+            severity=severity,
+            category=FindingCategory.LATERAL_MOVEMENT,
+            evidence={
+                "pid": row.pid,
+                "process": row.process,
+                "protocol": row.protocol,
+                "local_addr": row.local_addr,
+                "local_port": row.local_port,
+                "foreign_addr": row.foreign_addr,
+                "foreign_port": port,
+                "state": row.state,
+                "reasons": reasons,
+                "mitre_attack": ["T1021"],
+            },
+            confidence=confidence,
+            confidence_label=label,
+            reasoning_chain=[
+                f"PID {row.pid} ({row.process}) holds a socket to "
+                f"{row.foreign_addr}:{port}.",
+                *reasons,
+                "Remote Services abuse (MITRE T1021) is how operators "
+                "pivot to additional hosts after initial foothold.",
+                "False-positive surface: admin SSH from a jumpbox can "
+                "match this pattern; confirm source user and session "
+                "timing before escalation.",
+            ],
+            artifact_sources=["memory"],
+        )
+
+    def _build_linux_exfil_finding(
+        self, row: LinuxNetworkRow, basename: str, port: int
+    ) -> Finding:
+        is_reverse_shell_port = port in _REVERSE_SHELL_PORTS
+        reasons = [
+            f"Shell/interpreter process '{basename}' owns an external socket",
+            f"Foreign address {row.foreign_addr} is publicly routable",
+        ]
+        if is_reverse_shell_port:
+            reasons.append(
+                f"Destination port {port} is a known reverse-shell / C2 default"
+            )
+            confidence, label, severity = 0.80, "High", "high"
+        else:
+            confidence, label, severity = 0.55, "Low", "medium"
+        return Finding(
+            title=(
+                f"Shell external connection: PID {row.pid} "
+                f"({row.process}) -> {row.foreign_addr}:{port}"
+            ),
+            description=(
+                f"Volatility linux.sockstat shows {row.process} "
+                f"(PID {row.pid}) connected to {row.foreign_addr}:{port}. "
+                "A shell or scripting interpreter holding a socket to a "
+                "routable foreign address is a canonical reverse-shell / "
+                f"C2 signal (MITRE T1071). Suspicious because: "
+                f"{'; '.join(reasons)}."
+            ),
+            finding_type="behavior",
+            severity=severity,
+            category=FindingCategory.DATA_EXFILTRATION,
+            evidence={
+                "pid": row.pid,
+                "process": row.process,
+                "protocol": row.protocol,
+                "local_addr": row.local_addr,
+                "local_port": row.local_port,
+                "foreign_addr": row.foreign_addr,
+                "foreign_port": port,
+                "state": row.state,
+                "reasons": reasons,
+                "mitre_attack": ["T1071"],
+            },
+            confidence=confidence,
+            confidence_label=label,
+            reasoning_chain=[
+                f"PID {row.pid} ({row.process}) holds a socket to "
+                f"{row.foreign_addr}:{port}.",
+                *reasons,
+                "Application-Layer Protocol abuse (MITRE T1071) is the "
+                "usual channel for reverse shells and beaconing.",
             ],
             artifact_sources=["memory"],
         )
