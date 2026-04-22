@@ -279,14 +279,14 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     fn = [name for name in expected if name not in detected]
 
     # When the scenario's expected finding is a category count rather than a
-    # named executable (webmail exfiltration, cloud-storage upload), count
-    # each title-matching finding as a true positive up to the expected total.
+    # named executable (webmail exfiltration, cloud-storage upload), match
+    # on the structured exfil_type evidence field instead of title substring.
     webmail_expected = expectation.finding_counts.get("webmail_exfiltration", 0)
     if webmail_expected:
         matched = [
             f for f in network_findings
             if f.category.value == "data_exfiltration"
-            and "webmail" in f.title.lower()
+            and f.evidence.get("exfil_type") == "webmail"
         ]
         tp.extend(["webmail_exfiltration"] * min(webmail_expected, len(matched)))
         missing = max(webmail_expected - len(matched), 0)
@@ -297,7 +297,7 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         matched = [
             f for f in network_findings
             if f.category.value == "data_exfiltration"
-            and "cloud-storage" in f.title.lower()
+            and f.evidence.get("exfil_type") == "cloud_upload"
         ]
         tp.extend(["cloud_upload"] * min(cloud_expected, len(matched)))
         missing = max(cloud_expected - len(matched), 0)

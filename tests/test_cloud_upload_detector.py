@@ -52,6 +52,8 @@ def test_dropbox_upload_url_emits_finding() -> None:
     assert findings[0].category == FindingCategory.DATA_EXFILTRATION
     assert "Dropbox" in findings[0].title
     assert findings[0].confidence == pytest.approx(0.55)
+    # Structured discriminator so scoring doesn't depend on title substrings.
+    assert findings[0].evidence["exfil_type"] == "cloud_upload"
 
 
 def test_google_drive_upload_detected() -> None:

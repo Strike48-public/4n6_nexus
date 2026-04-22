@@ -448,7 +448,7 @@ def _score(
         matched = [
             f for f in network_findings
             if f.category.value == "data_exfiltration"
-            and "webmail" in f.title.lower()
+            and f.evidence.get("exfil_type") == "webmail"
         ]
         tp.extend(["webmail_exfiltration"] * min(webmail_expected, len(matched)))
         missing = max(webmail_expected - len(matched), 0)
@@ -459,7 +459,7 @@ def _score(
         matched = [
             f for f in network_findings
             if f.category.value == "data_exfiltration"
-            and "cloud-storage" in f.title.lower()
+            and f.evidence.get("exfil_type") == "cloud_upload"
         ]
         tp.extend(["cloud_upload"] * min(cloud_expected, len(matched)))
         missing = max(cloud_expected - len(matched), 0)

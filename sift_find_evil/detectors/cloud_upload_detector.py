@@ -199,6 +199,7 @@ class CloudUploadDetector:
         confidence = min(confidence, 0.95)
 
         evidence = {
+            "exfil_type": "cloud_upload",
             "provider": provider,
             "session_start": session_start.isoformat(),
             "session_end": session_end.isoformat(),

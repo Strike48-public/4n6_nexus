@@ -66,6 +66,8 @@ def test_compose_then_sent_marker_emits_finding() -> None:
     assert findings[0].category == FindingCategory.DATA_EXFILTRATION
     assert "Gmail" in findings[0].title
     assert findings[0].confidence == pytest.approx(0.55)
+    # Structured discriminator so scoring doesn't depend on title substrings.
+    assert findings[0].evidence["exfil_type"] == "webmail"
 
 
 def test_sensitive_doc_access_within_window_boosts_confidence() -> None:
