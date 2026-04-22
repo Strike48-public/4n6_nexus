@@ -44,6 +44,20 @@ WINDOWS_PLUGINS: frozenset[str] = frozenset(
     }
 )
 
+# Linux plugin equivalents. Added under SFE-35e so Linux memory dumps
+# (ggmemday1.dmp and friends) can run through the same runner surface.
+# Only a focused subset is wired up — pslist covers process enumeration,
+# bash gives us attacker command history, and sockstat covers live TCP/UDP
+# sockets. pstree and maps can follow in a separate ticket if detectors
+# need parent-child process graphs beyond what pslist's ppid provides.
+LINUX_PLUGINS: frozenset[str] = frozenset(
+    {
+        "linux.pslist.PsList",
+        "linux.bash.Bash",
+        "linux.sockstat.Sockstat",
+    }
+)
+
 _DEFAULT_TIMEOUT_SEC = 600  # 10 minutes; large dumps take a while to symbolize
 
 
@@ -147,6 +161,60 @@ class CommandLineRow:
     raw_row: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class LinuxProcessRow:
+    """One row from linux.pslist.PsList.
+
+    Mirrors ``ProcessRow`` but with Linux-specific columns: ``euid`` is
+    the effective user id which is the main signal for privilege escalation
+    analysis. ``tid`` (thread id) is preserved on raw_row for detectors that
+    need to distinguish a process's main thread from helper threads.
+    """
+
+    pid: int
+    ppid: int
+    name: str
+    euid: Optional[int]
+    create_time: Optional[str]
+    raw_row: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class BashHistoryRow:
+    """One row from linux.bash.Bash.
+
+    The bash plugin walks the in-memory history buffer of every running
+    bash process. ``command`` is the raw command string — do not assume it
+    is sanitized or free of control characters.
+    """
+
+    pid: int
+    process: str
+    command_time: Optional[str]
+    command: Optional[str]
+    raw_row: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class LinuxNetworkRow:
+    """One row from linux.sockstat.Sockstat.
+
+    Normalizes to the same shape as ``NetworkRow`` so detectors that want
+    to treat Windows and Linux connections identically can do so. The raw
+    ``Family`` (AF_INET, AF_INET6, AF_UNIX, ...) is preserved on raw_row.
+    """
+
+    pid: Optional[int]
+    process: Optional[str]
+    protocol: Optional[str]
+    local_addr: Optional[str]
+    local_port: Optional[int]
+    foreign_addr: Optional[str]
+    foreign_port: Optional[int]
+    state: Optional[str]
+    raw_row: dict[str, Any] = field(default_factory=dict)
+
+
 class VolatilityRunner:
     """Execute Volatility 3 plugins against one memory image.
 
@@ -225,6 +293,21 @@ class VolatilityRunner:
         """Run ``windows.cmdline.CmdLine`` — per-process command lines."""
         rows = self._run_plugin("windows.cmdline.CmdLine")
         return [_to_cmdline_row(r) for r in rows]
+
+    def run_linux_pslist(self) -> list[LinuxProcessRow]:
+        """Run ``linux.pslist.PsList`` — process enumeration for Linux dumps."""
+        rows = self._run_plugin("linux.pslist.PsList")
+        return [_to_linux_process_row(r) for r in rows]
+
+    def run_linux_bash(self) -> list[BashHistoryRow]:
+        """Run ``linux.bash.Bash`` — in-memory bash command history."""
+        rows = self._run_plugin("linux.bash.Bash")
+        return [_to_bash_history_row(r) for r in rows]
+
+    def run_linux_sockstat(self) -> list[LinuxNetworkRow]:
+        """Run ``linux.sockstat.Sockstat`` — TCP/UDP socket entries."""
+        rows = self._run_plugin("linux.sockstat.Sockstat")
+        return [_to_linux_network_row(r) for r in rows]
 
     def _run_plugin(self, plugin: str) -> list[dict[str, Any]]:
         """Invoke one Volatility plugin and return its flattened row list.
@@ -369,5 +452,51 @@ def _to_cmdline_row(row: dict[str, Any]) -> CommandLineRow:
         pid=_to_int(row.get("PID")) or 0,
         process=str(row.get("Process") or ""),
         args=_to_str(row.get("Args")),
+        raw_row=dict(row),
+    )
+
+
+def _to_linux_process_row(row: dict[str, Any]) -> LinuxProcessRow:
+    """Coerce a linux.pslist row into a LinuxProcessRow.
+
+    Vol3 linux.pslist uses ``COMM`` (comm, the Linux process name, limited
+    to TASK_COMM_LEN=16 chars) rather than the Windows ImageFileName.
+    """
+    return LinuxProcessRow(
+        pid=_to_int(row.get("PID")) or 0,
+        ppid=_to_int(row.get("PPID")) or 0,
+        name=str(row.get("COMM") or row.get("Name") or ""),
+        euid=_to_int(row.get("EUID")),
+        create_time=_to_str(row.get("CreationTime")),
+        raw_row=dict(row),
+    )
+
+
+def _to_bash_history_row(row: dict[str, Any]) -> BashHistoryRow:
+    return BashHistoryRow(
+        pid=_to_int(row.get("PID")) or 0,
+        process=str(row.get("Process") or ""),
+        command_time=_to_str(row.get("CommandTime")),
+        command=_to_str(row.get("Command")),
+        raw_row=dict(row),
+    )
+
+
+def _to_linux_network_row(row: dict[str, Any]) -> LinuxNetworkRow:
+    """Coerce a linux.sockstat row into a LinuxNetworkRow.
+
+    Vol3 column names differ from Windows netscan: ``Source Addr``/``Source
+    Port`` vs ``LocalAddr``/``LocalPort``. Normalize to the Windows-ish
+    shape so detectors can ignore the OS.
+    """
+    return LinuxNetworkRow(
+        pid=_to_int(row.get("PID")),
+        process=_to_str(row.get("Process")),
+        protocol=_to_str(row.get("Proto")),
+        local_addr=_to_str(row.get("Source Addr")),
+        local_port=_to_int(row.get("Source Port")),
+        foreign_addr=_to_str(row.get("Destination Addr")),
+        foreign_port=_to_int(row.get("Destination Port")),
+        state=_to_str(row.get("State")),
         raw_row=dict(row),
     )
