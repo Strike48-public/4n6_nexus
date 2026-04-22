@@ -12,6 +12,7 @@ from sift_find_evil.findings import FindingCategory
 from sift_find_evil.memory.volatility_runner import (
     CommandLineRow,
     InjectionRow,
+    NetworkRow,
     ProcessRow,
 )
 
@@ -53,6 +54,30 @@ def _malfind_row(
 
 def _cmdline_row(pid: int, process: str, args: str) -> CommandLineRow:
     return CommandLineRow(pid=pid, process=process, args=args, raw_row={})
+
+
+def _netscan_row(
+    *,
+    pid: int | None = 1234,
+    owner: str | None = "evil.exe",
+    protocol: str = "TCPv4",
+    local_addr: str | None = "10.0.0.5",
+    local_port: int | None = 49152,
+    foreign_addr: str | None = "1.2.3.4",
+    foreign_port: int | None = 443,
+    state: str | None = "ESTABLISHED",
+) -> NetworkRow:
+    return NetworkRow(
+        pid=pid,
+        owner=owner,
+        protocol=protocol,
+        local_addr=local_addr,
+        local_port=local_port,
+        foreign_addr=foreign_addr,
+        foreign_port=foreign_port,
+        state=state,
+        raw_row={},
+    )
 
 
 # -- malfind / process injection -------------------------------------------
@@ -198,6 +223,100 @@ def test_cmdline_null_args_skipped() -> None:
     assert findings == []
 
 
+# -- netscan (suspicious sockets) -----------------------------------------
+
+
+def test_netscan_lolbas_with_external_connection_fires() -> None:
+    """A LOLBAS host (powershell.exe) with an ESTABLISHED connection to a
+    routable foreign IP is the canonical reverse-shell / C2 signal."""
+    row = _netscan_row(
+        owner="powershell.exe",
+        foreign_addr="203.0.113.45",
+        foreign_port=4444,
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.category == FindingCategory.DATA_EXFILTRATION
+    assert f.severity == "high"
+    # Two reasons (LOLBAS + reverse-shell port) -> high confidence.
+    assert f.confidence >= 0.80
+    assert "T1071" in f.evidence["mitre_attack"]
+    assert f.evidence["pid"] == 1234
+
+
+def test_netscan_lolbas_to_rfc1918_flags_lateral_movement() -> None:
+    """LOLBAS reaching an internal address (10/8, 172.16/12, 192.168/16)
+    is a lateral-movement signal, not exfiltration."""
+    row = _netscan_row(
+        owner="cmd.exe",
+        foreign_addr="10.0.0.50",
+        foreign_port=445,
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.LATERAL_MOVEMENT
+    assert "T1021" in findings[0].evidence["mitre_attack"]
+
+
+def test_netscan_unowned_socket_fires_hidden() -> None:
+    """Sockets with no owning PID (kernel-side / unlinked) are a rootkit
+    adjunct — the process was hidden or killed before snapshot."""
+    row = _netscan_row(pid=None, owner=None, foreign_addr="198.51.100.7")
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.PROCESS_INJECTION
+    assert "T1014" in findings[0].evidence["mitre_attack"]
+
+
+def test_netscan_benign_chrome_does_not_fire() -> None:
+    """A browser talking HTTPS is noise — don't flag every outbound 443."""
+    row = _netscan_row(
+        owner="chrome.exe",
+        foreign_addr="142.250.72.46",
+        foreign_port=443,
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert findings == []
+
+
+def test_netscan_lolbas_on_standard_https_fires_low() -> None:
+    """A LOLBAS host (powershell.exe) on 443 to an external IP is a
+    single-reason match — suspicious enough to surface but not
+    escalation-worthy on its own."""
+    row = _netscan_row(
+        owner="powershell.exe",
+        foreign_addr="203.0.113.10",
+        foreign_port=443,
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 1
+    assert findings[0].severity == "medium"
+    assert findings[0].confidence < 0.80
+
+
+def test_netscan_listening_state_skipped_when_no_foreign_addr() -> None:
+    """LISTENING sockets have no foreign address — they're servers
+    waiting for inbound traffic, not outbound connections. Skip them
+    to keep finding counts manageable."""
+    row = _netscan_row(
+        owner="powershell.exe",
+        foreign_addr=None,
+        foreign_port=None,
+        state="LISTENING",
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert findings == []
+
+
+def test_netscan_loopback_ignored() -> None:
+    """127.0.0.0/8 connections never leave the host; they're IPC, not
+    exfil or lateral movement."""
+    row = _netscan_row(owner="powershell.exe", foreign_addr="127.0.0.1")
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert findings == []
+
+
 # -- multi-stream integration ---------------------------------------------
 
 
@@ -206,16 +325,22 @@ def test_analyze_aggregates_across_streams() -> None:
     psscan = [_proc(1234, "explorer.exe"), _proc(9999, "rootkit.exe")]
     malfind = [_malfind_row(1234)]
     cmdline = [_cmdline_row(1234, "powershell.exe", "powershell -enc aGk=")]
+    netscan = [_netscan_row(owner="powershell.exe", foreign_addr="203.0.113.9", foreign_port=4444)]
 
     findings = MemoryDetector().analyze(
-        pslist=pslist, psscan=psscan, malfind=malfind, cmdline=cmdline,
+        pslist=pslist,
+        psscan=psscan,
+        malfind=malfind,
+        cmdline=cmdline,
+        netscan=netscan,
     )
 
-    # Three unique findings: malfind RWX, hidden process, cmdline.
-    assert len(findings) == 3
+    # Four unique findings: malfind RWX, hidden process, cmdline, netscan.
+    assert len(findings) == 4
     categories = {f.category for f in findings}
     assert FindingCategory.PROCESS_INJECTION in categories
     assert FindingCategory.PERSISTENCE in categories
+    assert FindingCategory.DATA_EXFILTRATION in categories
 
 
 def test_analyze_with_no_streams_returns_empty() -> None:

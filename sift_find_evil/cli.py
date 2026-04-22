@@ -481,12 +481,13 @@ def _run_memory_detector(
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    pslist = psscan = malfind = cmdline = None
+    pslist = psscan = malfind = cmdline = netscan = None
     for name, fn in (
         ("pslist", runner.run_pslist),
         ("psscan", runner.run_psscan),
         ("malfind", runner.run_malfind),
         ("cmdline", runner.run_cmdline),
+        ("netscan", runner.run_netscan),
     ):
         try:
             rows = fn()
@@ -507,18 +508,21 @@ def _run_memory_detector(
             malfind = rows
         elif name == "cmdline":
             cmdline = rows
+        elif name == "netscan":
+            netscan = rows
 
     findings = MemoryDetector().analyze(
         pslist=pslist,
         psscan=psscan,
         malfind=malfind,
         cmdline=cmdline,
+        netscan=netscan,
     )
 
     # If every Windows plugin failed (e.g. analyst pointed --memory at a
     # Linux dump) the detector silently returns no findings. Surface that
     # explicitly so the operator doesn't interpret 0 findings as "clean".
-    if all(stream is None for stream in (pslist, psscan, malfind, cmdline)):
+    if all(stream is None for stream in (pslist, psscan, malfind, cmdline, netscan)):
         print(
             "Warning: no memory plugins returned data. "
             "Confirm the dump OS matches the plugin set "
