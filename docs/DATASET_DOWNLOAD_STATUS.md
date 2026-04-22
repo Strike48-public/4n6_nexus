@@ -1,6 +1,6 @@
 # Dataset Download Status
 
-**Last Updated**: 2026-04-18
+**Last Updated**: 2026-04-22
 **Purpose**: Track available forensic datasets and download attempts
 
 ---
@@ -11,19 +11,19 @@
 |---------|--------|------|----------|-------|
 | M57 Jean laptop | Downloaded | 2.9 GB | scenarios/real/m57-jean/evidence/ | E01, E02 segments |
 | M57 Jean USB | Not Downloaded | ~500 MB | - | USB drive missing |
-| M57 Pat | Failed (404) | ~4 GB | - | URLs return 404 errors |
-| M57 Terry | Not Attempted | ~4 GB | - | - |
-| M57 Charlie | Not Attempted | ~4 GB | - | - |
-| M57 Jo | Not Attempted | ~4 GB | - | - |
+| M57 Pat | URLs Verified | 5.72 GB | - | HEAD 200 via S3 redirect |
+| M57 Terry (2 parts) | URLs Verified | 19.72 GB | - | HEAD 200 via S3 redirect |
+| M57 Charlie | URLs Verified | 3.61 GB | - | HEAD 200 via S3 redirect |
+| M57 Jo (2 parts) | URLs Verified | 11.07 GB | - | HEAD 200 via S3 redirect |
 | M57 Network | Not Attempted | Variable | - | PCAP files |
 | M57 Memory | Not Attempted | 20-80 GB | - | RAM dumps |
 | Nitroba PCAP | Downloaded | 54 MB | scenarios/real/nitroba/evidence/ | Network capture |
 | CIRCL Wiped | Downloaded | 52 MB | scenarios/circl-2023-wiped/ | Disk wipe challenge |
 | CFReDS data_leakage | Not Available | - | - | HTML stubs only |
 
-**Total Downloaded**: ~3 GB  
-**Total Available**: ~3 GB  
-**Attempted but Failed**: ~4 GB (Pat - 404 errors)
+**Total Downloaded**: ~3 GB
+**Total Available (verified fetchable)**: ~43 GB (Jean + Pat + Terry + Charlie + Jo redacted)
+**Resolved (was 404)**: M57 redacted disks — new URL format confirmed live on 2026-04-22
 
 ---
 
@@ -60,36 +60,33 @@ Purpose: Advanced data recovery challenge
 
 ---
 
-## Download Failures
+## Resolved Failures
 
-### M57 Pat's Desktop
-**Attempted**: 2026-04-18  
-**Method**: `./download_all.sh pat`  
-**Error**: HTTP 404 - The requested URL returned error: 404
+### M57 Redacted Disks (Pat / Terry / Charlie / Jo)
+**Resolved**: 2026-04-22 (SFE-c73)
+**Prior status**: 404 against `nps-2009-pat/nps-2009-pat.E01` style URLs
 
-**URLs Attempted**:
-- https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-pat/nps-2009-pat.E01
-- https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/nps-2009-pat/nps-2009-pat.E02
-- https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/usb-drives/pat-usb-2009-12-11.E01
+**Root cause**: Digital Corpora renamed the M57 scenario path. The
+`m57-patents/nps-2009-*` layout was replaced by
+`2009-m57-patents/drives-redacted/<name>-2009-12-11.E01`.
 
-**Root Cause**: Files not available at Digital Corpora URLs
+**Current URLs** (all return HTTP 200 via 302 redirect to
+`digitalcorpora.s3.amazonaws.com`; sizes match `scenario.yaml` exactly):
 
-**Possible Solutions**:
-1. Check Digital Corpora website for updated URLs
-2. Contact Digital Corpora for access
-3. Verify if files have been relocated
-4. Check if account/permission is required
+| File | Size | Status |
+|------|------|--------|
+| pat-2009-12-11.E01 | 6,146,409,989 B (5.72 GB) | 200 |
+| terry-2009-12-11-001.E01 | 10,593,607,311 B (9.87 GB) | 200 |
+| terry-2009-12-11-002.E01 | 10,576,418,278 B (9.85 GB) | 200 |
+| charlie-2009-12-11.E01 | 3,874,203,396 B (3.61 GB) | 200 |
+| jo-2009-12-11-001.E01 | 5,945,571,099 B (5.54 GB) | 200 |
+| jo-2009-12-11-002.E01 | 5,939,239,364 B (5.53 GB) | 200 |
 
----
-
-## Not Yet Attempted
-
-### M57 Additional Characters
-- **Terry's laptop**: nps-2009-terry (2 E01 segments + USB)
-- **Charlie's laptop**: nps-2009-charlie (2 E01 segments + USB)
-- **Jo's laptop**: nps-2009-jo (2 E01 segments + USB)
-
-**Reason for deferral**: Pat download failed with 404, suggesting all nps-2009-* files may be unavailable
+Manifest (`scenarios/real/m57-patents/scenario.yaml`) already carries the
+updated URLs and SHA-256 hashes — no code change required to fetch them.
+Running `./scenarios/real/m57-patents/download_all.sh` should now
+succeed. Disks are marked `required: false`, so nothing blocks CI if the
+operator opts not to fetch the ~43 GB redacted subset.
 
 ### M57 Network Traffic
 - **Location**: https://downloads.digitalcorpora.org/corpora/scenarios/m57-patents/net/
@@ -158,29 +155,24 @@ Total Projected:   53-103 GB
 ## Next Steps
 
 ### Immediate (Priority 1)
-1. **Investigate M57 404 errors**
-   - Check Digital Corpora website for updated URLs
-   - Verify if authentication is required
-   - Contact support if necessary
-
-2. **Work with available datasets**
+1. **Work with available datasets**
    - M57 Jean (2.9 GB) - PRIMARY FOCUS
    - Nitroba (54 MB) - Network analysis
    - CIRCL Wiped (52 MB) - Data recovery
 
-3. **Complete Phase 1 Implementation**
+2. **Complete Phase 1 Implementation**
    - Registry parser tests (20+ tests)
    - Scenarios 07-10 creation
    - NSRL integration
    - Use Jean's evidence for testing
 
 ### Short-Term (Priority 2)
-4. **Resolve M57 download issues**
-   - Alternative download sources
-   - Direct contact with Digital Corpora
-   - Academic/institutional access
+3. **Fetch the M57 redacted disks as needed**
+   - URL format resolved 2026-04-22; manifest is current
+   - Opt-in via `./scenarios/real/m57-patents/download_all.sh <char>`
+   - ~43 GB total for all 5 custodians' redacted subsets
 
-5. **Expand testing coverage**
+4. **Expand testing coverage**
    - Additional scenarios from available data
    - Cross-reference with other datasets
    - Verify detection capabilities
@@ -204,16 +196,13 @@ Total Projected:   53-103 GB
 
 ### M57 Patents
 ```bash
-cd scenarios/m57-patents
+cd scenarios/real/m57-patents
 
-# Individual characters
-./download_all.sh jean      # Already downloaded
-./download_all.sh pat       # FAILED - 404 errors
-./download_all.sh terry     # Not attempted
-./download_all.sh charlie   # Not attempted
-./download_all.sh jo        # Not attempted
+# Individual characters (URLs verified live 2026-04-22)
+./download_all.sh           # Pulls every evidence row in scenario.yaml
+# Jean's laptop lives in scenarios/real/m57-jean (already downloaded)
 
-# Special categories
+# Special categories (URLs not yet verified)
 ./download_all.sh network   # Network captures
 ./download_all.sh memory    # Memory dumps
 ./download_all.sh docs      # Teaching materials
@@ -280,6 +269,7 @@ wiped_disk.E01: TBD (calculate with md5sum)
 
 ---
 
-**Status**: 3 datasets available (3 GB), sufficient for Phase 1 testing and development
+**Status**: 3 datasets downloaded (3 GB). M57 redacted subset (~43 GB, 5
+custodians) is URL-verified and fetchable on demand.
 
-**Last Updated**: 2026-04-18
+**Last Updated**: 2026-04-22
