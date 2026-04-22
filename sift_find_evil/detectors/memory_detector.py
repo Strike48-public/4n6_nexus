@@ -47,6 +47,7 @@ from typing import Iterable, Optional
 from ..findings import FindingCategory
 from ..memory.obfuscation import DeobfuscationResult, analyze_cmdline_obfuscation
 from ..memory.volatility_runner import (
+    BashHistoryRow,
     CommandLineRow,
     InjectionRow,
     NetworkRow,
@@ -133,6 +134,44 @@ _SMB_WINRM_RPC_PORTS: frozenset[int] = frozenset(
     }
 )
 
+# Bash-history heuristics (SFE-6tv). Each pattern maps to an MITRE ATT&CK
+# sub-technique and a human-readable reason. The set is deliberately tight
+# — we only flag shapes that are overwhelmingly hostile in an incident
+# response context (curl|sh from a URL, download+chmod+execute from /tmp,
+# base64 decoded straight into a shell). Generic curl / wget alone do not
+# fire because legitimate admin work uses them constantly.
+_BASH_DOWNLOAD_EXEC_PIPE = re.compile(
+    r"""
+    (?:curl|wget|fetch)        # downloader
+    [^|;&]*?                   # (non-greedy) arguments, no command separator
+    \|\s*                      # pipe
+    (?:sh|bash|dash|zsh|ksh)   # shell
+    \b
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+_BASH_TMP_DOWNLOAD_EXEC = re.compile(
+    r"""
+    (?:curl|wget|fetch)        # downloader
+    [^;&]*?                    # arguments
+    /tmp/\S+                   # write into /tmp
+    .*?
+    (?:chmod\s+\+x|chmod\s+\d*[1357]\d*)   # chmod executable
+    """,
+    re.IGNORECASE | re.VERBOSE | re.DOTALL,
+)
+
+_BASH_BASE64_EXEC = re.compile(
+    r"""
+    base64\s+(?:-d|--decode|-D)   # base64 decode
+    [^|;&]*
+    \|\s*
+    (?:sh|bash|dash|zsh|ksh|python|perl|ruby)\b
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
 
 class MemoryDetector:
     """Convert Volatility plugin rows into Findings.
@@ -157,6 +196,7 @@ class MemoryDetector:
         malfind: Optional[Iterable[InjectionRow]] = None,
         cmdline: Optional[Iterable[CommandLineRow]] = None,
         netscan: Optional[Iterable[NetworkRow]] = None,
+        linux_bash: Optional[Iterable[BashHistoryRow]] = None,
     ) -> list[Finding]:
         """Return findings derived from any supplied plugin streams.
 
@@ -172,6 +212,7 @@ class MemoryDetector:
         findings.extend(self._analyze_hidden_processes(pslist, psscan))
         findings.extend(self._analyze_cmdline(cmdline or ()))
         findings.extend(self._analyze_netscan(netscan or ()))
+        findings.extend(self._analyze_linux_bash(linux_bash or ()))
         return findings
 
     # --- malfind (unbacked RWX memory) -------------------------------------
@@ -640,6 +681,84 @@ class MemoryDetector:
                 *reasons,
                 "Application-Layer Protocol abuse (MITRE T1071) is the "
                 "usual channel for reverse shells and beaconing.",
+            ],
+            artifact_sources=["memory"],
+        )
+
+    # --- linux bash history (T1059.004 / T1105 / T1140) -------------------
+
+    def _analyze_linux_bash(self, rows: Iterable[BashHistoryRow]) -> list[Finding]:
+        findings: list[Finding] = []
+        for row in rows:
+            # Rows without a recovered command string (e.g. truncated history
+            # entries) have no content to match — skip rather than crash.
+            if not row.command:
+                continue
+            # Upper bound keeps a single pathological history line from
+            # regex-backtracking the engine to a halt; the heuristics only
+            # care about the prefix of the command anyway.
+            if len(row.command) > _MAX_COMMAND_LENGTH:
+                continue
+            reasons: list[str] = []
+            mitre: list[str] = []
+            if _BASH_DOWNLOAD_EXEC_PIPE.search(row.command):
+                reasons.append(
+                    "downloader piped directly into a shell (curl|sh / wget|bash)"
+                )
+                mitre.append("T1059.004")
+            if _BASH_TMP_DOWNLOAD_EXEC.search(row.command):
+                reasons.append("downloaded executable into /tmp and chmod +x")
+                mitre.append("T1105")
+            if _BASH_BASE64_EXEC.search(row.command):
+                reasons.append("base64-decoded payload piped into an interpreter")
+                mitre.append("T1140")
+            if not reasons:
+                continue
+            findings.append(self._build_bash_history_finding(row, reasons, mitre))
+        return findings
+
+    def _build_bash_history_finding(
+        self,
+        row: BashHistoryRow,
+        reasons: list[str],
+        mitre: list[str],
+    ) -> Finding:
+        # Any single bash-history hit is high-signal: these shapes map 1:1
+        # to intrusion runbooks for Linux endpoints. Multiple hits compound
+        # the signal but do not change severity — one curl|sh is already
+        # enough to escalate.
+        confidence = 0.85 if len(reasons) >= 2 else 0.75
+        label = "High" if len(reasons) >= 2 else "Medium"
+        return Finding(
+            title=(f"Suspicious bash history: PID {row.pid} ({row.process})"),
+            description=(
+                f"Volatility linux.bash recovered command "
+                f"{row.command!r} for PID {row.pid} ({row.process}). "
+                f"Suspicious because: {'; '.join(reasons)}."
+            ),
+            finding_type="behavior",
+            severity="high",
+            category=FindingCategory.PERSISTENCE,
+            evidence={
+                "pid": row.pid,
+                "process": row.process,
+                "command": row.command,
+                "command_time": row.command_time,
+                "reasons": reasons,
+                "mitre_attack": mitre,
+            },
+            confidence=confidence,
+            confidence_label=label,
+            reasoning_chain=[
+                f"PID {row.pid} ({row.process}) executed {row.command!r}.",
+                *reasons,
+                "Download-execute shapes in shell history map to MITRE "
+                "T1059.004 (Unix Shell) and T1105 (Ingress Tool Transfer); "
+                "base64 piped into an interpreter is T1140 "
+                "(Deobfuscate/Decode Files or Information).",
+                "False-positive surface: installer scripts and package "
+                "managers occasionally use curl|sh patterns; confirm the "
+                "destination URL and timing before escalation.",
             ],
             artifact_sources=["memory"],
         )
