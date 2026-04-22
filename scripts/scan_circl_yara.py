@@ -19,23 +19,41 @@ from sift_find_evil.yara_scan.scanner import YaraScanner
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RULES_DIR = REPO_ROOT / "rules" / "yara" / "seed"
+SEED_DIR = REPO_ROOT / "rules" / "yara" / "seed"
+YARA_RULES_DIR = REPO_ROOT / "rules" / "yara" / "community" / "yara-rules"
+SIGBASE_DIR = REPO_ROOT / "rules" / "yara" / "community" / "signature-base" / "yara"
 SCAN_DIR = REPO_ROOT / "analysis" / "circl-2023-wiped" / "carved_executables"
 REPORT_PATH = REPO_ROOT / "analysis" / "circl-2023-wiped" / "yara_scan_report.json"
+
+
+def _resolve_rule_sources() -> list[Path]:
+    """Pick the rule directories available on disk.
+
+    Seed rules are required; community submodules (YARA-Rules,
+    signature-base) are optional so the script still runs on a fresh
+    clone that has not initialized submodules.
+    """
+    sources = [SEED_DIR]
+    for candidate in (YARA_RULES_DIR, SIGBASE_DIR):
+        if candidate.is_dir() and any(candidate.rglob("*.yar")):
+            sources.append(candidate)
+    return sources
 
 
 def main() -> None:
     if not SCAN_DIR.is_dir():
         raise SystemExit(f"scan directory not found: {SCAN_DIR}")
-    if not RULES_DIR.is_dir():
-        raise SystemExit(f"rules directory not found: {RULES_DIR}")
+    if not SEED_DIR.is_dir():
+        raise SystemExit(f"seed rules directory not found: {SEED_DIR}")
 
     files = sorted(p for p in SCAN_DIR.iterdir() if p.is_file())
     if not files:
         raise SystemExit(f"no files under {SCAN_DIR}")
 
+    sources = _resolve_rule_sources()
+
     compile_start = time.perf_counter()
-    scanner = YaraScanner.compile_from_directory(RULES_DIR)
+    scanner = YaraScanner.compile_from_directories(sources)
     compile_elapsed = time.perf_counter() - compile_start
 
     detector = YaraDetector(scanner=scanner)
@@ -87,7 +105,7 @@ def main() -> None:
     scan_elapsed = time.perf_counter() - scan_start
 
     report = {
-        "rules_dir": str(RULES_DIR.relative_to(REPO_ROOT)),
+        "rules_dirs": [str(p.relative_to(REPO_ROOT)) for p in sources],
         "scan_dir": str(SCAN_DIR.relative_to(REPO_ROOT)),
         "rule_count_compiled": scanner.rule_count,
         "rule_compile_errors": len(scanner.compile_errors),

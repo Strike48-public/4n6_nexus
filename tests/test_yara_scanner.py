@@ -120,6 +120,83 @@ def test_compile_nonexistent_directory_raises(tmp_path: Path) -> None:
         YaraScanner.compile_from_directory(tmp_path / "does-not-exist")
 
 
+# -- compile_from_directories (SFE-qmh multi-source loader) -----------------
+
+
+def test_compile_from_directories_aggregates_across_sources(
+    tmp_path: Path,
+) -> None:
+    """Rules from two disjoint directories must all compile into one scanner."""
+    seed_dir = tmp_path / "seed"
+    community_dir = tmp_path / "community"
+    seed_dir.mkdir()
+    community_dir.mkdir()
+    (seed_dir / "mz.yar").write_text(_MZ_RULE)
+    (community_dir / "upx.yar").write_text(_UPX_RULE)
+
+    scanner = YaraScanner.compile_from_directories([seed_dir, community_dir])
+
+    assert scanner.rule_count == 2
+
+
+def test_compile_from_directories_skips_broken_community_rules(
+    tmp_path: Path,
+) -> None:
+    """A broken community rule must not knock out the whole scanner."""
+    seed_dir = tmp_path / "seed"
+    community_dir = tmp_path / "community"
+    seed_dir.mkdir()
+    community_dir.mkdir()
+    (seed_dir / "mz.yar").write_text(_MZ_RULE)
+    (community_dir / "ok.yar").write_text(_UPX_RULE)
+    (community_dir / "broken.yar").write_text(_BROKEN_RULE)
+
+    scanner = YaraScanner.compile_from_directories([seed_dir, community_dir])
+
+    assert scanner.rule_count == 2
+    assert len(scanner.compile_errors) == 1
+    assert "broken.yar" in scanner.compile_errors[0].source
+
+
+def test_compile_from_directories_rejects_empty_input() -> None:
+    with pytest.raises(ValueError, match="at least one path"):
+        YaraScanner.compile_from_directories([])
+
+
+def test_compile_from_directories_all_dirs_empty_raises(tmp_path: Path) -> None:
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    with pytest.raises(ValueError, match="no YARA rule files"):
+        YaraScanner.compile_from_directories([a, b])
+
+
+def test_compile_from_directories_missing_dir_raises(tmp_path: Path) -> None:
+    good = tmp_path / "good"
+    good.mkdir()
+    (good / "mz.yar").write_text(_MZ_RULE)
+    with pytest.raises(FileNotFoundError):
+        YaraScanner.compile_from_directories([good, tmp_path / "does-not-exist"])
+
+
+def test_compile_from_directories_all_files_failed_raises(tmp_path: Path) -> None:
+    """If every rule file across every directory fails to compile, fail loudly.
+
+    An empty scanner would silently match nothing, which is worse than an
+    upfront error when a whole community submodule is broken.
+    """
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    (a / "broken1.yar").write_text(_BROKEN_RULE)
+    (b / "broken2.yar").write_text(_BROKEN_RULE)
+
+    with pytest.raises(ValueError, match="no YARA rules compiled successfully"):
+        YaraScanner.compile_from_directories([a, b])
+
+
 # -- scanning --------------------------------------------------------------
 
 

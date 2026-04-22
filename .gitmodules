@@ -1,0 +1,6 @@
+[submodule "rules/yara/community/yara-rules"]
+	path = rules/yara/community/yara-rules
+	url = https://github.com/Yara-Rules/rules.git
+[submodule "rules/yara/community/signature-base"]
+	path = rules/yara/community/signature-base
+	url = https://github.com/Neo23x0/signature-base.git

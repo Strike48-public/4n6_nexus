@@ -121,6 +121,80 @@ class YaraScanner:
         return list(self._compile_errors)
 
     @classmethod
+    def compile_from_directories(
+        cls,
+        rules_dirs: list[Path],
+        *,
+        recursive: bool = True,
+        strict: bool = False,
+        max_file_size: int = DEFAULT_MAX_FILE_SIZE,
+        capture_strings: bool = True,
+    ) -> "YaraScanner":
+        """Compile rules from multiple directories into one unified scanner.
+
+        Each directory contributes a namespace prefix derived from the
+        directory name so seed, community, and internal rulesets cannot
+        accidentally shadow each other. Broken rule files are skipped (the
+        same ``strict=False`` policy as ``compile_from_directory``) so a
+        broken community submodule cannot knock the whole scanner offline.
+
+        This is the entry point SFE-qmh uses to load seed plus the
+        YARA-Rules and signature-base submodules in a single pass.
+        """
+        if _yara is None:
+            raise MissingYaraError(
+                "yara-python is not installed. "
+                "Install with `pip install yara-python`."
+            )
+        if not rules_dirs:
+            raise ValueError("compile_from_directories requires at least one path")
+
+        filepaths: dict[str, str] = {}
+        errors: list[CompileError] = []
+        rule_count = 0
+        used_any = False
+
+        for rules_dir in rules_dirs:
+            if not rules_dir.is_dir():
+                raise FileNotFoundError(f"YARA rules directory not found: {rules_dir}")
+            prefix = rules_dir.name or "rules"
+            rule_files = _list_rule_files(rules_dir, recursive)
+            if not rule_files:
+                continue
+            used_any = True
+            for rule_file in rule_files:
+                sub_namespace = _namespace_for(rule_file, rules_dir)
+                namespace = f"{prefix}.{sub_namespace}"
+                count = _compile_one(rule_file, strict=strict, errors=errors)
+                if count is None:
+                    continue
+                rule_count += count
+                filepaths[namespace] = str(rule_file)
+
+        if not used_any:
+            raise ValueError(
+                "no YARA rule files (*.yar, *.yara) found in any directory: "
+                f"{[str(p) for p in rules_dirs]}"
+            )
+        if not filepaths:
+            first = errors[0] if errors else None
+            raise ValueError(
+                f"no YARA rules compiled successfully from {len(rules_dirs)} "
+                f"director(ies) ({len(errors)} file(s) failed"
+                + (f"; first error: {first.message}" if first else "")
+                + ")"
+            )
+
+        rules = _yara.compile(filepaths=filepaths)
+        return cls(
+            rules=rules,
+            rule_count=rule_count,
+            compile_errors=errors,
+            max_file_size=max_file_size,
+            capture_strings=capture_strings,
+        )
+
+    @classmethod
     def compile_from_directory(
         cls,
         rules_dir: Path,
@@ -158,13 +232,7 @@ class YaraScanner:
         if not rules_dir.is_dir():
             raise FileNotFoundError(f"YARA rules directory not found: {rules_dir}")
 
-        pattern_iter = (
-            rules_dir.rglob("*") if recursive else rules_dir.glob("*")
-        )
-        rule_files = sorted(
-            p for p in pattern_iter
-            if p.is_file() and p.suffix.lower() in (".yar", ".yara")
-        )
+        rule_files = _list_rule_files(rules_dir, recursive)
         if not rule_files:
             raise ValueError(
                 f"no YARA rule files (*.yar, *.yara) found under {rules_dir}"
@@ -176,17 +244,10 @@ class YaraScanner:
 
         for rule_file in rule_files:
             namespace = _namespace_for(rule_file, rules_dir)
-            try:
-                compiled = _yara.compile(filepath=str(rule_file))
-            except _yara.Error as exc:  # SyntaxError, Error — all subclasses
-                if strict:
-                    raise
-                errors.append(CompileError(source=str(rule_file), message=str(exc)))
+            count = _compile_one(rule_file, strict=strict, errors=errors)
+            if count is None:
                 continue
-            # Re-count successfully-parsed rules by iterating the compiled
-            # object. yara.Rules is iterable in 4.2+ and exposes __len__ via
-            # iteration in 4.5.
-            rule_count += sum(1 for _ in compiled)
+            rule_count += count
             filepaths[namespace] = str(rule_file)
 
         if not filepaths:
@@ -269,6 +330,39 @@ def _namespace_for(rule_file: Path, rules_dir: Path) -> str:
     except ValueError:
         relative = rule_file
     return str(relative.with_suffix("")).replace("/", ".") or rule_file.stem
+
+
+def _list_rule_files(rules_dir: Path, recursive: bool) -> list[Path]:
+    """Return sorted ``*.yar``/``*.yara`` files under ``rules_dir``."""
+    pattern_iter = rules_dir.rglob("*") if recursive else rules_dir.glob("*")
+    return sorted(
+        p for p in pattern_iter
+        if p.is_file() and p.suffix.lower() in (".yar", ".yara")
+    )
+
+
+def _compile_one(
+    rule_file: Path,
+    *,
+    strict: bool,
+    errors: list[CompileError],
+) -> Optional[int]:
+    """Compile one rule file and return its rule count, or None on failure.
+
+    When ``strict`` is True, compilation errors are re-raised instead of
+    being recorded. When False, the error is appended to ``errors`` and
+    None is returned so the caller can skip the file.
+    """
+    try:
+        compiled = _yara.compile(filepath=str(rule_file))
+    except _yara.Error as exc:  # SyntaxError, Error — all subclasses
+        if strict:
+            raise
+        errors.append(CompileError(source=str(rule_file), message=str(exc)))
+        return None
+    # Re-count successfully-parsed rules by iterating the compiled object.
+    # yara.Rules is iterable in 4.2+ and exposes __len__ via iteration in 4.5.
+    return sum(1 for _ in compiled)
 
 
 def _flatten_strings(raw_strings: Any) -> list[YaraString]:

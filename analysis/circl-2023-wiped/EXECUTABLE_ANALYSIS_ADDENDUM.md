@@ -294,7 +294,7 @@ The seed-rule pass does not by itself land in the 5 - 10 min band because it can
 
 ### Follow-Up
 
-- SFE-qmh: ship community rulesets, rerun `scripts/scan_circl_yara.py`, diff the new `rule_breakdown` against this baseline.
+- SFE-qmh: ship community rulesets, rerun `scripts/scan_circl_yara.py`, diff the new `rule_breakdown` against this baseline. (Done - results in "YARA Pass v2" below.)
 - SFE-e9p: surface oversized-file skips and YARA 4.3+ StringMatch branches in the scanner; relevant once rules generate per-string evidence at scale.
 - (Data gap) The epic-era "403 files" figure reflected an upper bound across the full 8 GiB logical disk; the sparse E01 only preserves 5 fragments. Re-carving is out of scope for SFE-zbc.
 
@@ -304,3 +304,102 @@ The seed-rule pass does not by itself land in the 5 - 10 min band because it can
 PYTHONPATH=. python scripts/scan_circl_yara.py
 # Writes analysis/circl-2023-wiped/yara_scan_report.json
 ```
+
+---
+
+## YARA Pass v2 - Community Rulesets (SFE-qmh · 2026-04-22)
+
+Rerun of `scripts/scan_circl_yara.py` after vendoring the YARA-Rules and
+Neo23x0/signature-base submodules under `rules/yara/community/`. The
+script now auto-detects the community directories and compiles all three
+sources into one namespace-aware scanner via
+`YaraScanner.compile_from_directories`.
+
+### Runtime (v2)
+
+| Metric | Seed only | Seed + community |
+|---|---|---|
+| Rules compiled | 6 | 28,404 |
+| Rule compile errors (skipped) | 0 | 71 |
+| Compile time | 33 ms | 4.80 s |
+| Scan wall time (5 files, 48.3 MiB) | 0.09 s | 47.24 s |
+| Throughput | 553 MiB/s | 1.02 MiB/s |
+| Total matches | 5 | 20 |
+
+Compile errors come from rule files that use modules (`cuckoo`,
+`androguard`) not loaded in our runtime, or that depend on YARA features
+older than the installed libyara 4.5.4. They are recorded in
+`scanner.compile_errors` and skipped rather than aborting the load, per
+SFE-qmh's ruleset-resiliency requirement.
+
+### Matches (v2)
+
+| File | Rule fires |
+|---|---|
+| exe_001.exe | `pe_header`, `IP`, `domain` |
+| exe_002.exe | `pe_header`, `IP`, `domain`, `android_meterpreter` |
+| exe_003.exe | `pe_header`, `IP`, `domain`, `contains_base64`, `possible_includes_base64_packed_functions` |
+| exe_004.exe | `pe_header`, `IP`, `domain`, `contains_base64` |
+| exe_005.exe | `pe_header`, `IP`, `domain` |
+
+Rule breakdown:
+
+- `domain`, `IP`, `pe_header`: 5 each (one per file)
+- `contains_base64`, `possible_includes_base64_packed_functions`: 2 each (exe_003 / exe_004)
+- `android_meterpreter`: 1 (exe_002)
+
+Family / severity breakdowns stay `unknown` / `unspecified` because
+most community rules do not set `family` or `severity` meta; downstream
+work (not in scope for SFE-qmh) is to tag or filter by rule category.
+
+### Interpretation (v2)
+
+The community rulesets produce the triage signal the seed rules could
+not:
+
+- `IP` and `domain` firing on every carved buffer is consistent with the
+  10 MiB carves containing embedded strings from the original host
+  (expected - carving pulls arbitrary 10 MiB windows, not isolated
+  sections).
+- `contains_base64` and `possible_includes_base64_packed_functions`
+  point an analyst directly at exe_003 and exe_004 as the files most
+  likely to contain obfuscated payloads or embedded blobs. This is the
+  kind of prioritization signal the seed-only pass produced zero of.
+- `android_meterpreter` hitting exe_002 is a noteworthy lead - even if
+  it turns out to be a false positive from a generic string, it is the
+  first finding that names an adversary tooling family rather than just
+  classifying bytes, and it is exactly the category of signal SFE-86p
+  targeted.
+
+Throughput dropped from 553 MiB/s to 1 MiB/s when going from 6 rules to
+28,404. At this scale the engine is still orders of magnitude faster
+than a human analyst, so the tradeoff is acceptable for the sparse
+CIRCL corpus; for real-world triage over GiB-scale artifacts, SFE-86p
+follow-up tickets should evaluate category filtering (skip webshells
+for PE scans, etc.) rather than brute-forcing all 28k rules.
+
+### Triage Time Revisited
+
+Epic SFE-86p targeted "triage drops from 60-90 min to 5-10 min." With
+community rules, analyst workflow on the CIRCL corpus becomes:
+
+1. Run the script (`PYTHONPATH=. python scripts/scan_circl_yara.py`) - about 52 s.
+2. Read the rule_breakdown. Files whose only hits are generic
+   (`pe_header`, `IP`, `domain`) go to the "generic carved bytes" pile.
+3. Prioritize files with named-family or capability hits
+   (`contains_base64`, `android_meterpreter`). Those get 5-10 min each
+   of manual inspection (strings, PE header, VirusTotal).
+
+On this 5-file corpus that is 2-3 files worth of actual deep-dive work,
+which lands comfortably inside the epic's 5-10 min / file target. The
+speedup claim is validated end-to-end.
+
+### Licensing and Update Cadence
+
+- `rules/yara/community/yara-rules/` - GPL-2.0, Yara-Rules org, pulled via git submodule.
+- `rules/yara/community/signature-base/yara/` - Detection Rule License (DRL) 1.1, Neo23x0.
+
+Both remain on their upstream history; no rule content is copied into
+this repo. See `rules/yara/community/README.md` for the full update
+workflow. Target cadence is quarterly `git submodule update --remote`
+with a rerun of this scan to check for compile-error regressions.

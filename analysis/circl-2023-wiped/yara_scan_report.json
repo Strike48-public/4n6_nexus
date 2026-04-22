@@ -1,34 +1,62 @@
 {
-  "rules_dir": "rules/yara/seed",
+  "rules_dirs": [
+    "rules/yara/seed",
+    "rules/yara/community/yara-rules",
+    "rules/yara/community/signature-base/yara"
+  ],
   "scan_dir": "analysis/circl-2023-wiped/carved_executables",
-  "rule_count_compiled": 6,
-  "rule_compile_errors": 0,
-  "compile_elapsed_sec": 0.033,
-  "scan_elapsed_sec": 0.087,
+  "rule_count_compiled": 28404,
+  "rule_compile_errors": 71,
+  "compile_elapsed_sec": 4.802,
+  "scan_elapsed_sec": 47.239,
   "files_scanned": 5,
   "total_bytes_scanned": 50629531,
-  "throughput_mb_per_sec": 552.97,
-  "total_matches": 5,
+  "throughput_mb_per_sec": 1.02,
+  "total_matches": 20,
   "files_with_matches": 5,
   "rule_breakdown": {
-    "pe_header": 5
+    "domain": 5,
+    "IP": 5,
+    "pe_header": 5,
+    "possible_includes_base64_packed_functions": 2,
+    "contains_base64": 2,
+    "android_meterpreter": 1
   },
   "family_breakdown": {
-    "unknown": 5
+    "unknown": 20
   },
   "severity_breakdown": {
+    "unspecified": 15,
     "low": 5
   },
   "per_file": [
     {
       "filename": "exe_001.exe",
       "size_bytes": 10485760,
-      "elapsed_ms": 12.57,
-      "match_count": 1,
+      "elapsed_ms": 10094.59,
+      "match_count": 3,
       "matches": [
         {
+          "rule": "domain",
+          "namespace": "yara-rules.utils.domain",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 1000000,
+          "mitre_attack": []
+        },
+        {
+          "rule": "IP",
+          "namespace": "yara-rules.utils.ip",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 119,
+          "mitre_attack": []
+        },
+        {
           "rule": "pe_header",
-          "namespace": "pe_header",
+          "namespace": "seed.pe_header",
           "severity": "low",
           "family": "unknown",
           "confidence": 0.5,
@@ -40,12 +68,39 @@
     {
       "filename": "exe_002.exe",
       "size_bytes": 10485760,
-      "elapsed_ms": 14.84,
-      "match_count": 1,
+      "elapsed_ms": 9320.01,
+      "match_count": 4,
       "matches": [
         {
+          "rule": "android_meterpreter",
+          "namespace": "yara-rules.deprecated.Android.Android_Metasploit",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 1,
+          "mitre_attack": []
+        },
+        {
+          "rule": "domain",
+          "namespace": "yara-rules.utils.domain",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 1000000,
+          "mitre_attack": []
+        },
+        {
+          "rule": "IP",
+          "namespace": "yara-rules.utils.ip",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 146,
+          "mitre_attack": []
+        },
+        {
           "rule": "pe_header",
-          "namespace": "pe_header",
+          "namespace": "seed.pe_header",
           "severity": "low",
           "family": "unknown",
           "confidence": 0.5,
@@ -57,12 +112,57 @@
     {
       "filename": "exe_003.exe",
       "size_bytes": 10485760,
-      "elapsed_ms": 28.31,
-      "match_count": 1,
+      "elapsed_ms": 9991.41,
+      "match_count": 6,
       "matches": [
         {
+          "rule": "possible_includes_base64_packed_functions",
+          "namespace": "yara-rules.packers.Javascript_exploit_and_obfuscation",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 27441,
+          "mitre_attack": []
+        },
+        {
+          "rule": "possible_includes_base64_packed_functions",
+          "namespace": "yara-rules.packers_index",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 27441,
+          "mitre_attack": []
+        },
+        {
+          "rule": "contains_base64",
+          "namespace": "yara-rules.utils.base64",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 10,
+          "mitre_attack": []
+        },
+        {
+          "rule": "domain",
+          "namespace": "yara-rules.utils.domain",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 1000000,
+          "mitre_attack": []
+        },
+        {
+          "rule": "IP",
+          "namespace": "yara-rules.utils.ip",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 136,
+          "mitre_attack": []
+        },
+        {
           "rule": "pe_header",
-          "namespace": "pe_header",
+          "namespace": "seed.pe_header",
           "severity": "low",
           "family": "unknown",
           "confidence": 0.5,
@@ -74,12 +174,39 @@
     {
       "filename": "exe_004.exe",
       "size_bytes": 10485760,
-      "elapsed_ms": 18.84,
-      "match_count": 1,
+      "elapsed_ms": 9429.47,
+      "match_count": 4,
       "matches": [
         {
+          "rule": "contains_base64",
+          "namespace": "yara-rules.utils.base64",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 2,
+          "mitre_attack": []
+        },
+        {
+          "rule": "domain",
+          "namespace": "yara-rules.utils.domain",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 1000000,
+          "mitre_attack": []
+        },
+        {
+          "rule": "IP",
+          "namespace": "yara-rules.utils.ip",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 163,
+          "mitre_attack": []
+        },
+        {
           "rule": "pe_header",
-          "namespace": "pe_header",
+          "namespace": "seed.pe_header",
           "severity": "low",
           "family": "unknown",
           "confidence": 0.5,
@@ -91,12 +218,30 @@
     {
       "filename": "exe_005.exe",
       "size_bytes": 8686491,
-      "elapsed_ms": 12.51,
-      "match_count": 1,
+      "elapsed_ms": 8402.92,
+      "match_count": 3,
       "matches": [
         {
+          "rule": "domain",
+          "namespace": "yara-rules.utils.domain",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 1000000,
+          "mitre_attack": []
+        },
+        {
+          "rule": "IP",
+          "namespace": "yara-rules.utils.ip",
+          "severity": "unspecified",
+          "family": "unknown",
+          "confidence": 0.7,
+          "match_count": 78,
+          "mitre_attack": []
+        },
+        {
           "rule": "pe_header",
-          "namespace": "pe_header",
+          "namespace": "seed.pe_header",
           "severity": "low",
           "family": "unknown",
           "confidence": 0.5,
