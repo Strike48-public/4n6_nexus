@@ -45,6 +45,7 @@ import re
 from typing import Iterable, Optional
 
 from ..findings import FindingCategory
+from ..memory.obfuscation import DeobfuscationResult, analyze_cmdline_obfuscation
 from ..memory.volatility_runner import (
     CommandLineRow,
     InjectionRow,
@@ -306,9 +307,15 @@ class MemoryDetector:
             if row.args is None:
                 continue
             reasons = self._cmdline_reasons(row.process, row.args)
-            if not reasons:
-                continue
-            findings.append(self._build_cmdline_finding(row, reasons))
+            if reasons:
+                findings.append(self._build_cmdline_finding(row, reasons))
+            # T1140 deobfuscation is scored independently — a cmdline can
+            # be flagged both for LOLBAS+hidden-flag presence *and* for
+            # decoded payload content, because they answer different
+            # triage questions (who ran it vs. what it was told to do).
+            deobf = analyze_cmdline_obfuscation(row.args)
+            if deobf is not None and deobf.has_signal:
+                findings.append(self._build_deobfuscation_finding(row, deobf))
         return findings
 
     def _cmdline_reasons(self, process: str, args: str) -> list[str]:
@@ -365,6 +372,64 @@ class MemoryDetector:
                 "Command-interpreter abuse maps to MITRE T1059; combined "
                 "with hidden flags it is a strong persistence / execution "
                 "signal.",
+            ],
+            artifact_sources=["memory"],
+        )
+
+    def _build_deobfuscation_finding(
+        self, row: CommandLineRow, deobf: DeobfuscationResult
+    ) -> Finding:
+        # The obfuscation scorer already knows whether any matched pattern
+        # is attack-specific (rundll32 javascript:, decoded stage-one
+        # markers, download cradles) versus ambiguous (bare certutil /
+        # bitsadmin with no further signal). We trust its verdict so the
+        # severity rule stays in one place.
+        if deobf.high_severity:
+            confidence, label, severity = 0.85, "High", "high"
+        else:
+            confidence, label, severity = 0.60, "Medium", "medium"
+
+        decoded_excerpt = deobf.decoded_payload[:200] if deobf.decoded_payload else ""
+        title_suffix = (
+            f" (decoded: {decoded_excerpt!r})"
+            if decoded_excerpt
+            else ""
+        )
+        return Finding(
+            title=(
+                f"Obfuscated command decoded: PID {row.pid} ({row.process})"
+                f"{title_suffix[:120]}"
+            ),
+            description=(
+                f"Volatility cmdline for PID {row.pid} ({row.process}) "
+                "contains obfuscation indicators consistent with MITRE "
+                "T1140 (Deobfuscate/Decode Files or Information). "
+                f"Signals: {'; '.join(deobf.reasons)}."
+            ),
+            finding_type="behavior",
+            severity=severity,
+            category=FindingCategory.PROCESS_INJECTION,
+            evidence={
+                "pid": row.pid,
+                "process": row.process,
+                "args": row.args,
+                "decoded_payload": deobf.decoded_payload,
+                "reasons": list(deobf.reasons),
+                "mitre_attack": list(deobf.mitre_attack),
+            },
+            confidence=confidence,
+            confidence_label=label,
+            reasoning_chain=[
+                f"PID {row.pid} invoked {row.process} with obfuscated arguments.",
+                *deobf.reasons,
+                "Deobfuscation / decoding of stage-one payloads is MITRE "
+                "T1140; pair with T1027 (Obfuscated Files or Information) "
+                "and the appropriate T1059 sub-technique for the "
+                "interpreter that executed it.",
+                "False-positive surface: legitimate installers occasionally "
+                "ship base64-encoded config blobs, and admins sometimes "
+                "use certutil to sidestep curl/wget restrictions. Confirm "
+                "the decoded payload content before escalation.",
             ],
             artifact_sources=["memory"],
         )
