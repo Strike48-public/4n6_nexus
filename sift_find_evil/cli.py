@@ -494,12 +494,21 @@ def _run_memory_detector(
         sys.exit(1)
 
     pslist = psscan = malfind = cmdline = netscan = None
+    linux_bash = linux_pslist = linux_sockstat = None
+    # Each entry is (label, runner-method, local-slot-name). We try every
+    # plugin on every dump: a Windows dump simply fails the linux.* plugins
+    # (logged + skipped), and a Linux dump fails the windows.* plugins. The
+    # detector's analyze() tolerates missing streams, so partial success
+    # still produces findings.
     for name, fn in (
         ("pslist", runner.run_pslist),
         ("psscan", runner.run_psscan),
         ("malfind", runner.run_malfind),
         ("cmdline", runner.run_cmdline),
         ("netscan", runner.run_netscan),
+        ("linux.bash", runner.run_linux_bash),
+        ("linux.pslist", runner.run_linux_pslist),
+        ("linux.sockstat", runner.run_linux_sockstat),
     ):
         try:
             rows = fn()
@@ -522,6 +531,12 @@ def _run_memory_detector(
             cmdline = rows
         elif name == "netscan":
             netscan = rows
+        elif name == "linux.bash":
+            linux_bash = rows
+        elif name == "linux.pslist":
+            linux_pslist = rows
+        elif name == "linux.sockstat":
+            linux_sockstat = rows
 
     findings = MemoryDetector().analyze(
         pslist=pslist,
@@ -529,16 +544,30 @@ def _run_memory_detector(
         malfind=malfind,
         cmdline=cmdline,
         netscan=netscan,
+        linux_bash=linux_bash,
+        linux_pslist=linux_pslist,
+        linux_sockstat=linux_sockstat,
     )
 
-    # If every Windows plugin failed (e.g. analyst pointed --memory at a
-    # Linux dump) the detector silently returns no findings. Surface that
-    # explicitly so the operator doesn't interpret 0 findings as "clean".
-    if all(stream is None for stream in (pslist, psscan, malfind, cmdline, netscan)):
+    # If every plugin (both Windows and Linux) failed, the dump is either
+    # malformed or the symbol tables are missing for its kernel/OS. Surface
+    # that explicitly so the operator doesn't interpret 0 findings as
+    # "clean".
+    all_streams = (
+        pslist,
+        psscan,
+        malfind,
+        cmdline,
+        netscan,
+        linux_bash,
+        linux_pslist,
+        linux_sockstat,
+    )
+    if all(stream is None for stream in all_streams):
         print(
             "Warning: no memory plugins returned data. "
-            "Confirm the dump OS matches the plugin set "
-            "(windows.* plugins will not work on Linux dumps).",
+            "Confirm the dump is a supported format and that Volatility "
+            "can resolve symbols for its kernel.",
             file=sys.stderr,
         )
 
