@@ -1,0 +1,12 @@
+[
+  {
+    "PID": 5580,
+    "Owner": "powershell.exe",
+    "Proto": "TCP",
+    "LocalAddr": "10.0.0.42",
+    "LocalPort": 49218,
+    "ForeignAddr": "203.0.113.9",
+    "ForeignPort": 4444,
+    "State": "ESTABLISHED"
+  }
+]

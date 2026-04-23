@@ -1,0 +1,7 @@
+[
+  {
+    "PID": 5580,
+    "Process": "powershell.exe",
+    "Args": "powershell.exe -WindowStyle Hidden -NoProfile -Command Get-ADUser"
+  }
+]

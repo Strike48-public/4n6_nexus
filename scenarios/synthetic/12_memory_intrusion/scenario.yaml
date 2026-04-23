@@ -17,6 +17,8 @@ fixtures:
     windows_malfind: memory_fixtures/windows_malfind.json
     windows_pslist: memory_fixtures/windows_pslist.json
     windows_psscan: memory_fixtures/windows_psscan.json
+    windows_cmdline: memory_fixtures/windows_cmdline.json
+    windows_netscan: memory_fixtures/windows_netscan.json
     linux_bash: memory_fixtures/linux_bash.json
     linux_pslist: memory_fixtures/linux_pslist.json
     linux_sockstat: memory_fixtures/linux_sockstat.json
@@ -24,15 +26,17 @@ fixtures:
 expected:
   malicious_executables: []
   finding_counts:
-    memory_finding: 5
-    total: 5
+    memory_finding: 7
+    total: 7
   min_precision: 1.0
   min_recall: 1.0
 
 notes: |
-  Five expected findings, one per MITRE technique:
+  Seven expected findings, one per MITRE technique:
     - Windows malfind PAGE_EXECUTE_READWRITE VAD in svchost.exe (T1055)
     - Hidden process rootkit.exe present in psscan but not pslist (T1014)
+    - Windows cmdline powershell.exe -WindowStyle Hidden -NoProfile (T1059)
+    - Windows netscan powershell.exe ESTABLISHED to public:4444 (T1071)
     - Linux bash history curl|sh download-execute (T1059.004)
     - Linux kworker-style COMM with PPID != 2 masquerade (T1036)
     - Linux bash process with ESTABLISHED socket to public:4444 (T1071)
