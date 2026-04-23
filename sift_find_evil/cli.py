@@ -32,6 +32,7 @@ from .validation import AdversarialValidator
 from .approval import ApprovalManager, ApprovalStatus, FindingWithApproval
 from .audit import AuditLogger
 from .case import Case, CaseManager, CaseStatus, EvidenceFile
+from .reporting import ReportFormat, ReportGenerator
 
 try:
     from .detectors.yara_detector import YaraDetector
@@ -1477,6 +1478,44 @@ def cmd_audit_summary(args):
         print(f"    {action}: {count}")
 
 
+def cmd_report(args):
+    """Handle report command: generate investigation report."""
+    print_banner()
+
+    case_root = Path(args.case_root) if args.case_root else Path("/cases")
+    manager = CaseManager(case_root)
+    generator = ReportGenerator(manager)
+
+    output_path = Path(args.output)
+    report_format = ReportFormat(args.format)
+
+    print_section("Generating Report")
+    print(f"  Case ID: {args.case_id}")
+    print(f"  Format: {report_format.value}")
+    print(f"  Output: {output_path}")
+    print(f"  Approved findings only: {args.approved_only}")
+
+    try:
+        generator.generate(
+            case_id=args.case_id,
+            output_path=output_path,
+            format=report_format,
+            approved_only=args.approved_only,
+        )
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except NotImplementedError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\n  Report generated: {output_path}")
+    print(f"  Size: {output_path.stat().st_size:,} bytes")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -1836,6 +1875,46 @@ Examples:
         help="Path to audit.jsonl file",
     )
 
+    # Report command
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate investigation report",
+    )
+    report_parser.add_argument(
+        "--case-id",
+        required=True,
+        help="Case identifier",
+    )
+    report_parser.add_argument(
+        "--output",
+        "-o",
+        required=True,
+        help="Output file path",
+    )
+    report_parser.add_argument(
+        "--format",
+        "-f",
+        choices=["markdown", "html", "pdf"],
+        default="markdown",
+        help="Report format (default: markdown)",
+    )
+    report_parser.add_argument(
+        "--case-root",
+        help="Case root directory (default: /cases)",
+    )
+    report_parser.add_argument(
+        "--approved-only",
+        action="store_true",
+        default=True,
+        help="Include only approved findings (default: true)",
+    )
+    report_parser.add_argument(
+        "--all-findings",
+        action="store_false",
+        dest="approved_only",
+        help="Include all findings (approved, draft, rejected)",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1874,6 +1953,8 @@ Examples:
             cmd_audit_log(args)
         elif args.audit_command == "summary":
             cmd_audit_summary(args)
+    elif args.command == "report":
+        cmd_report(args)
 
 
 if __name__ == "__main__":
