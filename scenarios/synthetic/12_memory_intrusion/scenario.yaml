@@ -1,0 +1,41 @@
+name: 12_memory_intrusion
+tier: synthetic
+category: memory_forensics
+difficulty: basic
+description: >
+  Memory forensics regression gate. Exercises MemoryDetector end-to-end
+  on a hand-authored set of pre-parsed Volatility 3 plugin rows. No vol
+  binary, no 4GB dump — the JSON fixtures mirror the runner's parsing
+  output so the test is deterministic across machines.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  memory:
+    windows_malfind: memory_fixtures/windows_malfind.json
+    windows_pslist: memory_fixtures/windows_pslist.json
+    windows_psscan: memory_fixtures/windows_psscan.json
+    linux_bash: memory_fixtures/linux_bash.json
+    linux_pslist: memory_fixtures/linux_pslist.json
+    linux_sockstat: memory_fixtures/linux_sockstat.json
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    memory_finding: 5
+    total: 5
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Five expected findings, one per MITRE technique:
+    - Windows malfind PAGE_EXECUTE_READWRITE VAD in svchost.exe (T1055)
+    - Hidden process rootkit.exe present in psscan but not pslist (T1014)
+    - Linux bash history curl|sh download-execute (T1059.004)
+    - Linux kworker-style COMM with PPID != 2 masquerade (T1036)
+    - Linux bash process with ESTABLISHED socket to public:4444 (T1071)
+  The hand-authored JSON fixtures use the exact column names Volatility 3
+  emits with `-r json` so any future runner-shape change surfaces as a
+  parsing failure in one place instead of drift across detectors.

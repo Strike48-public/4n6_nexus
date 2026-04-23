@@ -17,8 +17,18 @@ from typing import Any, Optional
 import yaml
 
 from sift_find_evil.detectors import NetworkDetector
+from sift_find_evil.detectors.memory_detector import MemoryDetector
 from sift_find_evil.detectors.registry_detector import RegistryDetector
 from sift_find_evil.detectors.webmail_exfil_detector import MFTAccessRecord
+from sift_find_evil.memory.volatility_runner import (
+    _to_bash_history_row,
+    _to_cmdline_row,
+    _to_injection_row,
+    _to_linux_network_row,
+    _to_linux_process_row,
+    _to_network_row,
+    _to_process_row,
+)
 from sift_find_evil.parsers.browser_history_parser import BrowserHistoryParser
 from sift_find_evil.parsers.evtx_parser import EventLogParser
 from sift_find_evil.parsers.mft_parser import MFTParser
@@ -57,6 +67,7 @@ class ScenarioExpectation:
     run_keys_fixture: Optional[str] = None
     yara_rules_fixture: Optional[str] = None
     yara_scan_dir_fixture: Optional[str] = None
+    memory_fixtures: dict[str, str] = field(default_factory=dict)
     finding_counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -116,9 +127,14 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
         browser_history_fixture = fixtures.get("browser_history")
         yara_rules_fixture = fixtures.get("yara_rules")
         yara_scan_dir_fixture = fixtures.get("yara_scan_dir")
+        memory_fixtures_raw = fixtures.get("memory") or {}
+        memory_fixtures = {
+            str(key): str(value) for key, value in memory_fixtures_raw.items() if value
+        }
         has_causality = bool(mft_fixture and prefetch_fixture and evtx_fixture)
         has_yara = bool(yara_rules_fixture and yara_scan_dir_fixture)
-        if not has_causality and not has_yara:
+        has_memory = bool(memory_fixtures)
+        if not has_causality and not has_yara and not has_memory:
             continue
 
         expected = data.get("expected") or {}
@@ -144,6 +160,7 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
                 run_keys_fixture=_optional_str(fixtures.get("run_keys")),
                 yara_rules_fixture=_optional_str(yara_rules_fixture),
                 yara_scan_dir_fixture=_optional_str(yara_scan_dir_fixture),
+                memory_fixtures=memory_fixtures,
                 finding_counts={k: int(v) for k, v in finding_counts.items()},
             )
         )
@@ -216,6 +233,59 @@ def _run_yara_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
     return YaraDetector(scanner=scanner).analyze_directory(scan_dir)
 
 
+_MEMORY_FIXTURE_COERCERS = {
+    "windows_pslist": _to_process_row,
+    "windows_psscan": _to_process_row,
+    "windows_malfind": _to_injection_row,
+    "windows_cmdline": _to_cmdline_row,
+    "windows_netscan": _to_network_row,
+    "linux_bash": _to_bash_history_row,
+    "linux_pslist": _to_linux_process_row,
+    "linux_sockstat": _to_linux_network_row,
+}
+
+_MEMORY_FIXTURE_TO_ANALYZE_KWARG = {
+    "windows_pslist": "pslist",
+    "windows_psscan": "psscan",
+    "windows_malfind": "malfind",
+    "windows_cmdline": "cmdline",
+    "windows_netscan": "netscan",
+    "linux_bash": "linux_bash",
+    "linux_pslist": "linux_pslist",
+    "linux_sockstat": "linux_sockstat",
+}
+
+
+def _run_memory_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
+    """Run MemoryDetector on the scenario's pre-parsed Volatility JSON fixtures.
+
+    Each fixture file contains the raw row list Volatility 3's ``-r json``
+    renderer produces for one plugin. We coerce them into the runner's
+    typed dataclasses via the same ``_to_*_row`` helpers the live runner
+    uses, so a shape change in Volatility surfaces in one place.
+    """
+    if not expectation.memory_fixtures:
+        return []
+    directory = expectation.directory
+    analyze_kwargs: dict[str, Any] = {}
+    for plugin_key, fixture_rel in expectation.memory_fixtures.items():
+        coercer = _MEMORY_FIXTURE_COERCERS.get(plugin_key)
+        analyze_key = _MEMORY_FIXTURE_TO_ANALYZE_KWARG.get(plugin_key)
+        if coercer is None or analyze_key is None:
+            continue
+        fixture_path = directory / fixture_rel
+        if not fixture_path.is_file():
+            continue
+        with fixture_path.open(encoding="utf-8") as handle:
+            raw_rows = json.load(handle)
+        if not isinstance(raw_rows, list):
+            continue
+        analyze_kwargs[analyze_key] = [coercer(row) for row in raw_rows]
+    if not analyze_kwargs:
+        return []
+    return MemoryDetector().analyze(**analyze_kwargs)
+
+
 def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     """Execute the engine for one scenario and compare to ground truth.
 
@@ -266,6 +336,9 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     yara_findings = _run_yara_for_scenario(expectation)
     findings.extend(yara_findings)
 
+    memory_findings = _run_memory_for_scenario(expectation)
+    findings.extend(memory_findings)
+
     detected = [f.evidence.get("executable", "").lower() for f in findings]
     expected = set(expectation.malicious_executables)
 
@@ -308,6 +381,15 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         tp.extend(["yara_match"] * min(yara_expected, len(matched)))
         missing = max(yara_expected - len(matched), 0)
         fn.extend(["yara_match"] * missing)
+
+    memory_expected = expectation.finding_counts.get("memory_finding", 0)
+    if memory_expected:
+        matched_count = len(memory_findings)
+        tp.extend(["memory_finding"] * min(memory_expected, matched_count))
+        missing = max(memory_expected - matched_count, 0)
+        fn.extend(["memory_finding"] * missing)
+        extra = max(matched_count - memory_expected, 0)
+        fp.extend(["memory_finding"] * extra)
 
     avg_conf = sum(f.confidence for f in findings) / len(findings) if findings else 0.0
 

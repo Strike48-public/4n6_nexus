@@ -1,0 +1,13 @@
+[
+  {
+    "PID": 4242,
+    "Process": "bash",
+    "Proto": "TCP",
+    "Source Addr": "10.0.0.5",
+    "Source Port": 55302,
+    "Destination Addr": "198.51.100.7",
+    "Destination Port": 4444,
+    "State": "ESTABLISHED",
+    "Family": "AF_INET"
+  }
+]

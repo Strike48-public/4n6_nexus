@@ -1,0 +1,30 @@
+[
+  {
+    "PID": 1,
+    "PPID": 0,
+    "COMM": "systemd",
+    "EUID": 0,
+    "CreationTime": "2026-04-22 09:59:00.000000 UTC"
+  },
+  {
+    "PID": 2,
+    "PPID": 0,
+    "COMM": "kthreadd",
+    "EUID": 0,
+    "CreationTime": "2026-04-22 09:59:00.000000 UTC"
+  },
+  {
+    "PID": 4242,
+    "PPID": 1,
+    "COMM": "bash",
+    "EUID": 1000,
+    "CreationTime": "2026-04-22 10:10:00.000000 UTC"
+  },
+  {
+    "PID": 9137,
+    "PPID": 4242,
+    "COMM": "[kworker/u8:2]",
+    "EUID": 1000,
+    "CreationTime": "2026-04-22 10:31:17.000000 UTC"
+  }
+]

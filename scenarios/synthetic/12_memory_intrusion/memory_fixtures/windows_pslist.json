@@ -1,0 +1,23 @@
+[
+  {
+    "PID": 4,
+    "PPID": 0,
+    "ImageFileName": "System",
+    "CreateTime": "2026-04-22 10:00:00.000000 UTC",
+    "ExitTime": null
+  },
+  {
+    "PID": 628,
+    "PPID": 4,
+    "ImageFileName": "smss.exe",
+    "CreateTime": "2026-04-22 10:00:05.000000 UTC",
+    "ExitTime": null
+  },
+  {
+    "PID": 3120,
+    "PPID": 628,
+    "ImageFileName": "svchost.exe",
+    "CreateTime": "2026-04-22 10:05:10.000000 UTC",
+    "ExitTime": null
+  }
+]
