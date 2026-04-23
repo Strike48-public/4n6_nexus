@@ -30,6 +30,7 @@ from .parsers.registry_parser import RegistryParser
 from .scenario_runner import ScenarioLoadError, run_scenario_path
 from .validation import AdversarialValidator
 from .approval import ApprovalManager, ApprovalStatus, FindingWithApproval
+from .case import Case, CaseManager, CaseStatus, EvidenceFile
 
 try:
     from .detectors.yara_detector import YaraDetector
@@ -1250,6 +1251,155 @@ def cmd_list_findings(args):
                     print(f"      Signature: {finding.approval.signature_hash}")
 
 
+def cmd_case_init(args):
+    """Handle case init command: create a new case."""
+    print_banner()
+
+    case_root = Path(args.case_root) if args.case_root else Path("/cases")
+    manager = CaseManager(case_root)
+
+    print_section("Creating Case")
+    print(f"  Case ID: {args.case_id}")
+    print(f"  Name: {args.name}")
+    print(f"  Examiner: {args.examiner}")
+    if args.description:
+        print(f"  Description: {args.description}")
+    print(f"  Case root: {case_root}")
+
+    try:
+        case = manager.create_case(
+            case_id=args.case_id,
+            name=args.name,
+            examiner=args.examiner,
+            description=args.description,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\n  Case created: {case.directory}")
+    print(f"  Status: {case.status.value}")
+    print(f"  Created: {case.created_at.isoformat()}")
+    print("\n  Directory structure:")
+    print(f"    {case.directory}/")
+    print(f"      evidence/")
+    print(f"      analysis/")
+    print(f"      reports/")
+    print(f"      exports/")
+    print(f"      CASE.yaml")
+    print(f"      evidence.json")
+    print(f"      audit.jsonl")
+
+
+def cmd_evidence_register(args):
+    """Handle evidence register command: register evidence file."""
+    print_banner()
+
+    case_root = Path(args.case_root) if args.case_root else Path("/cases")
+    manager = CaseManager(case_root)
+
+    file_path = Path(args.file)
+    if not file_path.exists():
+        print(f"Error: Evidence file not found: {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    print_section("Registering Evidence")
+    print(f"  Case ID: {args.case_id}")
+    print(f"  File: {file_path}")
+    print(f"  Description: {args.description}")
+    if args.type:
+        print(f"  Type: {args.type}")
+
+    print("\n  Calculating SHA-256 hash...")
+
+    try:
+        evidence = manager.register_evidence(
+            case_id=args.case_id,
+            file_path=file_path,
+            description=args.description,
+            evidence_type=args.type,
+        )
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\n  Evidence registered:")
+    print(f"    SHA-256: {evidence.sha256_hash}")
+    print(f"    Size: {evidence.file_size:,} bytes")
+    print(f"    Registered: {evidence.registered_at.isoformat()}")
+
+
+def cmd_evidence_verify(args):
+    """Handle evidence verify command: verify evidence hashes."""
+    print_banner()
+
+    case_root = Path(args.case_root) if args.case_root else Path("/cases")
+    manager = CaseManager(case_root)
+
+    print_section("Verifying Evidence")
+    print(f"  Case ID: {args.case_id}")
+    print(f"  Case root: {case_root}")
+
+    results = manager.verify_evidence(args.case_id)
+
+    if "error" in results:
+        print(f"\n  Error: {results['error']}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\n  Total: {results['total']}")
+    print(f"  Verified: {results['verified']}")
+    print(f"  Failed: {results['failed']}")
+    print(f"  Missing: {results['missing']}")
+
+    if results["failed"] > 0 or results["missing"] > 0:
+        print("\n  Details:")
+        for detail in results["details"]:
+            status = detail["status"]
+            file_path = detail["file"]
+            if status == "VERIFIED":
+                print(f"    [OK] {file_path}")
+                print(f"         Hash: {detail['hash']}")
+            elif status == "FAILED":
+                print(f"    [FAILED] {file_path}")
+                print(f"         Expected: {detail['registered_hash']}")
+                print(f"         Got:      {detail['current_hash']}")
+            elif status == "MISSING":
+                print(f"    [MISSING] {file_path}")
+                print(f"              Hash: {detail['registered_hash']}")
+
+    if results["failed"] > 0:
+        sys.exit(1)
+
+
+def cmd_case_status(args):
+    """Handle case status command: show case status."""
+    print_banner()
+
+    case_root = Path(args.case_root) if args.case_root else Path("/cases")
+    manager = CaseManager(case_root)
+
+    print_section("Case Status")
+    print(f"  Case ID: {args.case_id}")
+
+    try:
+        status = manager.get_case_status(args.case_id)
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\n  Name: {status['name']}")
+    print(f"  Status: {status['status']}")
+    print(f"  Examiner: {status['examiner']}")
+    print(f"  Created: {status['created_at']}")
+    print(f"  Directory: {status['directory']}")
+    print(f"\n  Evidence files: {status['evidence_count']}")
+    print(f"  Findings: {status['findings_count']}")
+    print(f"  Audit entries: {status['audit_entries']}")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -1478,6 +1628,102 @@ Examples:
         help="Filter by approval status (default: show all)",
     )
 
+    # Case command group
+    case_parser = subparsers.add_parser(
+        "case",
+        help="Case management commands",
+    )
+    case_subparsers = case_parser.add_subparsers(dest="case_command", help="Case operations")
+
+    # Case init subcommand
+    case_init_parser = case_subparsers.add_parser(
+        "init",
+        help="Create a new case",
+    )
+    case_init_parser.add_argument(
+        "--case-id",
+        required=True,
+        help="Unique case identifier (e.g., INC-2026-001)",
+    )
+    case_init_parser.add_argument(
+        "--name",
+        required=True,
+        help="Human-readable case name",
+    )
+    case_init_parser.add_argument(
+        "--examiner",
+        required=True,
+        help="Name of primary examiner",
+    )
+    case_init_parser.add_argument(
+        "--description",
+        help="Optional case description",
+    )
+    case_init_parser.add_argument(
+        "--case-root",
+        help="Case root directory (default: /cases)",
+    )
+
+    # Evidence register subcommand
+    evidence_register_parser = case_subparsers.add_parser(
+        "register",
+        help="Register evidence file with SHA-256 hash",
+    )
+    evidence_register_parser.add_argument(
+        "--case-id",
+        required=True,
+        help="Case identifier",
+    )
+    evidence_register_parser.add_argument(
+        "--file",
+        required=True,
+        help="Path to evidence file",
+    )
+    evidence_register_parser.add_argument(
+        "--description",
+        required=True,
+        help="Description of evidence",
+    )
+    evidence_register_parser.add_argument(
+        "--type",
+        choices=["disk_image", "memory_dump", "pcap", "log", "other"],
+        help="Evidence type (optional)",
+    )
+    evidence_register_parser.add_argument(
+        "--case-root",
+        help="Case root directory (default: /cases)",
+    )
+
+    # Evidence verify subcommand
+    evidence_verify_parser = case_subparsers.add_parser(
+        "verify",
+        help="Verify all evidence hashes in case",
+    )
+    evidence_verify_parser.add_argument(
+        "--case-id",
+        required=True,
+        help="Case identifier",
+    )
+    evidence_verify_parser.add_argument(
+        "--case-root",
+        help="Case root directory (default: /cases)",
+    )
+
+    # Case status subcommand
+    case_status_parser = case_subparsers.add_parser(
+        "status",
+        help="Show case status summary",
+    )
+    case_status_parser.add_argument(
+        "--case-id",
+        required=True,
+        help="Case identifier",
+    )
+    case_status_parser.add_argument(
+        "--case-root",
+        help="Case root directory (default: /cases)",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1496,6 +1742,18 @@ Examples:
         cmd_reject(args)
     elif args.command == "list":
         cmd_list_findings(args)
+    elif args.command == "case":
+        if not hasattr(args, "case_command") or args.case_command is None:
+            case_parser.print_help()
+            sys.exit(1)
+        if args.case_command == "init":
+            cmd_case_init(args)
+        elif args.case_command == "register":
+            cmd_evidence_register(args)
+        elif args.case_command == "verify":
+            cmd_evidence_verify(args)
+        elif args.case_command == "status":
+            cmd_case_status(args)
 
 
 if __name__ == "__main__":
