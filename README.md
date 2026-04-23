@@ -82,12 +82,56 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed design.
 
 ---
 
+## Current Status (Pre-Hackathon Build)
+
+### ✅ What's Working Now
+
+**Detection Engine (Production-Ready):**
+- 12 autonomous detectors with cross-artifact correlation
+- Perfect validation: 12/12 scenarios @ F1=1.00 (47 findings, 0 false positives)
+- Self-correction engine operational (contradiction detection + resolution)
+- MITRE ATT&CK mapping (T1027, T1055, T1059, T1071, T1140, etc.)
+
+**Supported Artifacts:**
+- Windows: MFT, Prefetch, Event Logs (4688), Registry (Run keys, Shimcache, AmCache, BAM, UserAssist)
+- Memory: Volatility 3 fixture support (pslist, psscan, malfind, cmdline, netscan, bash history)
+- Network: Browser history (Chrome, Firefox), PCAP analysis
+- Malware: YARA scanning with rule compilation
+- File Carving: NSRL integration for known-good filtering
+
+**Test Coverage:**
+- Synthetic scenarios: Ransomware, timestomping, insider threat, cloud exfiltration, persistence, memory intrusion
+- Real scenarios: CIRCL 2023 (wiped disk), M57-Jean (2008 case), Nitroba (network intrusion)
+- CI/CD: GitHub Actions with ruff + pytest validation
+
+**Development Environment:**
+- Python 3.12.2, Ubuntu 24.04 LTS
+- Synthetic fixture testing (no multi-GB evidence files required)
+- Fast iteration: scenario harness runs in seconds
+
+### 🚧 Integration Roadmap (Pre-Hackathon)
+
+**Next Steps:**
+1. **SIFT Workstation Integration** - Deploy to SIFT OVA, test with real forensic tools
+2. **Protocol SIFT MCP Server** - Wire up MCP tool wrappers for evidence safety
+3. **Live Evidence Processing** - Test against downloaded corpora (M57-Patents, National Gallery, training scenarios)
+4. **Demo Video Production** - Record 5-minute walkthrough with self-correction examples
+5. **Performance Benchmarking** - Measure triage/analysis time on 100GB disk images
+
+**Why Synthetic First?**
+- Deterministic testing (no tool version drift)
+- Fast CI/CD (seconds vs. minutes)
+- Perfect baseline for comparison when integrating real tools
+
+---
+
 ## Quick Start
 
 ### Prerequisites
 
-- **Python 3.10+**
+- **Python 3.12+** (tested on 3.12.2)
 - **Git**
+- **Optional:** SANS SIFT Workstation OVA (for real evidence processing)
 
 ### Installation
 
