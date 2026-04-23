@@ -30,6 +30,7 @@ from .parsers.registry_parser import RegistryParser
 from .scenario_runner import ScenarioLoadError, run_scenario_path
 from .validation import AdversarialValidator
 from .approval import ApprovalManager, ApprovalStatus, FindingWithApproval
+from .audit import AuditLogger
 from .case import Case, CaseManager, CaseStatus, EvidenceFile
 
 try:
@@ -1400,6 +1401,82 @@ def cmd_case_status(args):
     print(f"  Audit entries: {status['audit_entries']}")
 
 
+def cmd_audit_log(args):
+    """Handle audit log command: show recent audit entries."""
+    print_banner()
+
+    audit_path = Path(args.audit_file)
+    if not audit_path.exists():
+        print(f"Error: Audit file not found: {audit_path}", file=sys.stderr)
+        sys.exit(1)
+
+    logger = AuditLogger(audit_path)
+    entries = logger.get_recent(limit=args.limit)
+
+    print_section(f"Audit Log (most recent {len(entries)} entries)")
+    print(f"  Audit file: {audit_path}")
+
+    if not entries:
+        print("\n  No audit entries found.")
+        return
+
+    for entry in entries:
+        print(f"\n  [{entry.timestamp.isoformat()}] {entry.action}")
+        if entry.examiner:
+            print(f"    Examiner: {entry.examiner}")
+
+        if entry.details:
+            if entry.action == "tool_invocation":
+                tool = entry.details.get("tool", "unknown")
+                command = entry.details.get("command", "")
+                exit_code = entry.details.get("exit_code")
+                duration_ms = entry.details.get("duration_ms")
+                output_hash = entry.details.get("output_hash")
+
+                print(f"    Tool: {tool}")
+                print(f"    Command: {command}")
+                if exit_code is not None:
+                    print(f"    Exit code: {exit_code}")
+                if duration_ms is not None:
+                    print(f"    Duration: {duration_ms}ms")
+                if output_hash:
+                    print(f"    Output hash: {output_hash}")
+            else:
+                print(f"    Details: {json.dumps(entry.details, indent=6)}")
+
+
+def cmd_audit_summary(args):
+    """Handle audit summary command: show audit statistics."""
+    print_banner()
+
+    audit_path = Path(args.audit_file)
+    if not audit_path.exists():
+        print(f"Error: Audit file not found: {audit_path}", file=sys.stderr)
+        sys.exit(1)
+
+    logger = AuditLogger(audit_path)
+    stats = logger.get_statistics()
+
+    print_section("Audit Log Summary")
+    print(f"  Audit file: {audit_path}")
+    print(f"\n  Total entries: {stats['total_entries']}")
+    print(f"  Unique tools: {stats['unique_tools']}")
+
+    if stats['tools']:
+        print("\n  Tools used:")
+        for tool in stats['tools']:
+            print(f"    - {tool}")
+
+    if stats['examiners']:
+        print("\n  Examiners:")
+        for examiner in stats['examiners']:
+            print(f"    - {examiner}")
+
+    print("\n  Actions:")
+    for action, count in sorted(stats['actions'].items(), key=lambda x: x[1], reverse=True):
+        print(f"    {action}: {count}")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -1724,6 +1801,41 @@ Examples:
         help="Case root directory (default: /cases)",
     )
 
+    # Audit command group
+    audit_parser = subparsers.add_parser(
+        "audit",
+        help="Audit log commands",
+    )
+    audit_subparsers = audit_parser.add_subparsers(dest="audit_command", help="Audit operations")
+
+    # Audit log subcommand
+    audit_log_parser = audit_subparsers.add_parser(
+        "log",
+        help="Show recent audit entries",
+    )
+    audit_log_parser.add_argument(
+        "--audit-file",
+        required=True,
+        help="Path to audit.jsonl file",
+    )
+    audit_log_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Number of recent entries to show (default: 20)",
+    )
+
+    # Audit summary subcommand
+    audit_summary_parser = audit_subparsers.add_parser(
+        "summary",
+        help="Show audit log statistics",
+    )
+    audit_summary_parser.add_argument(
+        "--audit-file",
+        required=True,
+        help="Path to audit.jsonl file",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1754,6 +1866,14 @@ Examples:
             cmd_evidence_verify(args)
         elif args.case_command == "status":
             cmd_case_status(args)
+    elif args.command == "audit":
+        if not hasattr(args, "audit_command") or args.audit_command is None:
+            audit_parser.print_help()
+            sys.exit(1)
+        if args.audit_command == "log":
+            cmd_audit_log(args)
+        elif args.audit_command == "summary":
+            cmd_audit_summary(args)
 
 
 if __name__ == "__main__":
