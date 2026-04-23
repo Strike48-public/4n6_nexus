@@ -26,20 +26,39 @@ fixtures:
 expected:
   malicious_executables: []
   finding_counts:
-    memory_finding: 7
-    total: 7
+    memory_finding: 27
+    total: 27
   min_precision: 1.0
   min_recall: 1.0
 
 notes: |
-  Seven expected findings, one per MITRE technique:
+  Twenty-seven expected findings covering MITRE memory + obfuscation techniques:
+
+  Non-cmdline findings (6):
     - Windows malfind PAGE_EXECUTE_READWRITE VAD in svchost.exe (T1055)
     - Hidden process rootkit.exe present in psscan but not pslist (T1014)
-    - Windows cmdline powershell.exe -WindowStyle Hidden -NoProfile (T1059)
     - Windows netscan powershell.exe ESTABLISHED to public:4444 (T1071)
     - Linux bash history curl|sh download-execute (T1059.004)
     - Linux kworker-style COMM with PPID != 2 masquerade (T1036)
     - Linux bash process with ESTABLISHED socket to public:4444 (T1071)
+
+  Cmdline findings (21):
+    - Original PID 5580: LOLBAS persistence finding (1)
+    - T1140 corpus PIDs 6001-6010 (20 findings):
+      * Each LOLBAS cmdline generates 2 findings:
+        1. LOLBAS persistence (T1059) - all 10 cmdlines
+        2. Deobfuscation/decode (T1140) - all 10 cmdlines
+      * PowerShell -EncodedCommand download cradle (PID 6001)
+      * pwsh -enc download+execute (PID 6002)
+      * rundll32 squiblydoo javascript: (PID 6003)
+      * regsvr32 squiblytwo remote scrobj.dll (PID 6004)
+      * mshta HTTP remote payload (PID 6005)
+      * mshta vbscript: protocol (PID 6006)
+      * certutil -decode canonical T1140 (PID 6007)
+      * bitsadmin /transfer download (PID 6008)
+      * plaintext IEX + WebClient (PID 6009)
+      * -EncodedCommand Reflection.Assembly load (PID 6010)
+
   The hand-authored JSON fixtures use the exact column names Volatility 3
   emits with `-r json` so any future runner-shape change surfaces as a
   parsing failure in one place instead of drift across detectors.

