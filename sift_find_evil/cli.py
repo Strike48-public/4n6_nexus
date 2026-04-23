@@ -29,6 +29,7 @@ from .parsers.lnk_jumplist_parser import JumpListParser, LnkParser
 from .parsers.registry_parser import RegistryParser
 from .scenario_runner import ScenarioLoadError, run_scenario_path
 from .validation import AdversarialValidator
+from .approval import ApprovalManager, ApprovalStatus, FindingWithApproval
 
 try:
     from .detectors.yara_detector import YaraDetector
@@ -229,12 +230,28 @@ def analyze_artifacts(
 
 
 def _write_output(findings: list, output_path: Optional[Path]) -> None:
-    """Serialize findings to JSON if a path is provided."""
+    """Serialize findings to JSON with approval workflow support."""
     if output_path is None:
         return
+
+    # Wrap findings in FindingWithApproval objects (DRAFT status by default)
+    findings_with_approval = []
+    for i, finding in enumerate(findings, 1):
+        finding_id = f"F-{i:03d}"
+        wrapped = FindingWithApproval(
+            finding_id=finding_id,
+            finding=finding.to_dict() if hasattr(finding, "to_dict") else finding,
+        )
+        findings_with_approval.append(wrapped)
+
     payload = {
-        "findings": [f.to_dict() for f in findings],
-        "summary": {"total_findings": len(findings)},
+        "findings": [f.to_dict() for f in findings_with_approval],
+        "summary": {
+            "total": len(findings_with_approval),
+            "draft": len(findings_with_approval),  # All new findings are DRAFT
+            "approved": 0,
+            "rejected": 0,
+        },
     }
     with open(output_path, "w") as fh:
         json.dump(payload, fh, indent=2, default=str)
@@ -1005,9 +1022,12 @@ def cmd_demo(args):
         mft_path,
         prefetch_path,
         evtx_path,
-        output_json=Path(args.output) if args.output else None,
+        output_json=None,  # Use _write_output instead for approval workflow
         verbose=True,
     )
+
+    # Write output with approval metadata
+    _write_output(findings, Path(args.output) if args.output else None)
 
     # Display findings
     print_section("Demo Results")
@@ -1112,6 +1132,122 @@ def cmd_run(args):
     print(f"  Status:      {'PASS' if report.passed else 'FAIL'}")
 
     sys.exit(0 if report.passed else 1)
+
+
+def cmd_approve(args):
+    """Handle approve command: approve findings."""
+    print_banner()
+
+    findings_path = Path(args.findings)
+    if not findings_path.exists():
+        print(f"Error: Findings file not found: {findings_path}", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ApprovalManager(findings_path)
+    finding_ids = args.finding_ids
+    reviewer = args.reviewer
+    reason = args.reason
+
+    print_section("Approving Findings")
+    print(f"  Findings file: {findings_path}")
+    print(f"  Reviewer: {reviewer}")
+    print(f"  Finding IDs: {', '.join(finding_ids)}")
+    if reason:
+        print(f"  Reason: {reason}")
+
+    count = manager.approve(finding_ids, reviewer, reason)
+
+    print(f"\n  ✓ Approved {count} finding(s)")
+    print(f"  ✓ Audit log updated: {manager.audit_path}")
+
+
+def cmd_reject(args):
+    """Handle reject command: reject findings."""
+    print_banner()
+
+    findings_path = Path(args.findings)
+    if not findings_path.exists():
+        print(f"Error: Findings file not found: {findings_path}", file=sys.stderr)
+        sys.exit(1)
+
+    if not args.reason:
+        print("Error: --reason is required for rejection", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ApprovalManager(findings_path)
+    finding_ids = args.finding_ids
+    reviewer = args.reviewer
+    reason = args.reason
+
+    print_section("Rejecting Findings")
+    print(f"  Findings file: {findings_path}")
+    print(f"  Reviewer: {reviewer}")
+    print(f"  Finding IDs: {', '.join(finding_ids)}")
+    print(f"  Reason: {reason}")
+
+    count = manager.reject(finding_ids, reviewer, reason)
+
+    print(f"\n  ✓ Rejected {count} finding(s)")
+    print(f"  ✓ Audit log updated: {manager.audit_path}")
+
+
+def cmd_list_findings(args):
+    """Handle list command: show findings by status."""
+    print_banner()
+
+    findings_path = Path(args.findings)
+    if not findings_path.exists():
+        print(f"Error: Findings file not found: {findings_path}", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ApprovalManager(findings_path)
+    all_findings = manager.load_findings()
+
+    status_filter = args.status.upper() if args.status else None
+    if status_filter:
+        try:
+            status = ApprovalStatus(status_filter)
+            findings = manager.get_by_status(status)
+            title = f"Findings ({status.value})"
+        except ValueError:
+            print(f"Error: Invalid status '{status_filter}'. Valid: DRAFT, APPROVED, REJECTED", file=sys.stderr)
+            sys.exit(1)
+    else:
+        findings = all_findings
+        title = "All Findings"
+
+    print_section(title)
+    print(f"  Findings file: {findings_path}")
+    print(f"  Total: {len(findings)}")
+
+    if not findings:
+        print("\n  No findings match the filter.")
+        return
+
+    # Group by status
+    by_status = {
+        "DRAFT": [f for f in findings if f.is_draft()],
+        "APPROVED": [f for f in findings if f.is_approved()],
+        "REJECTED": [f for f in findings if f.is_rejected()],
+    }
+
+    for status, items in by_status.items():
+        if not items:
+            continue
+
+        print(f"\n  {status} ({len(items)}):")
+        for finding in items:
+            title = finding.finding.get("title", "Unknown")
+            severity = finding.finding.get("severity", "unknown").upper()
+            print(f"    [{finding.finding_id}] {severity}: {title}")
+
+            if finding.approval and finding.approval.reviewer:
+                print(f"      Reviewer: {finding.approval.reviewer}")
+                print(f"      Timestamp: {finding.approval.timestamp.isoformat()}")
+                if finding.approval.reason:
+                    print(f"      Reason: {finding.approval.reason}")
+                if finding.approval.signature_hash:
+                    print(f"      Signature: {finding.approval.signature_hash}")
 
 
 def main():
@@ -1267,6 +1403,81 @@ Examples:
         help="Treat SKIPPED scenarios as failures (exit 1). Use in CI to prevent silent passes from missing evidence.",
     )
 
+    # Approve command
+    approve_parser = subparsers.add_parser(
+        "approve",
+        help="Approve findings for inclusion in reports",
+    )
+    approve_parser.add_argument(
+        "--findings",
+        "-f",
+        required=True,
+        help="Path to findings.json file",
+    )
+    approve_parser.add_argument(
+        "--finding-ids",
+        nargs="+",
+        required=True,
+        help="Finding IDs to approve (space-separated)",
+    )
+    approve_parser.add_argument(
+        "--reviewer",
+        "-r",
+        required=True,
+        help="Name of reviewer approving findings",
+    )
+    approve_parser.add_argument(
+        "--reason",
+        help="Optional approval reason/note",
+    )
+
+    # Reject command
+    reject_parser = subparsers.add_parser(
+        "reject",
+        help="Reject findings with a reason",
+    )
+    reject_parser.add_argument(
+        "--findings",
+        "-f",
+        required=True,
+        help="Path to findings.json file",
+    )
+    reject_parser.add_argument(
+        "--finding-ids",
+        nargs="+",
+        required=True,
+        help="Finding IDs to reject (space-separated)",
+    )
+    reject_parser.add_argument(
+        "--reviewer",
+        "-r",
+        required=True,
+        help="Name of reviewer rejecting findings",
+    )
+    reject_parser.add_argument(
+        "--reason",
+        required=True,
+        help="Required rejection reason",
+    )
+
+    # List command
+    list_parser = subparsers.add_parser(
+        "list",
+        help="List findings by approval status",
+    )
+    list_parser.add_argument(
+        "--findings",
+        "-f",
+        required=True,
+        help="Path to findings.json file",
+    )
+    list_parser.add_argument(
+        "--status",
+        "-s",
+        choices=["draft", "approved", "rejected"],
+        help="Filter by approval status (default: show all)",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1279,6 +1490,12 @@ Examples:
         cmd_analyze(args)
     elif args.command == "run":
         cmd_run(args)
+    elif args.command == "approve":
+        cmd_approve(args)
+    elif args.command == "reject":
+        cmd_reject(args)
+    elif args.command == "list":
+        cmd_list_findings(args)
 
 
 if __name__ == "__main__":
