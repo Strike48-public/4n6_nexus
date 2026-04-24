@@ -493,6 +493,26 @@ Open a GitHub Discussion or reach out to hello@4n6nexus.dev
 EOF
 echo "✓ CONTRIBUTING.md"
 
+# Add copyright headers to Python files
+echo ""
+echo "Adding copyright headers to Python files..."
+find sift_find_evil -name "*.py" -type f | while read -r file; do
+  # Check if file already has copyright
+  if ! grep -q "Copyright (c)" "$file"; then
+    # Create temp file with header
+    cat > "$file.tmp" << 'HEADER'
+# Copyright (c) 2024 4n6Nexus Contributors
+# SPDX-License-Identifier: MIT
+
+HEADER
+    # Append original content
+    cat "$file" >> "$file.tmp"
+    mv "$file.tmp" "$file"
+    echo "  ✓ Added header: $file"
+  fi
+done
+echo "✓ Copyright headers added"
+
 # Git commit
 echo ""
 echo "Committing files to git..."

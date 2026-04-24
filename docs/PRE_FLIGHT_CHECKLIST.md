@@ -274,8 +274,8 @@
   - [x] All tests pass
 
 - [x] **License**
-  - [x] MIT License included
-  - [x] License headers in files (optional but good)
+  - [x] MIT License file at repository root
+  - [x] Copyright headers in source files (short, not full license text)
   - [x] Third-party licenses documented
 
 - [ ] **Demo Video** - **BLOCKER** (only remaining item)
