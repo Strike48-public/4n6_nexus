@@ -1,0 +1,42 @@
+{
+  "scenario_id": 14,
+  "name": "USB Device Activity (Unauthorized Data Transfer)",
+  "type": "data_exfiltration",
+  "description": "Insider copies sensitive files to USB drive, deletes local copies",
+  "expected_findings": [
+    {
+      "finding_id": "usb_device_connected",
+      "title": "USB Device Connected: Kingston DataTraveler",
+      "severity": "medium",
+      "confidence": 0.85,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    },
+    {
+      "finding_id": "large_file_transfer",
+      "title": "Large Files Copied to USB Drive E:",
+      "severity": "high",
+      "confidence": 0.90,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    },
+    {
+      "finding_id": "source_files_deleted",
+      "title": "Mass File Deletion After USB Transfer",
+      "severity": "high",
+      "confidence": 0.95,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_increase",
+      "original_confidence": 0.85
+    }
+  ],
+  "metrics": {
+    "true_positives": 3,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "scenario_id": 15,
+  "name": "Scheduled Task Persistence",
+  "type": "malware_persistence",
+  "description": "Malware creates scheduled task to maintain persistence",
+  "expected_findings": [
+    {
+      "finding_id": "suspicious_scheduled_task",
+      "title": "Suspicious Scheduled Task: WindowsUpdateCheck",
+      "severity": "high",
+      "confidence": 0.75,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_reduction",
+      "original_confidence": 0.90
+    },
+    {
+      "finding_id": "unsigned_binary",
+      "title": "Scheduled Task Executes Unsigned Binary",
+      "severity": "high",
+      "confidence": 0.85,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    },
+    {
+      "finding_id": "malware_lifecycle_pattern",
+      "title": "Malware Persistence Established via Scheduled Task",
+      "severity": "critical",
+      "confidence": 0.95,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_increase",
+      "original_confidence": 0.80
+    }
+  ],
+  "metrics": {
+    "true_positives": 3,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}

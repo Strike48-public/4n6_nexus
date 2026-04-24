@@ -1,0 +1,44 @@
+{
+  "scenario_id": 18,
+  "name": "Shadow Copy Deletion (Anti-forensics)",
+  "type": "anti_forensics",
+  "description": "Ransomware deletes Volume Shadow Copies before encrypting files",
+  "expected_findings": [
+    {
+      "finding_id": "shadow_copies_deleted",
+      "title": "All Volume Shadow Copies Deleted",
+      "severity": "high",
+      "confidence": 0.75,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_reduction",
+      "original_confidence": 0.90
+    },
+    {
+      "finding_id": "non_system_deletion",
+      "title": "Shadow Copies Deleted by Suspicious Process",
+      "severity": "high",
+      "confidence": 0.90,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    },
+    {
+      "finding_id": "ransomware_pattern",
+      "title": "Ransomware Attack: Shadow Copy Deletion + File Encryption",
+      "severity": "critical",
+      "confidence": 0.98,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_increase",
+      "original_confidence": 0.90
+    }
+  ],
+  "metrics": {
+    "true_positives": 3,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}

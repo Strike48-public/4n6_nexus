@@ -1,0 +1,44 @@
+{
+  "scenario_id": 17,
+  "name": "Network Share Access (Lateral Movement)",
+  "type": "lateral_movement",
+  "description": "Attacker accesses network shares on multiple systems for lateral movement",
+  "expected_findings": [
+    {
+      "finding_id": "multiple_share_connections",
+      "title": "Multiple Administrative Share Connections Detected",
+      "severity": "medium",
+      "confidence": 0.65,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_reduction",
+      "original_confidence": 0.80
+    },
+    {
+      "finding_id": "attack_tools_copied",
+      "title": "Lateral Movement Tools Copied to Network Shares",
+      "severity": "high",
+      "confidence": 0.90,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    },
+    {
+      "finding_id": "credential_reuse",
+      "title": "Lateral Movement via Credential Reuse",
+      "severity": "critical",
+      "confidence": 0.95,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_increase",
+      "original_confidence": 0.85
+    }
+  ],
+  "metrics": {
+    "true_positives": 3,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "scenario_id": 19,
+  "name": "Credential Dumping (LSASS Access)",
+  "type": "privilege_escalation",
+  "description": "Attacker dumps credentials from LSASS process memory",
+  "expected_findings": [
+    {
+      "finding_id": "lsass_memory_accessed",
+      "title": "LSASS Memory Accessed by External Process",
+      "severity": "high",
+      "confidence": 0.70,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_reduction",
+      "original_confidence": 0.85
+    },
+    {
+      "finding_id": "lsass_dump_created",
+      "title": "LSASS Memory Dump Created",
+      "severity": "critical",
+      "confidence": 0.95,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    },
+    {
+      "finding_id": "credential_theft_lateral_movement",
+      "title": "Credential Dumping Followed by Lateral Movement",
+      "severity": "critical",
+      "confidence": 0.98,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_increase",
+      "original_confidence": 0.90
+    }
+  ],
+  "metrics": {
+    "true_positives": 3,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}

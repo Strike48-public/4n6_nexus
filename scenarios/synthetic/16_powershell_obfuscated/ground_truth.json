@@ -1,0 +1,44 @@
+{
+  "scenario_id": 16,
+  "name": "PowerShell Script Execution (Obfuscated)",
+  "type": "malware_execution",
+  "description": "Attacker runs obfuscated PowerShell script for fileless malware execution",
+  "expected_findings": [
+    {
+      "finding_id": "obfuscated_powershell",
+      "title": "Obfuscated PowerShell Execution Detected",
+      "severity": "high",
+      "confidence": 0.70,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_reduction",
+      "original_confidence": 0.85
+    },
+    {
+      "finding_id": "wmi_spawned_powershell",
+      "title": "PowerShell Spawned Remotely via WMI",
+      "severity": "high",
+      "confidence": 0.85,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    },
+    {
+      "finding_id": "c2_communication",
+      "title": "PowerShell Connected to Suspicious External Server",
+      "severity": "critical",
+      "confidence": 0.95,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_increase",
+      "original_confidence": 0.85
+    }
+  ],
+  "metrics": {
+    "true_positives": 3,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}
