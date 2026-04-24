@@ -127,7 +127,7 @@ class MCPClient:
                     command=" ".join(command),
                     exit_code=result.returncode,
                     duration_ms=duration_ms,
-                    stdout=result.stdout[:1024],  # First 1KB
+                    output=result.stdout[:1024],  # First 1KB
                     stderr=result.stderr[:1024] if result.stderr else None,
                     working_dir=str(working_dir) if working_dir else None,
                 )
