@@ -1,6 +1,6 @@
 # 4n6Nexus
 
-![4n6Nexus Banner](logo_banner.svg)
+![4n6Nexus Banner](docs/logo_banner.svg)
 
 ![CI Status](https://img.shields.io/badge/CI-passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
