@@ -1,0 +1,44 @@
+{
+  "scenario_id": 13,
+  "name": "Browser Artifact Tampering",
+  "type": "anti-forensics",
+  "description": "Attacker clears browser history to hide web activity",
+  "expected_findings": [
+    {
+      "finding_id": "browser_history_cleared",
+      "title": "Browser History Cleared: chrome.exe",
+      "severity": "medium",
+      "confidence": 0.50,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_reduction",
+      "original_confidence": 0.80
+    },
+    {
+      "finding_id": "mass_cache_deletion",
+      "title": "Mass File Deletion: Chrome Cache",
+      "severity": "low",
+      "confidence": 0.40,
+      "is_true_positive": true,
+      "requires_self_correction": true,
+      "correction_type": "confidence_reduction",
+      "original_confidence": 0.60
+    },
+    {
+      "finding_id": "downloaded_file_no_history",
+      "title": "Downloaded File After History Clearing",
+      "severity": "medium",
+      "confidence": 0.75,
+      "is_true_positive": true,
+      "requires_self_correction": false
+    }
+  ],
+  "metrics": {
+    "true_positives": 3,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0
+  }
+}
