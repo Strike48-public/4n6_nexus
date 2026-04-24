@@ -660,3 +660,504 @@ findings = engine.analyze(mft_entries, prefetch_entries, event_log_entries)
 **Document Version**: 1.0  
 **Last Updated**: 2026-04-18  
 **Status**: Production-ready for SANS FIND EVIL! Hackathon
+
+---
+
+## NEW: Hackathon Features (v1.1 - April 2026)
+
+### Human-in-the-Loop Approval Workflow
+
+**Purpose:** All findings require human approval before inclusion in reports.
+
+**Architecture:**
+
+```mermaid
+graph LR
+    A[Detection Engine] --> B[FindingWithApproval DRAFT]
+    B --> C{Human Review}
+    C -->|Approve| D[APPROVED Status]
+    C -->|Reject| E[REJECTED Status]
+    D --> F[Report Generator]
+    E --> G[Audit Log Only]
+    
+    style C fill:#f9f,stroke:#333
+    style D fill:#bfb,stroke:#333
+    style E fill:#fbb,stroke:#333
+```
+
+**Approval States:**
+```python
+class ApprovalStatus(str, Enum):
+    DRAFT = "DRAFT"          # Initial state after detection
+    APPROVED = "APPROVED"    # Reviewer confirmed finding
+    REJECTED = "REJECTED"    # Reviewer marked as false positive
+```
+
+**Approval Metadata:**
+```python
+@dataclass
+class ApprovalMetadata:
+    status: ApprovalStatus
+    reviewer: str
+    timestamp: datetime
+    reason: Optional[str] = None
+    signature_hash: Optional[str] = None  # SHA-256 for tamper detection
+```
+
+**Tamper Detection:**
+- SHA-256 signature hash: `SHA256(finding_json + reviewer + timestamp)`
+- First 16 chars stored for brevity
+- Verifiable by recalculating hash from stored data
+
+**CLI Integration:**
+```bash
+# Review DRAFT findings
+python -m sift_find_evil.cli list --findings findings.json --status draft
+
+# Approve findings
+python -m sift_find_evil.cli approve \
+  --findings findings.json \
+  --finding-ids F-001 F-002 \
+  --reviewer "John Doe" \
+  --reason "Confirmed via timeline analysis"
+
+# Reject false positives
+python -m sift_find_evil.cli reject \
+  --findings findings.json \
+  --finding-ids F-003 \
+  --reviewer "John Doe" \
+  --reason "Benign system maintenance"
+```
+
+**Findings JSON Format:**
+```json
+{
+  "findings": [
+    {
+      "finding_id": "F-001",
+      "finding": {
+        "title": "Suspicious Activity: malware.exe",
+        "severity": "high",
+        "confidence": 0.75,
+        "description": "...",
+        "evidence": {...}
+      },
+      "approval": {
+        "status": "APPROVED",
+        "reviewer": "John Doe",
+        "timestamp": "2026-04-23T22:15:00Z",
+        "reason": "Confirmed via timeline analysis",
+        "signature_hash": "cfe2ec0f9af68ce7"
+      },
+      "created_at": "2026-04-23T22:10:00Z"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "draft": 0,
+    "approved": 1,
+    "rejected": 0
+  }
+}
+```
+
+**Implementation:**
+- `sift_find_evil/approval/models.py` - ApprovalStatus, ApprovalMetadata, FindingWithApproval
+- `sift_find_evil/approval/manager.py` - ApprovalManager
+- `sift_find_evil/cli.py` - approve, reject, list commands
+
+---
+
+### Case Management
+
+**Purpose:** Structured case lifecycle with evidence integrity verification.
+
+**Directory Structure:**
+```
+/cases/{case_id}/
+├── evidence/       # Evidence files (read-only recommended)
+├── analysis/       # Analysis outputs
+├── reports/        # Generated reports
+├── exports/        # IOC exports, timeline CSVs
+├── CASE.yaml       # Case metadata (CaseStatus, examiner, dates)
+├── evidence.json   # Evidence registry (SHA-256, file_path, description)
+├── findings.json   # Detection findings with approval metadata
+└── audit.jsonl     # Audit log (append-only)
+```
+
+**Case Lifecycle:**
+```mermaid
+stateDiagram-v2
+    [*] --> OPEN: create_case()
+    OPEN --> ACTIVE: register_evidence()
+    ACTIVE --> ACTIVE: analyze()
+    ACTIVE --> CLOSED: close_case()
+    CLOSED --> [*]
+```
+
+**Case Metadata (CASE.yaml):**
+```yaml
+case_id: INC-2026-001
+name: M57 Jean Investigation
+examiner: John Doe
+created_at: '2026-04-23T22:05:00Z'
+status: open
+directory: /cases/INC-2026-001
+description: Patent theft investigation
+closed_at: null
+```
+
+**Evidence Registry (evidence.json):**
+```json
+{
+  "evidence": [
+    {
+      "file_path": "/evidence/disk.E01",
+      "description": "Suspect workstation disk image",
+      "sha256_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "registered_at": "2026-04-23T22:10:00Z",
+      "file_size": 8589934592,
+      "evidence_type": "disk_image"
+    }
+  ]
+}
+```
+
+**Evidence Types:**
+- `disk_image` - E01, DD, raw disk images
+- `memory_dump` - DMP, RAW, VMEM memory captures
+- `pcap` - Network packet captures
+- `log` - Windows Event Logs, syslog, application logs
+- `other` - Custom artifact types
+
+**SHA-256 Verification:**
+```python
+def verify_evidence(self, case_id: str) -> dict:
+    results = {
+        "total": len(evidence),
+        "verified": 0,
+        "failed": 0,
+        "missing": 0,
+        "details": []
+    }
+    
+    for item in evidence:
+        current_hash = self._calculate_sha256(file_path)
+        if current_hash == registered_hash:
+            results["verified"] += 1
+            results["details"].append({"file": str(file_path), "status": "VERIFIED", "hash": current_hash})
+        else:
+            results["failed"] += 1
+            results["details"].append({"file": str(file_path), "status": "FAILED", "registered_hash": registered_hash, "current_hash": current_hash})
+    
+    return results
+```
+
+**CLI Integration:**
+```bash
+# Create case
+python -m sift_find_evil.cli case init \
+  --case-id INC-2026-001 \
+  --name "M57 Jean Investigation" \
+  --examiner "John Doe"
+
+# Register evidence with SHA-256
+python -m sift_find_evil.cli case register \
+  --case-id INC-2026-001 \
+  --file /evidence/disk.E01 \
+  --description "Suspect workstation" \
+  --type disk_image
+
+# Verify integrity (exits 1 on failure)
+python -m sift_find_evil.cli case verify --case-id INC-2026-001
+
+# Case status
+python -m sift_find_evil.cli case status --case-id INC-2026-001
+```
+
+**Implementation:**
+- `sift_find_evil/case/models.py` - Case, CaseStatus, EvidenceFile
+- `sift_find_evil/case/manager.py` - CaseManager
+- `sift_find_evil/cli.py` - case init/register/verify/status commands
+
+---
+
+### Audit Logging for Chain-of-Custody
+
+**Purpose:** Append-only JSONL audit trail for all forensic tool invocations and case actions.
+
+**JSONL Format:**
+```json
+{"timestamp": "2026-04-23T22:15:45.123456", "action": "tool_invocation", "examiner": "John Doe", "details": {"tool": "volatility", "command": "vol.py -f memory.raw windows.pslist", "exit_code": 0, "duration_ms": 1234, "output_hash": "5a5c4332e5167d2d", "working_dir": "/cases/INC-2026-001", "stdout": "PID  PPID ImageFileName\n1234 5678 malware.exe", "stderr": null}}
+{"timestamp": "2026-04-23T22:16:00.789012", "action": "finding_approved", "examiner": "John Doe", "details": {"finding_id": "F-001", "reviewer": "John Doe", "reason": "Confirmed malware", "signature_hash": "cfe2ec0f9af68ce7"}}
+```
+
+**Logged Actions:**
+- `tool_invocation` - Forensic tool execution
+- `case_created` - Case initialization
+- `evidence_registered` - Evidence added to registry
+- `finding_approved` - Finding approved
+- `finding_rejected` - Finding rejected
+- `report_generated` - Report created
+
+**Tool Invocation Model:**
+```python
+@dataclass
+class ToolInvocation:
+    tool: str
+    command: str
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+    exit_code: Optional[int] = None
+    duration_ms: Optional[int] = None
+    output_hash: Optional[str] = None  # SHA-256 (first 16 chars)
+    examiner: Optional[str] = None
+    working_dir: Optional[str] = None
+    stdout: Optional[str] = None  # First 1KB
+    stderr: Optional[str] = None  # First 1KB
+```
+
+**Output Hash Calculation:**
+```python
+def calculate_output_hash(output: str) -> str:
+    """Calculate SHA-256 hash of tool output (first 16 chars)."""
+    return hashlib.sha256(output.encode("utf-8")).hexdigest()[:16]
+```
+
+**Subprocess Wrapper with Automatic Logging:**
+```python
+def run_tool(
+    self,
+    tool: str,
+    args: list[str],
+    working_dir: Optional[Path] = None
+) -> tuple[int, str, str]:
+    """Run forensic tool with automatic audit logging."""
+    command = f"{tool} {' '.join(args)}"
+    start_time = time.time()
+    
+    result = subprocess.run(
+        [tool] + args,
+        cwd=working_dir,
+        capture_output=True,
+        text=True,
+        timeout=300  # 5 minute timeout
+    )
+    
+    duration_ms = int((time.time() - start_time) * 1000)
+    
+    self.log_tool_invocation(
+        tool=tool,
+        command=command,
+        exit_code=result.returncode,
+        duration_ms=duration_ms,
+        output=result.stdout,
+        stderr=result.stderr,
+        working_dir=str(working_dir) if working_dir else None
+    )
+    
+    return result.returncode, result.stdout, result.stderr
+```
+
+**CLI Integration:**
+```bash
+# View recent audit entries
+python -m sift_find_evil.cli audit log \
+  --audit-file /cases/INC-2026-001/audit.jsonl \
+  --limit 20
+
+# Audit log statistics
+python -m sift_find_evil.cli audit summary \
+  --audit-file /cases/INC-2026-001/audit.jsonl
+```
+
+**Statistics Output:**
+```python
+{
+    "total_entries": 23,
+    "unique_tools": 5,
+    "tools": ["volatility", "mftecmd", "pecmd", "evtxecmd", "yara"],
+    "actions": {"tool_invocation": 18, "case_created": 1, "evidence_registered": 3, "finding_approved": 1},
+    "examiners": ["John Doe", "Jane Smith"]
+}
+```
+
+**Implementation:**
+- `sift_find_evil/audit/models.py` - AuditEntry, ToolInvocation
+- `sift_find_evil/audit/logger.py` - AuditLogger
+- `sift_find_evil/cli.py` - audit log/summary commands
+
+---
+
+### Report Generation
+
+**Purpose:** Generate human-readable investigation reports in multiple formats.
+
+**Supported Formats:**
+```python
+class ReportFormat(str, Enum):
+    MARKDOWN = "markdown"  # ✅ Implemented
+    HTML = "html"          # ✅ Implemented
+    PDF = "pdf"            # 🚧 Future
+```
+
+**Report Sections:**
+1. **Case Metadata** - Case ID, examiner, dates, status, description
+2. **Executive Summary** - Auto-generated based on findings count/severity
+3. **Evidence Summary** - Files, SHA-256 hashes, sizes (Markdown table)
+4. **Findings** - Grouped by severity (CRITICAL/HIGH/MEDIUM/LOW)
+5. **IOCs** - IPs, domains, file hashes, processes extracted from findings
+6. **Recommendations** - Auto-generated based on severity distribution
+7. **Footer** - Timestamp, tool attribution
+
+**IOC Extraction:**
+```python
+def _extract_iocs(self, findings) -> dict:
+    """Extract IOCs from finding evidence dictionaries."""
+    iocs = {
+        "ips": set(),
+        "domains": set(),
+        "file_hashes": set(),
+        "processes": set()
+    }
+    
+    for finding in findings:
+        evidence = finding.finding.get("evidence", {})
+        
+        if "ip" in evidence:
+            iocs["ips"].add(evidence["ip"])
+        if "domain" in evidence:
+            iocs["domains"].add(evidence["domain"])
+        if "sha256" in evidence:
+            iocs["file_hashes"].add(evidence["sha256"])
+        if "process" in evidence:
+            iocs["processes"].add(evidence["process"])
+    
+    return {k: sorted(v) for k, v in iocs.items()}
+```
+
+**Auto-Generated Executive Summary:**
+```python
+def _generate_executive_summary(self, findings) -> str:
+    critical = sum(1 for f in findings if f.finding.get("severity") == "critical")
+    high = sum(1 for f in findings if f.finding.get("severity") == "high")
+    medium = sum(1 for f in findings if f.finding.get("severity") == "medium")
+    
+    summary = f"Detected {len(findings)} suspicious finding(s) during analysis. "
+    if critical:
+        summary += f"{critical} CRITICAL, "
+    if high:
+        summary += f"{high} HIGH, "
+    if medium:
+        summary += f"{medium} MEDIUM severity. "
+    summary += "All findings have been reviewed and approved for inclusion in this report."
+    
+    return summary
+```
+
+**Auto-Generated Recommendations:**
+```python
+def _generate_recommendations(self, findings) -> list[str]:
+    recommendations = []
+    
+    critical_count = sum(1 for f in findings if f.finding.get("severity") == "critical")
+    if critical_count > 0:
+        recommendations.append("Immediate incident response: Isolate affected systems and contain threat.")
+        recommendations.append("Conduct comprehensive forensic analysis of all systems.")
+    
+    high_count = sum(1 for f in findings if f.finding.get("severity") == "high")
+    if high_count > 0:
+        recommendations.append("Review and harden security controls to prevent recurrence.")
+        recommendations.append("Implement enhanced monitoring for detected IOCs.")
+    
+    return recommendations
+```
+
+**CLI Integration:**
+```bash
+# Generate Markdown report (approved findings only)
+python -m sift_find_evil.cli report \
+  --case-id INC-2026-001 \
+  --output report.md \
+  --format markdown
+
+# Generate HTML report
+python -m sift_find_evil.cli report \
+  --case-id INC-2026-001 \
+  --output report.html \
+  --format html
+
+# Include all findings (draft/approved/rejected)
+python -m sift_find_evil.cli report \
+  --case-id INC-2026-001 \
+  --output full_report.md \
+  --format markdown \
+  --all-findings
+```
+
+**HTML Output Features:**
+- Embedded CSS for styling
+- Responsive layout
+- Printer-friendly format
+- Tables for evidence summary
+
+**Implementation:**
+- `sift_find_evil/reporting/models.py` - Report, ReportFormat
+- `sift_find_evil/reporting/generator.py` - ReportGenerator
+- `sift_find_evil/cli.py` - report command
+
+---
+
+## End-to-End Detection Flow (Updated)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CaseManager
+    participant Parser
+    participant DetectionEngine
+    participant SelfCorrection
+    participant ApprovalManager
+    participant ReportGenerator
+    participant AuditLogger
+    
+    User->>CaseManager: create_case(case_id, name, examiner)
+    CaseManager->>AuditLogger: log_action("case_created")
+    CaseManager-->>User: Case created
+    
+    User->>CaseManager: register_evidence(file_path, description)
+    CaseManager->>CaseManager: calculate SHA-256 hash
+    CaseManager->>AuditLogger: log_action("evidence_registered")
+    CaseManager-->>User: Evidence registered
+    
+    User->>Parser: parse_csv(mft.csv, prefetch.csv, evtx.csv)
+    Parser-->>User: Artifact lists
+    
+    User->>DetectionEngine: analyze(artifacts)
+    DetectionEngine->>DetectionEngine: Group by executable
+    DetectionEngine->>DetectionEngine: Calculate initial confidence
+    DetectionEngine->>SelfCorrection: detect_contradictions()
+    SelfCorrection-->>DetectionEngine: Contradictions found
+    DetectionEngine->>SelfCorrection: apply_resolutions()
+    SelfCorrection-->>DetectionEngine: Confidence adjusted
+    DetectionEngine->>AuditLogger: log_action("detection_complete")
+    DetectionEngine-->>User: Findings (all DRAFT)
+    
+    User->>ApprovalManager: approve(finding_ids, reviewer, reason)
+    ApprovalManager->>ApprovalManager: Generate signature hash
+    ApprovalManager->>AuditLogger: log_action("finding_approved")
+    ApprovalManager-->>User: Findings approved
+    
+    User->>ReportGenerator: generate(case_id, format="markdown")
+    ReportGenerator->>ApprovalManager: load_findings(approved_only=True)
+    ApprovalManager-->>ReportGenerator: Approved findings
+    ReportGenerator->>ReportGenerator: Extract IOCs
+    ReportGenerator->>ReportGenerator: Generate executive summary
+    ReportGenerator->>AuditLogger: log_action("report_generated")
+    ReportGenerator-->>User: Report generated
+```
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: 2026-04-23  
+**Status**: Production-ready with Hackathon Features
