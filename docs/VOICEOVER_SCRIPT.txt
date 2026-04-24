@@ -1,0 +1,184 @@
+SIFT Find Evil - Demo Video Voiceover Script
+=============================================
+
+For use with Chatterbox TTS: https://github.com/resemble-ai/chatterbox
+GPU: RTX 4090 recommended
+
+Instructions:
+1. Clone Chatterbox on system with RTX 4090
+2. Run inference on each segment below
+3. Export as MP3/WAV (48kHz, stereo recommended)
+4. Combine segments or use as separate tracks for video editing
+
+---
+
+SEGMENT 1: PROBLEM STATEMENT (0:00-0:30)
+=========================================
+
+DFIR investigations are manual and time-intensive. A senior analyst spends 40 to 120 hours per case running 50 plus specialized forensic tools, correlating artifacts across disk images, memory dumps, and logs, then documenting findings in court-admissible reports.
+
+Existing automation falls short: scripts lack reasoning capability, and prompt-engineered LLMs hallucinate findings without evidence integrity guarantees.
+
+This is SIFT Find Evil - an autonomous DFIR agent with architectural self-correction.
+
+---
+
+SEGMENT 2: SOLUTION OVERVIEW (0:30-1:00)
+=========================================
+
+Our solution combines three architectural innovations:
+
+First: MCP integration for safe forensic tool execution. Read-only enforcement, timeout guards, circuit breakers, and append-only audit logging ensure evidence chain-of-custody.
+
+Second: Cross-artifact validation. The detection engine automatically correlates timestamps from MFT, Prefetch, Registry, and Event Logs to detect contradictions.
+
+Third: Autonomous self-correction. When timestamp discrepancies exceed confidence thresholds, the engine triggers re-investigation and adjusts findings confidence without human intervention.
+
+Let's see it working on real evidence.
+
+---
+
+SEGMENT 3: DEMO SETUP (1:00-1:30)
+==================================
+
+We're analyzing a 7.7 gigabyte insider threat case - a real forensic image from our evidence collection.
+
+The agent mounts the E01 image read-only, identifies the Windows partition, extracts the MFT file, and initializes the case with audit logging enabled.
+
+Watch as the agent autonomously executes forensic tools via MCP.
+
+---
+
+SEGMENT 4: LIVE EXECUTION (1:30-4:00)
+======================================
+
+The agent executes MFTECmd - a forensic tool that parses the Master File Table. Notice the MCP client enforces read-only access and logs every invocation with SHA-256 output hashing for chain-of-custody.
+
+The parser converts 155 thousand MFT entries into structured data. The detection engine runs 12 specialized detectors looking for suspicious patterns.
+
+1,071 potential findings detected. Now watch the self-correction engine analyze cross-artifact consistency.
+
+[PAUSE FOR SCREEN SHOWING FINDING EXAMPLE]
+
+Here's a finding: MessagingApplication dot exe exists in the MFT but has no Prefetch artifact. Normal Windows executables leave Prefetch traces. The absence suggests either anti-forensics or the executable never actually ran.
+
+The self-correction engine detected this contradiction and reduced the confidence from 0.85 to 0.55 - distinguishing confirmed evidence from inference.
+
+---
+
+SEGMENT 5: SELF-CORRECTION DEEP DIVE (4:00-5:00)
+=================================================
+
+Here's timestomping detection: backdoor dot exe has a 22-day timestamp discrepancy between MFT dollar STANDARD_INFORMATION and dollar FILE_NAME attributes.
+
+The self-correction engine knows STANDARD_INFORMATION can be modified by attackers but FILE_NAME is harder to forge. It flags the finding as suspicious but reduces confidence to 0.35 because we can't definitively prove malicious intent.
+
+This is architectural self-correction - not prompt engineering. The constraint is in code.
+
+[PAUSE FOR AUDIT LOG]
+
+Every tool execution is logged to append-only JSONL with timestamps, exit codes, and SHA-256 output hashes. Any finding can be traced back to the specific tool invocation that produced it.
+
+---
+
+SEGMENT 6: RESULTS & ARCHITECTURE (5:00-5:30)
+==============================================
+
+Results: 1,071 findings from real evidence, with 247 self-correction instances where contradictions were detected and confidence adjusted.
+
+On synthetic test scenarios, perfect F1 score of 1.0 - no false positives, no false negatives across 12 validation cases.
+
+Architecture safety features ensure evidence integrity: read-only enforcement prevents modification, timeout guards prevent runaway processes, circuit breakers handle tool failures gracefully, and every action is logged for chain-of-custody.
+
+All code is open source MIT license on GitHub. Documentation, setup instructions, and accuracy reports included.
+
+SIFT Find Evil - autonomous DFIR with architectural self-correction.
+
+---
+
+ALTERNATIVE ENDINGS (if time allows)
+====================================
+
+ENDING A: Validation Results
+-----------------------------
+Validation: 12 test scenarios ranging from clean baseline to ransomware to memory intrusion. Perfect precision and recall. Zero false positives. Zero missed findings.
+
+ENDING B: Call to Action
+-------------------------
+Try it yourself: Clone the repository, deploy to SIFT Workstation in under 15 minutes, and run against your own forensic evidence. Links in the description.
+
+---
+
+TECHNICAL NOTES FOR CHATTERBOX
+===============================
+
+Recommended Settings:
+- Voice: Choose a professional, technical-sounding voice
+- Speed: 1.0x (normal, don't rush)
+- Pause between sentences: 300-500ms
+- Pause between segments: 1000ms
+- Pronunciation hints:
+  * "MFT" = "M F T" (spell out)
+  * "DFIR" = "D-FIR" (dee-fur)
+  * "MCP" = "M C P" (spell out)
+  * "E01" = "E-zero-one"
+  * "SHA-256" = "shah two-fifty-six"
+  * "JSONL" = "JSON-L" or "JSON lines"
+  * "F1" = "F-one"
+
+Output Format:
+- Export each segment as separate file:
+  segment_1_problem.wav
+  segment_2_solution.wav
+  segment_3_setup.wav
+  segment_4_execution.wav
+  segment_5_self_correction.wav
+  segment_6_results.wav
+
+- OR export as single file with silence between segments
+
+Quality Settings:
+- Sample rate: 48000 Hz (48 kHz)
+- Bit depth: 16-bit or 24-bit
+- Channels: Mono (for voice) or Stereo
+- Format: WAV (lossless) or high-quality MP3 (320kbps)
+
+---
+
+POST-PROCESSING (Optional)
+===========================
+
+Using Audacity or similar:
+1. Normalize audio to -3dB peak
+2. Compress dynamic range (threshold: -18dB, ratio: 3:1)
+3. Add subtle EQ (boost 100-200Hz for warmth, cut 3-5kHz harshness if needed)
+4. Add very subtle reverb (optional, 5-10% wet)
+5. Export final audio
+
+---
+
+BACKUP OPTION: Text-to-Speech Alternatives
+===========================================
+
+If Chatterbox doesn't work well:
+
+1. Google Cloud TTS (paid, $4/1M chars)
+   - Wavenet voices are excellent
+   - Command: gcloud text-to-speech synthesize-speech
+
+2. Azure TTS (paid, ~$15/1M chars)
+   - Neural voices very natural
+   - Good for technical content
+
+3. Bark (open source, runs on 4090)
+   - https://github.com/suno-ai/bark
+   - Very natural but slower than Chatterbox
+
+4. Coqui TTS (open source)
+   - https://github.com/coqui-ai/TTS
+   - Good quality, fast on GPU
+
+---
+
+WORD COUNT: ~670 words (~4.5 minutes at 150 words/min)
+ESTIMATED AUDIO LENGTH: 4:30-5:00 depending on pacing
