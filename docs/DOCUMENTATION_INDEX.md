@@ -17,6 +17,8 @@
 | [ARCHITECTURE_DIAGRAM.md](#architecture-diagram) | System architecture (Mermaid diagrams) | Understanding system design |
 | [VOICEOVER_SCRIPT_REVISED.txt](#voiceover-script) | Demo video narration (4n6Nexus branded) | Before recording demo |
 | [VIDEO_RECORDING_GUIDE.md](#video-recording-guide) | Complete video recording instructions | When recording demo |
+| [EVIDENCE_COMPATIBILITY.md](#evidence-compatibility) | What evidence can be analyzed (Windows/Linux/macOS) | When planning tests or answering capability questions |
+| [COPYRIGHT_HEADERS.md](#copyright-headers) | How to add copyright headers (not full license) | When creating new files |
 
 ---
 
