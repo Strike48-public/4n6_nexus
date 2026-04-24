@@ -81,12 +81,13 @@ class MCPClient:
             )
 
         # Validate read-only enforcement
-        if any(
-            flag in " ".join(command)
-            for flag in ["--write", "-w", "--modify", "--delete", "-d"]
-        ):
+        # Check for write-related flags more precisely to avoid blocking
+        # legitimate flags like "-d <dir>" in forensic tools
+        command_str = " ".join(command)
+        write_flags = ["--write", "-w ", " -w", "--modify", "--delete"]
+        if any(flag in command_str for flag in write_flags):
             raise ValueError(
-                f"Write operations not allowed in read-only mode: {' '.join(command)}"
+                f"Write operations not allowed in read-only mode: {command_str}"
             )
 
         start_time = time.time()

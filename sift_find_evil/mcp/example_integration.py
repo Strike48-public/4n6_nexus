@@ -10,7 +10,7 @@ from typing import Optional
 from ..audit.logger import AuditLogger
 from ..parsers.mft_parser import MFTParser
 from ..parsers.prefetch_parser import PrefetchParser
-from ..parsers.evtx_parser import EvtxParser
+from ..parsers.evtx_parser import EventLogParser
 from .client import MCPClient
 from .tools import EZToolsTool, VolatilityTool
 
@@ -59,7 +59,7 @@ class MCPDetectionPipeline:
         # Initialize parsers (for processing tool output)
         self.mft_parser = MFTParser()
         self.prefetch_parser = PrefetchParser()
-        self.evtx_parser = EvtxParser()
+        self.evtx_parser = EventLogParser()
 
     def analyze_mft(self, mft_file: Path, output_dir: Path) -> list:
         """Analyze MFT using MFTECmd via MCP.
@@ -82,11 +82,17 @@ class MCPDetectionPipeline:
                 f"MFTECmd failed (exit {result.exit_code}): {result.stderr}"
             )
 
-        # Parse generated CSV
-        csv_file = output_dir / "MFT.csv"  # MFTECmd default output name
-        if not csv_file.exists():
-            raise FileNotFoundError(f"MFTECmd CSV not found: {csv_file}")
+        # Parse generated CSV - MFTECmd creates timestamped files
+        # Pattern: YYYYMMDDHHMMSS_MFTECmd_$MFT_Output.csv
+        csv_files = list(output_dir.glob("*_MFTECmd_*_Output.csv"))
+        if not csv_files:
+            raise FileNotFoundError(
+                f"MFTECmd CSV not found in {output_dir}. "
+                f"Tool output: {result.stdout[:500]}"
+            )
 
+        # Use the most recent CSV file
+        csv_file = max(csv_files, key=lambda p: p.stat().st_mtime)
         return self.mft_parser.parse_csv(csv_file)
 
     def analyze_prefetch(self, prefetch_dir: Path, output_dir: Path) -> list:
@@ -110,11 +116,17 @@ class MCPDetectionPipeline:
                 f"PECmd failed (exit {result.exit_code}): {result.stderr}"
             )
 
-        # Parse generated CSV
-        csv_file = output_dir / "Prefetch.csv"  # PECmd default output name
-        if not csv_file.exists():
-            raise FileNotFoundError(f"PECmd CSV not found: {csv_file}")
+        # Parse generated CSV - PECmd creates timestamped files
+        # Pattern: YYYYMMDDHHMMSS_PECmd_Output.csv
+        csv_files = list(output_dir.glob("*_PECmd_*Output.csv"))
+        if not csv_files:
+            raise FileNotFoundError(
+                f"PECmd CSV not found in {output_dir}. "
+                f"Tool output: {result.stdout[:500]}"
+            )
 
+        # Use the most recent CSV file
+        csv_file = max(csv_files, key=lambda p: p.stat().st_mtime)
         return self.prefetch_parser.parse_csv(csv_file)
 
     def analyze_evtx(self, evtx_file: Path, output_dir: Path) -> list:
@@ -138,11 +150,17 @@ class MCPDetectionPipeline:
                 f"EvtxECmd failed (exit {result.exit_code}): {result.stderr}"
             )
 
-        # Parse generated CSV
-        csv_file = output_dir / "EventLog.csv"  # EvtxECmd default output name
-        if not csv_file.exists():
-            raise FileNotFoundError(f"EvtxECmd CSV not found: {csv_file}")
+        # Parse generated CSV - EvtxECmd creates timestamped files
+        # Pattern: YYYYMMDDHHMMSS_EvtxECmd_Output.csv
+        csv_files = list(output_dir.glob("*_EvtxECmd_*Output.csv"))
+        if not csv_files:
+            raise FileNotFoundError(
+                f"EvtxECmd CSV not found in {output_dir}. "
+                f"Tool output: {result.stdout[:500]}"
+            )
 
+        # Use the most recent CSV file
+        csv_file = max(csv_files, key=lambda p: p.stat().st_mtime)
         return self.evtx_parser.parse_csv(csv_file)
 
     def analyze_memory(self, memory_file: Path, output_dir: Path) -> dict:
