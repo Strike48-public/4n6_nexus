@@ -18,20 +18,22 @@ Built for the SANS FIND EVIL! Hackathon with production-grade architecture desig
 | Scenario | Findings | False Positives | False Negatives | Precision | Recall | F1 Score |
 |----------|----------|-----------------|-----------------|-----------|--------|----------|
 | **Synthetic Scenarios** | | | | | | |
-| 01_timestomping | 2 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 01_clean_baseline | 0 | 0 | 0 | 1.00 | 1.00 | **1.00** |
 | 02_ransomware | 5 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 03_insider_threat | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 04_cloud_exfiltration | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 05_persistence | 6 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 06_credential_theft | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 07_webmail_exfil | 1 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 08_lateral_movement | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 09_registry_persistence | 5 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 03_timestomping | 2 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 04_edge_cases | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 05_missing_prefetch | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 06_webmail_exfiltration | 1 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 07_cloud_upload | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 08_persistence_run_keys | 5 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 09_shimcache_only | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 10_timestomping_with_bam | 6 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| 11_yara_malware | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
 | 12_memory_intrusion | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
 | **Real Scenarios** | | | | | | |
-| CIRCL_2023 (wiped disk) | 2 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| Nitroba (network intrusion) | 8 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| **TOTAL** | **47** | **0** | **0** | **1.00** | **1.00** | **1.00** |
+| circl-2023-wiped | 1 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| nitroba | 0 | 0 | 0 | 1.00 | 1.00 | **1.00** |
+| **TOTAL** | **41** | **0** | **0** | **1.00** | **1.00** | **1.00** |
 
 **Validation method:** Automated scenario harness with ground-truth expected findings. All scenarios run in CI/CD on every commit.
 
@@ -430,7 +432,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component design.
 
 ```bash
 # Clone repository
-git clone https://github.com/jtomek-strike48/sift_find_evil.git
+git clone https://github.com/jtomek/sift_find_evil.git
 cd sift_find_evil
 
 # Install dependencies
@@ -895,8 +897,8 @@ Open-source community edition. Commercial SaaS offering coming 2026.
 
 ## Contact
 
-- **GitHub Issues:** https://github.com/jtomek-strike48/sift_find_evil/issues
-- **Project Lead:** Jonathan Tomek
-- **Email:** jonathan.tomek@madx.co
+- **GitHub:** https://github.com/jtomek/sift_find_evil
+- **Issues:** https://github.com/jtomek/sift_find_evil/issues
+- **Author:** Jonathan Tomek (jonathan.tomek@madx.co)
 
 Built with Claude Code - Demonstrating the future of autonomous DFIR.
