@@ -30,7 +30,20 @@ test-results/
 2. Results automatically saved to timestamped directory
 3. Review results separately from scenario context
 4. Run again later to generate new timestamped results
-5. Compare runs: `diff test-results/real/<scenario>/{old,new}/SUMMARY.md`
+5. Compare runs using the regression testing framework:
+
+```bash
+# Compare two specific runs
+python -m sift_find_evil.testing.compare_runs \
+    --baseline test-results/real/<scenario>/2026-04-25_14-30-00 \
+    --current test-results/real/<scenario>/2026-04-26_10-15-00 \
+    --output test-results/comparisons/
+
+# Or run regression test against latest baseline
+python -m sift_find_evil.testing.run_regression_test --scenario <scenario_name>
+```
+
+See `sift_find_evil/testing/README.md` for detailed regression testing documentation.
 
 ## Retention Policy
 

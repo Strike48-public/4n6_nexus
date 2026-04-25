@@ -100,6 +100,26 @@ class Finding:
             "artifact_sources": self.artifact_sources,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "Finding":
+        """Create Finding from dictionary (inverse of to_dict)."""
+        return cls(
+            title=data["title"],
+            description=data["description"],
+            finding_type=data["type"],
+            severity=data["severity"],
+            category=FindingCategory(data["category"]),
+            evidence=data.get("evidence", {}),
+            confidence=data.get("confidence", 0.85),
+            confidence_label=data.get("confidence_label", "High"),
+            reasoning_chain=data.get("reasoning_chain", []),
+            contradictions=[],  # Skip reconstruction for comparison purposes
+            resolutions=[],  # Skip reconstruction for comparison purposes
+            confidence_calculation=data.get("confidence_calculation", {}),
+            detected_at=datetime.fromisoformat(data["detected_at"]),
+            artifact_sources=data.get("artifact_sources", []),
+        )
+
 
 class SelfCorrectionEngine:
     """Main orchestrator for autonomous self-correction.
