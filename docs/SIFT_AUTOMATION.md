@@ -7,18 +7,23 @@ Automated workflow for starting SIFT OVA, checking MCP, and testing sift_find_ev
 ## Quick Start
 
 ```bash
-# Run complete automated workflow
+# Start existing SIFT VM (requires sudo for libvirt network)
 cd ~/Code/sift_find_evil
-./scripts/sift-automation.sh
+sudo virsh start sift-workstation
+
+# Get VM IP
+VM_IP=$(sudo virsh domifaddr sift-workstation | awk '/ipv4/ {print $4}' | cut -d'/' -f1)
+
+# Install and test software
+./scripts/sift-commands.sh install
+./scripts/sift-commands.sh test
 ```
 
 This will:
-1. Import OVA (if needed)
-2. Start SIFT VM
-3. Wait for SSH
-4. Check MCP status
-5. Install sift_find_evil
-6. Run tests
+1. Start SIFT VM
+2. Wait for SSH
+3. Install sift_find_evil in venv
+4. Run demo test
 
 ---
 
@@ -154,28 +159,38 @@ ssh sansforensics@$VM_IP "cat ~/.config/claude/mcp_settings.json"
 ### 5. Install Software
 
 ```bash
-# Clone repository
-ssh sansforensics@$VM_IP "git clone https://github.com/Strike48/sift_find_evil.git"
+# Package on host
+tar -czf /tmp/sift_install.tar.gz \
+    --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
+    --exclude='.beads' --exclude='test-results' --exclude='scenarios' \
+    sift_find_evil/ requirements.txt pyproject.toml README.md tests/
 
-# Install dependencies
-ssh sansforensics@$VM_IP "cd sift_find_evil && pip3 install --user -r requirements.txt"
+# Copy to VM
+sshpass -p "forensics" scp -o StrictHostKeyChecking=no /tmp/sift_install.tar.gz sansforensics@$VM_IP:/tmp/
 
-# Install package
-ssh sansforensics@$VM_IP "cd sift_find_evil && pip3 install --user -e ."
+# Install on VM
+ssh sansforensics@$VM_IP "
+    mkdir -p ~/sift_project && \
+    cd ~/sift_project && \
+    tar -xzf /tmp/sift_install.tar.gz && \
+    python3 -m venv ~/sift_find_evil_env && \
+    source ~/sift_find_evil_env/bin/activate && \
+    pip install -r requirements.txt && \
+    pip install -e .
+"
 ```
 
 ### 6. Test Software
 
 ```bash
 # Run demo
-ssh sansforensics@$VM_IP "cd sift_find_evil && python3 -m sift_find_evil.cli demo"
+ssh sansforensics@$VM_IP "
+    source ~/sift_find_evil_env/bin/activate && \
+    cd ~/sift_project && \
+    python3 -m sift_find_evil.cli demo
+"
 
-# Expected output: PASS with F1=1.00 for all scenarios
-
-# Run scenario harness
-ssh sansforensics@$VM_IP "cd sift_find_evil && PYTHONPATH=. python3 tests/scenario_harness.py"
-
-# Expected: 12/12 scenarios PASS
+# Expected output: Demo completed successfully with self-correction demonstration
 ```
 
 ### 7. Mount USB Evidence

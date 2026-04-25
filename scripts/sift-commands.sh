@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # SIFT VM Quick Commands
 
-VM_NAME="${SIFT_VM_NAME:-sift-2026}"
+VM_NAME="${SIFT_VM_NAME:-sift-workstation}"
 SSH_USER="sansforensics"
 SSH_PASS="forensics"
 
 # Get VM IP
 get_ip() {
-    virsh domifaddr "$VM_NAME" | awk '/ipv4/ {print $4}' | cut -d'/' -f1
+    sudo virsh domifaddr "$VM_NAME" 2>/dev/null | awk '/ipv4/ {print $4}' | cut -d'/' -f1
 }
 
 # Execute command in SIFT
@@ -30,7 +30,32 @@ sift_exec() {
 case "${1:-}" in
     start)
         echo "Starting SIFT VM..."
-        virsh start "$VM_NAME"
+
+        # Ensure libvirt network is running
+        if ! sudo virsh net-list | grep -q "default.*active"; then
+            echo "Starting libvirt default network..."
+            sudo virsh net-destroy default 2>/dev/null || true
+            sudo virsh net-start default
+        fi
+
+        # Start VM
+        sudo virsh start "$VM_NAME" 2>/dev/null || echo "VM already running"
+
+        # Wait for IP
+        echo "Waiting for VM to boot..."
+        sleep 10
+
+        local ip
+        for i in {1..30}; do
+            ip=$(get_ip)
+            if [ -n "$ip" ]; then
+                echo "VM started at $ip"
+                return 0
+            fi
+            sleep 2
+        done
+
+        echo "WARNING: VM started but no IP address found"
         ;;
 
     stop)
@@ -66,13 +91,37 @@ case "${1:-}" in
 
     install)
         echo "Installing sift_find_evil..."
-        sift_exec "cd ~ && git clone https://github.com/Strike48/sift_find_evil.git || (cd sift_find_evil && git pull)"
-        sift_exec "cd ~/sift_find_evil && pip3 install --user -r requirements.txt && pip3 install --user -e ."
+        local ip=$(get_ip)
+
+        # Package locally
+        echo "Creating package..."
+        cd "$(dirname "$0")/.." || exit 1
+        tar -czf /tmp/sift_install.tar.gz \
+            --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' \
+            --exclude='.beads' --exclude='test-results' --exclude='scenarios' \
+            sift_find_evil/ requirements.txt pyproject.toml README.md tests/
+
+        # Copy to VM
+        echo "Copying to VM..."
+        sshpass -p "$SSH_PASS" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            /tmp/sift_install.tar.gz "${SSH_USER}@${ip}:/tmp/"
+
+        # Install on VM
+        echo "Installing on VM..."
+        sift_exec "mkdir -p ~/sift_project && \
+            cd ~/sift_project && \
+            tar -xzf /tmp/sift_install.tar.gz && \
+            python3 -m venv ~/sift_find_evil_env 2>/dev/null || true && \
+            source ~/sift_find_evil_env/bin/activate && \
+            pip install -q -r requirements.txt && \
+            pip install -q -e ."
+
+        echo "Installation complete!"
         ;;
 
     test)
         echo "Testing sift_find_evil..."
-        sift_exec "cd ~/sift_find_evil && python3 -m sift_find_evil.cli demo"
+        sift_exec "source ~/sift_find_evil_env/bin/activate && cd ~/sift_project && python3 -m sift_find_evil.cli demo"
         ;;
 
     usb)
