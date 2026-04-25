@@ -22,6 +22,33 @@ def cmd_analyze_live(args):
     This command executes forensic tools (MFTECmd, PECmd, EvtxECmd, Volatility)
     directly on evidence files via MCP, then runs the detection engine.
     """
+    # Auto-detect artifacts from mounted Windows filesystem
+    if args.windows_mount:
+        mount_path = Path(args.windows_mount)
+
+        # Auto-detect MFT
+        if not args.mft_file:
+            mft_path = mount_path / "$MFT"
+            if mft_path.exists():
+                args.mft_file = str(mft_path)
+
+        # Auto-detect Prefetch directory
+        if not args.prefetch_dir:
+            prefetch_path = mount_path / "Windows" / "Prefetch"
+            if prefetch_path.exists() and prefetch_path.is_dir():
+                args.prefetch_dir = str(prefetch_path)
+
+        # Auto-detect Event Logs (Security.evtx)
+        if not args.evtx_file:
+            evtx_paths = [
+                mount_path / "Windows" / "System32" / "winevt" / "Logs" / "Security.evtx",
+                mount_path / "Windows" / "System32" / "winevt" / "Logs" / "System.evtx",
+            ]
+            for evtx_path in evtx_paths:
+                if evtx_path.exists():
+                    args.evtx_file = str(evtx_path)
+                    break
+
     print("\n" + "=" * 70)
     print("  MCP Live Analysis")
     print("=" * 70)
@@ -159,6 +186,11 @@ def main():
     )
 
     parser.add_argument(
+        "--windows-mount",
+        help="Path to mounted Windows filesystem (auto-detects MFT, Prefetch, Event Logs)",
+    )
+
+    parser.add_argument(
         "--mft-file",
         help="Path to $MFT file",
     )
@@ -194,9 +226,9 @@ def main():
     args = parser.parse_args()
 
     # Validate at least one evidence source
-    if not any([args.mft_file, args.prefetch_dir, args.evtx_file, args.memory_file]):
+    if not any([args.windows_mount, args.mft_file, args.prefetch_dir, args.evtx_file, args.memory_file]):
         print(
-            "ERROR: At least one evidence source required (--mft-file, --prefetch-dir, --evtx-file, or --memory-file)",
+            "ERROR: At least one evidence source required (--windows-mount, --mft-file, --prefetch-dir, --evtx-file, or --memory-file)",
             file=sys.stderr,
         )
         return 1

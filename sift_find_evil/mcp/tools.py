@@ -193,6 +193,7 @@ class EZToolsTool:
         mftecmd_path: str = "mftecmd",
         pecmd_path: str = "pecmd",
         evtxecmd_path: str = "evtxecmd",
+        recmd_path: str = "recmd",
     ):
         """Initialize EZ Tools wrapper.
 
@@ -201,11 +202,13 @@ class EZToolsTool:
             mftecmd_path: Path to MFTECmd (default: "mftecmd")
             pecmd_path: Path to PECmd (default: "pecmd")
             evtxecmd_path: Path to EvtxECmd (default: "evtxecmd")
+            recmd_path: Path to RECmd (default: "recmd")
         """
         self.mcp = mcp_client
         self.mftecmd_path = mftecmd_path
         self.pecmd_path = pecmd_path
         self.evtxecmd_path = evtxecmd_path
+        self.recmd_path = recmd_path
 
     def mftecmd(self, mft_file: Path, output_dir: Path) -> MCPToolResult:
         """Parse MFT with MFTECmd.
@@ -263,6 +266,25 @@ class EZToolsTool:
             str(output_dir),
         ]
         return self.mcp.execute_tool("evtxecmd", command)
+
+    def recmd(self, registry_hive: Path, output_dir: Path) -> MCPToolResult:
+        """Parse Registry hive with RECmd.
+
+        Args:
+            registry_hive: Path to Registry hive file (SAM, SYSTEM, SOFTWARE, etc.)
+            output_dir: Output directory for CSV
+
+        Returns:
+            MCPToolResult with CSV path
+        """
+        command = [
+            self.recmd_path,
+            "-f",
+            str(registry_hive),
+            "--csv",
+            str(output_dir),
+        ]
+        return self.mcp.execute_tool("recmd", command)
 
 
 class PlasoTool:
