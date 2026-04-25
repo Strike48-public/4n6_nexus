@@ -127,14 +127,14 @@ analyze_system() {
   echo "\$MFT size: $((mft_size / 1024 / 1024)) MB"
   echo ""
 
-  # Run analysis with sift_find_evil
-  echo "Running detection engine..."
+  # Run analysis with sift_find_evil (using --windows-mount for auto-detection)
+  echo "Running detection engine with full artifact auto-detection..."
   cd ~/Code/sift_find_evil
   source venv/bin/activate
 
   python -m sift_find_evil.cli_mcp analyze-live \
     --case-id "apt_${system_name}" \
-    --mft-file "$mount_point/\$MFT" \
+    --windows-mount "$mount_point" \
     --output-dir "$OUTPUT_BASE/$system_name" \
     --timeout 900
 
