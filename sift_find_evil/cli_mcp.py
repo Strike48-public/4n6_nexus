@@ -95,10 +95,23 @@ def cmd_analyze_live(args):
 
         if args.prefetch_dir:
             print(f"  Running PECmd on {args.prefetch_dir}...")
-            prefetch_entries = pipeline.analyze_prefetch(
-                Path(args.prefetch_dir), output_dir
-            )
-            print(f"    Parsed {len(prefetch_entries)} Prefetch entries")
+            try:
+                prefetch_entries = pipeline.analyze_prefetch(
+                    Path(args.prefetch_dir), output_dir
+                )
+                print(f"    Parsed {len(prefetch_entries)} Prefetch entries")
+            except RuntimeError as e:
+                # Handle known Windows-only error gracefully
+                if "Non-Windows platforms" in str(e) or "PECmd" in str(e):
+                    print(f"    ⚠️  PECmd skipped (requires Windows): {str(e)[:100]}")
+                    print(f"    Continuing analysis without Prefetch data...")
+                else:
+                    # Unknown error - respect strict mode
+                    if args.strict_mode:
+                        raise  # Re-raise in strict mode
+                    else:
+                        print(f"    ⚠️  PECmd failed: {e}")
+                        print(f"    Continuing analysis without Prefetch data...")
 
         if args.evtx_file:
             print(f"  Running EvtxECmd on {args.evtx_file}...")
@@ -221,6 +234,12 @@ def main():
         type=int,
         default=300,
         help="Tool timeout in seconds (default: 300)",
+    )
+
+    parser.add_argument(
+        "--strict-mode",
+        action="store_true",
+        help="Stop on first unknown error (recommended for court evidence)",
     )
 
     args = parser.parse_args()

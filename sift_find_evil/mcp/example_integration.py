@@ -106,11 +106,19 @@ class MCPDetectionPipeline:
             List of Prefetch entries (parsed from CSV)
 
         Raises:
-            RuntimeError: If tool execution fails
+            RuntimeError: If tool execution fails (including Windows-only limitation)
         """
         # Execute PECmd via MCP
         result = self.ez_tools.pecmd(prefetch_dir, output_dir)
 
+        # Check for known Windows-only limitation (PECmd exits with code 0 even when unsupported)
+        if result.stdout and "Non-Windows platforms" in result.stdout:
+            raise RuntimeError(
+                f"PECmd requires Windows (uses Windows-specific decompression libraries). "
+                f"Exit code: {result.exit_code}"
+            )
+
+        # Check for other failures
         if not result.success:
             raise RuntimeError(
                 f"PECmd failed (exit {result.exit_code}): {result.stderr}"
