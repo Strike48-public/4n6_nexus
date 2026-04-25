@@ -4,6 +4,7 @@ Extracts security events for tiebreaker validation.
 """
 
 import csv
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -38,6 +39,9 @@ class EventLogEntry:
 
     map_description: Optional[str] = None
 
+    # Raw JSON payload from EvtxECmd (contains NewProcessName for Event ID 4688)
+    payload_json: Optional[dict] = None
+
     # Event IDs that represent process creation across Windows generations.
     # 4688 = Vista+. 592 = XP / Windows Server 2003 / NT classic Security log.
     PROCESS_CREATION_EVENT_IDS = (4688, 592)
@@ -53,23 +57,58 @@ class EventLogEntry:
     def get_process_name(self) -> Optional[str]:
         """Extract process name for a process-creation event (4688 / 592).
 
+        For Event ID 4688, extracts from JSON payload's NewProcessName field.
+
         Returns:
             Full process path, or None if not available.
         """
-        if self.is_process_creation() and self.payload_data1:
+        if not self.is_process_creation():
+            return None
+
+        # For Event ID 4688, extract from JSON payload
+        if self.event_id == 4688 and self.payload_json:
+            try:
+                event_data = self.payload_json.get("EventData", {})
+                data_items = event_data.get("Data", [])
+                for item in data_items:
+                    if isinstance(item, dict) and item.get("@Name") == "NewProcessName":
+                        return item.get("#text")
+            except Exception:
+                pass
+
+        # Fallback to PayloadData1 (for legacy or other event IDs)
+        if self.payload_data1:
             return self.payload_data1
+
         return None
 
     def get_command_line(self) -> Optional[str]:
         """Extract command line for a process-creation event.
 
+        For Event ID 4688, extracts from JSON payload's CommandLine field.
         Windows XP Event 592 does not include a command line; only 4688 does.
 
         Returns:
             Command line string, or None if not available.
         """
-        if self.is_process_creation() and self.payload_data6:
+        if not self.is_process_creation():
+            return None
+
+        # For Event ID 4688, extract from JSON payload
+        if self.event_id == 4688 and self.payload_json:
+            try:
+                event_data = self.payload_json.get("EventData", {})
+                data_items = event_data.get("Data", [])
+                for item in data_items:
+                    if isinstance(item, dict) and item.get("@Name") == "CommandLine":
+                        return item.get("#text")
+            except Exception:
+                pass
+
+        # Fallback to PayloadData6 (for legacy or Maps-extracted data)
+        if self.payload_data6:
             return self.payload_data6
+
         return None
 
     def get_executable_name(self) -> Optional[str]:
@@ -174,6 +213,15 @@ class EventLogParser:
             payload_data5 = row.get("PayloadData5") or None
             payload_data6 = row.get("PayloadData6") or None
 
+            # Parse raw JSON payload (contains NewProcessName for Event ID 4688)
+            payload_json = None
+            payload_str = row.get("Payload")
+            if payload_str:
+                try:
+                    payload_json = json.loads(payload_str)
+                except json.JSONDecodeError:
+                    pass  # Skip invalid JSON
+
             return EventLogEntry(
                 time_created=time_created,
                 event_id=event_id,
@@ -189,6 +237,7 @@ class EventLogParser:
                 payload_data5=payload_data5,
                 payload_data6=payload_data6,
                 map_description=map_description,
+                payload_json=payload_json,
             )
 
         except Exception as e:

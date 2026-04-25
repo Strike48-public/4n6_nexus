@@ -13,6 +13,7 @@ from .contradiction_detector import (
     ContradictionType,
 )
 from .confidence_scorer import ConfidenceScorer, Resolution
+from .attack_pattern_detector import AttackPatternDetector, AttackPattern
 from ..validators.timestamp_comparator import TimestampComparator
 from ..findings import FindingCategory
 
@@ -125,6 +126,7 @@ class SelfCorrectionEngine:
         self.comparator = comparator or TimestampComparator()
         self.detector = ContradictionDetector(self.comparator)
         self.scorer = ConfidenceScorer(base_confidence)
+        self.attack_detector = AttackPatternDetector()
 
     def analyze(
         self,
@@ -179,6 +181,10 @@ class SelfCorrectionEngine:
             for contradiction in exfil_contradictions:
                 finding = self._generate_exfil_finding(contradiction)
                 findings.append(finding)
+
+        # Detect attack patterns in Event Log command lines
+        attack_findings = self._detect_attack_patterns(event_log_entries)
+        findings.extend(attack_findings)
 
         return findings
 
@@ -525,3 +531,101 @@ class SelfCorrectionEngine:
                 lines.append(f"- {resolution.resolution_method}")
 
         return "\n".join(lines)
+
+    def _detect_attack_patterns(
+        self, event_log_entries: List[Any]
+    ) -> List[Finding]:
+        """Detect attack patterns in Event Log command lines.
+
+        Args:
+            event_log_entries: List of EventLogEntry objects (should include 4688)
+
+        Returns:
+            List of findings for detected attack patterns
+        """
+        findings = []
+
+        # Only analyze process creation events (Event ID 4688)
+        for event in event_log_entries:
+            if not hasattr(event, "is_process_creation") or not event.is_process_creation():
+                continue
+
+            # Get command line
+            command_line = event.get_command_line() if hasattr(event, "get_command_line") else None
+            if not command_line:
+                continue
+
+            # Analyze for attack patterns
+            patterns = self.attack_detector.analyze_command_line(command_line)
+            if not patterns:
+                continue
+
+            # Get highest severity pattern
+            primary_pattern = self.attack_detector.get_highest_severity_pattern(patterns)
+            if not primary_pattern:
+                continue
+
+            # Get executable name
+            exe_name = event.get_executable_name() if hasattr(event, "get_executable_name") else "unknown"
+
+            # Create finding for attack pattern
+            finding = Finding(
+                title=f"Attack Pattern: {primary_pattern.pattern_name}",
+                description=f"Detected {primary_pattern.technique.value} activity in command line:\n{command_line}",
+                finding_type="behavior",
+                severity=primary_pattern.severity,
+                category=self._pattern_to_category(primary_pattern),
+                evidence={
+                    "executable": exe_name,
+                    "command_line": command_line,
+                    "technique": primary_pattern.technique.value,
+                    "mitre_id": primary_pattern.mitre_id,
+                    "pattern_name": primary_pattern.pattern_name,
+                    "event_id": event.event_id,
+                    "time_created": event.time_created.isoformat(),
+                },
+                confidence=primary_pattern.confidence,
+                confidence_label=self.scorer.get_confidence_label(primary_pattern.confidence),
+                reasoning_chain=[
+                    f"Event ID {event.event_id} captured process execution",
+                    f"Command line matches pattern: {primary_pattern.pattern_name}",
+                    f"MITRE ATT&CK Technique: {primary_pattern.mitre_id}",
+                    f"Confidence: {primary_pattern.confidence:.2f} (pattern-based detection)",
+                ],
+                contradictions=[],
+                resolutions=[],
+                confidence_calculation={
+                    "base": primary_pattern.confidence,
+                    "method": "pattern_matching",
+                    "pattern": primary_pattern.pattern_name,
+                },
+                artifact_sources=["EventLog"],
+            )
+
+            findings.append(finding)
+
+        return findings
+
+    def _pattern_to_category(self, pattern: AttackPattern) -> FindingCategory:
+        """Map attack pattern technique to finding category.
+
+        Args:
+            pattern: Detected attack pattern
+
+        Returns:
+            FindingCategory enum value
+        """
+        from .attack_pattern_detector import AttackTechnique
+
+        technique_to_category = {
+            AttackTechnique.RECONNAISSANCE: FindingCategory.RECONNAISSANCE,
+            AttackTechnique.CREDENTIAL_ACCESS: FindingCategory.CREDENTIAL_ACCESS,
+            AttackTechnique.LATERAL_MOVEMENT: FindingCategory.LATERAL_MOVEMENT,
+            AttackTechnique.PERSISTENCE: FindingCategory.PERSISTENCE,
+            AttackTechnique.DEFENSE_EVASION: FindingCategory.ANTI_FORENSICS,
+            AttackTechnique.EXFILTRATION: FindingCategory.DATA_EXFILTRATION,
+            AttackTechnique.EXECUTION: FindingCategory.EXECUTION,
+            AttackTechnique.COMMAND_AND_CONTROL: FindingCategory.COMMAND_AND_CONTROL,
+        }
+
+        return technique_to_category.get(pattern.technique, FindingCategory.UNKNOWN)

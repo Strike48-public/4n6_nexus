@@ -40,9 +40,9 @@ mount_image() {
   local system_name=$1
   local image_file=$2
 
-  echo "========================================================================"
-  echo "  Mounting: $system_name"
-  echo "========================================================================"
+  echo "========================================================================" >&2
+  echo "  Mounting: $system_name" >&2
+  echo "========================================================================" >&2
 
   local ewf_mount="$MOUNT_BASE/${system_name}_ewf"
   local ntfs_mount="$MOUNT_BASE/${system_name}_ntfs"
@@ -51,34 +51,36 @@ mount_image() {
   sudo mkdir -p "$ewf_mount" "$ntfs_mount"
 
   # Mount E01 with ewfmount
-  echo "[1/3] Mounting E01 image with ewfmount..."
-  sudo ewfmount "$EVIDENCE_BASE/$image_file" "$ewf_mount"
+  echo "[1/3] Mounting E01 image with ewfmount..." >&2
+  sudo ewfmount "$EVIDENCE_BASE/$image_file" "$ewf_mount" >&2
 
   # Get partition offset
-  echo "[2/3] Analyzing partition structure..."
+  echo "[2/3] Analyzing partition structure..." >&2
   local partition_info
   partition_info=$(sudo mmls "$ewf_mount/ewf1" 2>/dev/null | grep -E "NTFS|Basic data|Microsoft" | head -1)
 
-  if [[ -z "$partition_info" ]]; then
-    echo "ERROR: No NTFS partition found in $image_file"
+  local offset_bytes=0
+  if [[ -n "$partition_info" ]]; then
+    local offset_sectors
+    offset_sectors=$(echo "$partition_info" | awk '{print $3}')
+    offset_bytes=$((offset_sectors * 512))
+    echo "    Partition offset: $offset_sectors sectors ($offset_bytes bytes)" >&2
+  else
+    echo "    No partition table found, trying direct NTFS mount (offset=0)" >&2
+  fi
+
+  # Mount NTFS partition read-only
+  echo "[3/3] Mounting NTFS partition (read-only)..." >&2
+  if ! sudo mount -o ro,loop,offset="$offset_bytes" "$ewf_mount/ewf1" "$ntfs_mount" 2>/dev/null; then
+    echo "ERROR: Failed to mount NTFS filesystem in $image_file" >&2
     sudo umount "$ewf_mount" 2>/dev/null || true
     return 1
   fi
 
-  local offset_sectors
-  offset_sectors=$(echo "$partition_info" | awk '{print $3}')
-  local offset_bytes=$((offset_sectors * 512))
+  echo "✓ Mounted: $ntfs_mount" >&2
+  echo "" >&2
 
-  echo "    Partition offset: $offset_sectors sectors ($offset_bytes bytes)"
-
-  # Mount NTFS partition read-only
-  echo "[3/3] Mounting NTFS partition (read-only)..."
-  sudo mount -o ro,loop,offset="$offset_bytes" "$ewf_mount/ewf1" "$ntfs_mount"
-
-  echo "✓ Mounted: $ntfs_mount"
-  echo ""
-
-  echo "$ntfs_mount"  # Return mount point
+  echo "$ntfs_mount"  # Return mount point (stdout only)
 }
 
 # Function to unmount image
@@ -123,8 +125,10 @@ analyze_system() {
   fi
 
   local mft_size
-  mft_size=$(stat -f "%z" "$mount_point/\$MFT" 2>/dev/null || stat -c "%s" "$mount_point/\$MFT")
-  echo "\$MFT size: $((mft_size / 1024 / 1024)) MB"
+  mft_size=$(stat -c "%s" "$mount_point/\$MFT" 2>/dev/null || stat -f "%z" "$mount_point/\$MFT" 2>/dev/null || echo "0")
+  if [[ "$mft_size" -gt 0 ]]; then
+    echo "\$MFT size: $((mft_size / 1024 / 1024)) MB"
+  fi
   echo ""
 
   # Run analysis with sift_find_evil (using --windows-mount for auto-detection)

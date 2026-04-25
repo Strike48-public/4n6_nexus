@@ -86,6 +86,34 @@ class FindingCategory(StrEnum):
     itself, not the file's installed effect.
     """
 
+    RECONNAISSANCE = "reconnaissance"
+    """Evidence of system or network enumeration activity.
+
+    Examples: netstat, ipconfig, whoami, systeminfo, net user/group commands,
+    domain controller enumeration, process listing, network share discovery.
+    """
+
+    CREDENTIAL_ACCESS = "credential_access"
+    """Evidence of credential dumping or authentication material access.
+
+    Examples: mimikatz execution, LSASS memory dumps, SAM/SYSTEM hive exports,
+    NTDS.dit extraction, volume shadow copy manipulation for credential access.
+    """
+
+    EXECUTION = "execution"
+    """Evidence of command or script execution via native interpreters.
+
+    Examples: PowerShell with suspicious arguments, encoded commands, download
+    cradles, script-based malware execution, living-off-the-land binary abuse.
+    """
+
+    COMMAND_AND_CONTROL = "command_and_control"
+    """Evidence of communication with attacker infrastructure.
+
+    Examples: beaconing patterns, PowerShell download strings, malware downloads,
+    remote file transfers, suspicious network connections to external IPs.
+    """
+
     UNKNOWN = "unknown"
     """Escape hatch for findings that do not yet map to a named category.
 
