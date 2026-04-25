@@ -1,0 +1,77 @@
+[
+  {
+    "title": "Suspicious Activity: MessagingApplication.exe",
+    "description": "Analysis of MessagingApplication.exe detected 1 contradiction(s): Executable MessagingApplication.exe exists in MFT but has no Prefetch artifact",
+    "type": "indicator",
+    "severity": "medium",
+    "category": "anti_forensics",
+    "evidence": {
+      "executable": "MessagingApplication.exe",
+      "mft_path": "C:\\Windows\\System32\\MessagingApplication.exe",
+      "mft_modified": "2019-02-06T20:45:23Z",
+      "prefetch_exists": false
+    },
+    "confidence": 0.55,
+    "confidence_label": "Low",
+    "contradictions": [
+      {
+        "type": "mft_prefetch_mismatch",
+        "description": "Executable exists in MFT but has no Prefetch artifact",
+        "mft_file": "MessagingApplication.exe",
+        "prefetch_missing": true,
+        "confidence_penalty": 0.30
+      }
+    ],
+    "resolutions": [
+      {
+        "resolution_type": "lower_confidence",
+        "reasoning": "Normal Windows executables leave Prefetch traces. Absence suggests either anti-forensics techniques or executable never actually ran. Confidence reduced from 0.85 to 0.55."
+      }
+    ],
+    "reasoning_chain": [
+      "Found executable in MFT: MessagingApplication.exe",
+      "Checked for Prefetch artifact: NOT FOUND",
+      "Contradiction detected: MFT shows file but no execution trace",
+      "Self-correction: Reduced confidence due to missing corroboration"
+    ]
+  },
+  {
+    "title": "Timestomping Detected: backdoor.exe",
+    "description": "MFT $STANDARD_INFORMATION vs $FILE_NAME timestamp discrepancy detected for backdoor.exe (22-day delta)",
+    "type": "indicator",
+    "severity": "medium",
+    "category": "anti_forensics",
+    "evidence": {
+      "executable": "backdoor.exe",
+      "mft_path": "C:\\Users\\Public\\backdoor.exe",
+      "mft_si_created": "2019-01-15T08:00:00Z",
+      "mft_fn_created": "2019-02-06T20:45:00Z",
+      "delta_seconds": 1900800,
+      "delta_days": 22
+    },
+    "confidence": 0.35,
+    "confidence_label": "Very Low",
+    "contradictions": [
+      {
+        "type": "si_fn_timestamp_mismatch",
+        "description": "MFT $STANDARD_INFORMATION vs $FILE_NAME timestamp discrepancy",
+        "si_time": "2019-01-15T08:00:00Z",
+        "fn_time": "2019-02-06T20:45:00Z",
+        "delta_days": 22,
+        "confidence_penalty": 0.50
+      }
+    ],
+    "resolutions": [
+      {
+        "resolution_type": "lower_confidence",
+        "reasoning": "MFT $STANDARD_INFORMATION timestamps can be modified by attackers. MFT $FILE_NAME timestamps are more reliable but show 22-day discrepancy. Marking as suspicious but low confidence due to ambiguity."
+      }
+    ],
+    "reasoning_chain": [
+      "Found executable in MFT: backdoor.exe",
+      "Detected timestamp mismatch: SI vs FN differ by 22 days",
+      "Contradiction detected: Timestamps should match for legitimate files",
+      "Self-correction: Reduced confidence from 0.85 to 0.35 (can't prove malicious intent)"
+    ]
+  }
+]

@@ -1,0 +1,9 @@
+# Demo folder .gitignore
+
+# Sample findings and audit logs are committed to repo as backups
+# but ignore any test runs or temporary files
+
+*_test.json
+*_temp.json
+*.log
+*.tmp
