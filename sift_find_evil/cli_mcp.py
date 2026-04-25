@@ -95,7 +95,7 @@ def cmd_analyze_live(args):
     findings = engine.analyze(
         mft_entries=mft_entries,
         prefetch_entries=prefetch_entries,
-        evtx_entries=evtx_entries,
+        event_log_entries=evtx_entries,
     )
 
     print(f"  Detected {len(findings)} findings")
