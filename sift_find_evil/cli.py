@@ -8,6 +8,7 @@ Usage:
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -51,8 +52,8 @@ def print_banner():
     banner = """
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   SIFT FIND EVIL - Autonomous DFIR Agent                     ║
-║   Cross-Artifact Validation with Self-Correction             ║
+║   SIFT FIND EVIL - Find Evil                                 ║
+║   Autonomous DFIR Detection with Self-Correction             ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
 """
@@ -1095,6 +1096,96 @@ def cmd_demo(args):
     print("  resolved it using Event Log evidence, and adjusted confidence.")
 
 
+def _save_detailed_results(report, base_dir: Path = None):
+    """Save detailed findings to timestamped directory."""
+    if not report.findings:
+        return None
+
+    # Default to test-results/{tier}/{scenario_name}/{timestamp}/
+    if base_dir is None:
+        base_dir = Path("test-results")
+
+    manifest = report.manifest
+    timestamp_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    # Create timestamped directory
+    result_dir = base_dir / manifest.tier / manifest.name / timestamp_str
+    result_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save full findings as JSON
+    findings_data = [f.to_dict() for f in report.findings]
+    findings_path = result_dir / "findings.json"
+    with findings_path.open("w", encoding="utf-8") as f:
+        json.dump(findings_data, f, indent=2, default=str)
+
+    # Save metadata (test metrics)
+    metadata = {
+        "timestamp": datetime.now().isoformat(),
+        "scenario_name": manifest.name,
+        "scenario_tier": manifest.tier,
+        "scenario_directory": str(manifest.directory),
+        "findings_count": report.findings_count,
+        "precision": report.precision,
+        "recall": report.recall,
+        "f1": report.f1,
+        "average_confidence": report.average_confidence,
+        "detected_executables": report.detected_executables,
+        "true_positives": report.true_positives,
+        "false_positives": report.false_positives,
+        "false_negatives": report.false_negatives,
+        "passed": report.passed,
+    }
+
+    metadata_path = result_dir / "metadata.json"
+    with metadata_path.open("w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2, default=str)
+
+    # Save human-readable summary
+    summary_lines = [
+        f"# {manifest.name} - {timestamp_str}",
+        "",
+        "## Test Metrics",
+        "",
+        f"- **Status**: {'PASS' if report.passed else 'FAIL'}",
+        f"- **Precision**: {report.precision:.3f}",
+        f"- **Recall**: {report.recall:.3f}",
+        f"- **F1 Score**: {report.f1:.3f}",
+        f"- **Average Confidence**: {report.average_confidence:.3f}",
+        "",
+        "## Findings Summary",
+        "",
+        f"- **Total Findings**: {report.findings_count}",
+        f"- **True Positives**: {len(report.true_positives)}",
+        f"- **False Positives**: {len(report.false_positives)}",
+        f"- **False Negatives**: {len(report.false_negatives)}",
+        "",
+    ]
+
+    if report.findings:
+        summary_lines.extend([
+            "## Detailed Findings",
+            "",
+        ])
+        for i, finding in enumerate(report.findings, 1):
+            summary_lines.extend([
+                f"### Finding {i}: {finding.title}",
+                "",
+                f"- **Severity**: {finding.severity.upper()}",
+                f"- **Category**: {finding.category.value}",
+                f"- **Confidence**: {finding.confidence:.2f} ({finding.confidence_label})",
+                f"- **Type**: {finding.finding_type}",
+                "",
+                f"{finding.description}",
+                "",
+            ])
+
+    summary_path = result_dir / "SUMMARY.md"
+    with summary_path.open("w", encoding="utf-8") as f:
+        f.write("\n".join(summary_lines))
+
+    return result_dir
+
+
 def cmd_run(args):
     """Handle run command: execute one scenario.yaml manifest end-to-end."""
     scenario_path = Path(args.scenario)
@@ -1107,12 +1198,19 @@ def cmd_run(args):
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(2)
 
+    manifest = report.manifest
+
+    # Save detailed results to timestamped directory (auto-save)
+    result_dir = None
+    if not report.skipped and report.findings:
+        result_dir = _save_detailed_results(report)
+
+    # Also save to custom output path if specified (backward compat)
     output_path = Path(args.output) if args.output else None
     if output_path is not None:
         with output_path.open("w", encoding="utf-8") as handle:
             json.dump(report.to_dict(), handle, indent=2, default=str)
 
-    manifest = report.manifest
     print_section(f"Scenario: {manifest.name}")
     print(f"  Tier:        {manifest.tier}")
     print(f"  Directory:   {manifest.directory}")
@@ -1133,6 +1231,9 @@ def cmd_run(args):
         print(f"  False neg:   {report.false_negatives}")
     print(f"  Avg conf:    {report.average_confidence:.2f}")
     print(f"  Status:      {'PASS' if report.passed else 'FAIL'}")
+
+    if result_dir:
+        print(f"\n  Results saved to: {result_dir}")
 
     sys.exit(0 if report.passed else 1)
 

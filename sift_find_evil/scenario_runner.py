@@ -84,6 +84,7 @@ class ScenarioReport:
     average_confidence: float = 0.0
     skipped: bool = False
     skip_reason: str = ""
+    findings: list = field(default_factory=list)  # Full Finding objects for persistence
 
     @property
     def precision(self) -> float:
@@ -479,6 +480,7 @@ def _score(
         false_positives=fp,
         false_negatives=fn,
         average_confidence=avg_conf,
+        findings=findings,
     )
 
 
