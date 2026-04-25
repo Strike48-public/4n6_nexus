@@ -99,6 +99,15 @@ def run_regression_test(
     print("\nComparing results...")
     baseline = load_test_run(baseline_path)
     current = load_test_run(current_path)
+
+    # Validate scenario name match
+    if baseline.scenario_name != current.scenario_name:
+        print(
+            f"Error: Scenario mismatch - baseline: {baseline.scenario_name}, "
+            f"current: {current.scenario_name}"
+        )
+        return False
+
     comparison = compare_runs(baseline, current)
 
     # Generate report
@@ -126,7 +135,7 @@ def run_regression_test(
     )
 
     if comparison.has_regressions:
-        print("\n⚠️  REGRESSIONS DETECTED")
+        print("\nWARNING:  REGRESSIONS DETECTED")
         if comparison.missed_detections:
             print(f"   - {len(comparison.missed_detections)} missed detections")
         drops = [d for _, _, d in comparison.confidence_changes if d < -0.1]
@@ -135,11 +144,11 @@ def run_regression_test(
         print(f"\nSee report for details: {report_path}")
         return False
 
-    print("\n✅ No regressions detected")
+    print("\n No regressions detected")
     if comparison.new_detections:
-        print(f"✅ {len(comparison.new_detections)} new detections")
+        print(f" {len(comparison.new_detections)} new detections")
     if comparison.new_techniques:
-        print(f"✅ {len(comparison.new_techniques)} new ATT&CK techniques")
+        print(f" {len(comparison.new_techniques)} new ATT&CK techniques")
 
     return True
 
@@ -200,10 +209,10 @@ def main() -> None:
 
         print("\n" + "=" * 70)
         if all_passed:
-            print("✅ All regression tests passed")
+            print(" All regression tests passed")
             sys.exit(0)
         else:
-            print("⚠️  Some regression tests failed")
+            print("WARNING:  Some regression tests failed")
             sys.exit(1)
 
     elif args.scenario:

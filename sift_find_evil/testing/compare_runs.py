@@ -11,12 +11,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from sift_find_evil.self_correction.engine import Finding
+
+# Thresholds for comparison
+CONFIDENCE_CHANGE_THRESHOLD = 0.05  # Report changes > 5%
+CONFIDENCE_REGRESSION_THRESHOLD = 0.1  # Flag as regression if > 10% drop
 
 
 @dataclass
@@ -72,10 +77,9 @@ class TestRun:
             # Also parse from description if present
             desc = finding.description.upper()
             if "T1" in desc:
-                # Extract T#### pattern
-                import re
-
-                matches = re.findall(r"T\d{4}(?:\.\d{3})?", desc)
+                # Extract T#### or T####.### pattern (MITRE ATT&CK format)
+                # Supports sub-techniques with 1-3 digits (e.g., T1003.003)
+                matches = re.findall(r"T\d{4}(?:\.\d{1,3})?", desc)
                 techniques.update(matches)
         return techniques
 
@@ -98,7 +102,10 @@ class ComparisonResult:
         """Check if any concerning regressions were detected."""
         return bool(
             self.missed_detections
-            or any(delta < -0.1 for _, _, delta in self.confidence_changes)
+            or any(
+                delta < -CONFIDENCE_REGRESSION_THRESHOLD
+                for _, _, delta in self.confidence_changes
+            )
         )
 
     @property
@@ -204,7 +211,7 @@ def compare_runs(baseline: TestRun, current: TestRun) -> ComparisonResult:
 
             # Check confidence changes
             delta = current_finding.confidence - baseline_finding.confidence
-            if abs(delta) > 0.05:  # Only flag changes > 5%
+            if abs(delta) > CONFIDENCE_CHANGE_THRESHOLD:
                 confidence_changes.append((baseline_finding, current_finding, delta))
 
             # Check severity changes
@@ -252,7 +259,7 @@ def generate_report(comparison: ComparisonResult, output_path: Path) -> None:
     if comparison.has_regressions:
         lines.extend(
             [
-                "## ⚠️ REGRESSIONS DETECTED",
+                "## WARNING: REGRESSIONS DETECTED",
                 "",
             ]
         )
@@ -293,7 +300,7 @@ def generate_report(comparison: ComparisonResult, output_path: Path) -> None:
     if comparison.new_detections or comparison.new_techniques:
         lines.extend(
             [
-                "## ✅ Improvements",
+                "##  Improvements",
                 "",
             ]
         )
@@ -327,7 +334,7 @@ def generate_report(comparison: ComparisonResult, output_path: Path) -> None:
     if comparison.lost_techniques:
         lines.extend(
             [
-                "## ⚠️ Lost Coverage",
+                "## WARNING: Lost Coverage",
                 "",
                 f"### {len(comparison.lost_techniques)} ATT&CK Techniques No Longer Detected",
                 "",
@@ -427,17 +434,17 @@ def main() -> None:
 
     # Summary
     if comparison.has_regressions:
-        print("\n⚠️  REGRESSIONS DETECTED")
+        print("\nWARNING:  REGRESSIONS DETECTED")
         if comparison.missed_detections:
             print(f"   - {len(comparison.missed_detections)} missed detections")
         drops = [d for _, _, d in comparison.confidence_changes if d < -0.1]
         if drops:
             print(f"   - {len(drops)} significant confidence drops")
     else:
-        print("\n✅ No regressions detected")
+        print("\n No regressions detected")
 
     if comparison.new_detections:
-        print(f"✅ {len(comparison.new_detections)} new detections")
+        print(f" {len(comparison.new_detections)} new detections")
 
 
 if __name__ == "__main__":

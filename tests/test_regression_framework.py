@@ -3,12 +3,10 @@
 from datetime import datetime
 from pathlib import Path
 
-import pytest
 
 from sift_find_evil.findings import FindingCategory
 from sift_find_evil.self_correction.engine import Finding
 from sift_find_evil.testing.compare_runs import (
-    ComparisonResult,
     TestRun,
     compare_runs,
 )
@@ -356,3 +354,58 @@ def test_finding_serialization_roundtrip():
     assert abs(restored.confidence - original.confidence) < 0.01
     assert restored.confidence_label == original.confidence_label
     assert restored.reasoning_chain == original.reasoning_chain
+
+
+def test_test_run_empty_findings():
+    """Test TestRun handles empty findings list gracefully."""
+    run = TestRun(
+        timestamp=datetime.now(),
+        scenario_name="test",
+        directory=Path("/tmp"),
+        findings=[],
+    )
+
+    # Should not raise division by zero
+    assert run.average_confidence == 0.0
+    assert run.critical_count == 0
+    assert run.high_count == 0
+    assert len(run.attack_techniques) == 0
+
+
+def test_attack_techniques_extraction_with_subtechniques():
+    """Test extraction of ATT&CK techniques with various sub-technique formats."""
+    findings = [
+        Finding(
+            title="NTDS.dit",
+            description="Detected T1003.003 OS Credential Dumping",
+            finding_type="indicator",
+            severity="CRITICAL",
+            category=FindingCategory.TIMELINE_TAMPERING,
+        ),
+        Finding(
+            title="PsExec",
+            description="Detected T1021.002 (Remote Services: SMB/Windows Admin Shares)",
+            finding_type="indicator",
+            severity="HIGH",
+            category=FindingCategory.ANTI_FORENSICS,
+        ),
+        Finding(
+            title="Scheduled Task",
+            description="T1053.005 scheduled task persistence",
+            finding_type="indicator",
+            severity="MEDIUM",
+            category=FindingCategory.UNKNOWN,
+        ),
+    ]
+
+    run = TestRun(
+        timestamp=datetime.now(),
+        scenario_name="test",
+        directory=Path("/tmp"),
+        findings=findings,
+    )
+
+    techniques = run.attack_techniques
+    assert "T1003.003" in techniques
+    assert "T1021.002" in techniques
+    assert "T1053.005" in techniques
