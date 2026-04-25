@@ -1,0 +1,17 @@
+{
+  "name": "ngdc-tracy-external",
+  "tier": "real",
+  "directory": "scenarios/real/ngdc-tracy-external",
+  "passed": true,
+  "skipped": false,
+  "skip_reason": "",
+  "findings_count": 0,
+  "detected_executables": [],
+  "true_positives": [],
+  "false_positives": [],
+  "false_negatives": [],
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0,
+  "average_confidence": 0.0
+}
