@@ -1,12 +1,25 @@
 # Community vs Enterprise Split Criteria
 
-**STATUS:** Draft - pending resolution of [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md)
+**STATUS:** APPROVED - Ready for implementation after Finding refactor
+**DECISIONS:** See [DECISIONS.md](DECISIONS.md) for finalized strategic choices
 
 ## Executive Summary
 
-- **Community Edition:** Open-source DFIR detection engine with parsers, detectors, and findings framework
-- **Enterprise Edition:** Commercial edition adding autonomous self-correction, contradiction detection, and MCP integration
-- **Critical Blocker:** Finding class must be moved from `self_correction/` to `findings/` before split (see CRITICAL_ARCHITECTURE_ISSUE.md)
+- **Product Name:** 4n6nexus (forensics nexus) - renamed from "SIFT Find Evil" (hackathon name)
+- **Community Edition:** Open-source DFIR detection engine (MPL-2.0 license)
+- **Enterprise Edition:** Commercial edition with self-correction, MCP integration, advanced features
+- **Critical Blocker:** Finding class refactor (APPROVED for immediate execution)
+- **License:** Mozilla Public License 2.0 (MPL-2.0) - perfect for Community + Enterprise model
+- **Organization:** Strike48 GitHub organization
+- **Versioning:** Independent (Community 1.x, Enterprise 1.x)
+
+## Naming Note
+
+**Current State:** Repository and code use `sift_find_evil` (hackathon name)
+**Target State:** Will be renamed to `4n6nexus` / `forensic_nexus` during split
+**This document uses target names** for clarity. See [DECISIONS.md](DECISIONS.md) #5 for migration plan.
+
+---
 
 ## Community Edition (Open Source)
 
@@ -21,7 +34,7 @@ Community provides the foundational detection capabilities that work standalone:
 
 ### Included Modules
 
-#### Parsers (sift_find_evil/parsers/)
+#### Parsers (forensic_nexus/parsers/)
 ```
 ✅ browser_history_parser.py      # Chrome, Firefox, Edge history
 ✅ evtx_parser.py                  # Windows Event Logs
@@ -34,7 +47,7 @@ Community provides the foundational detection capabilities that work standalone:
 ✅ registry_parser.py              # Windows Registry (Run keys, Amcache, Shimcache, BAM, UserAssist)
 ```
 
-#### Detectors (sift_find_evil/detectors/)
+#### Detectors (forensic_nexus/detectors/)
 ```
 ✅ cloud_upload_detector.py       # Cloud service uploads
 ✅ exfil_ratio_detector.py        # Data exfiltration ratios
@@ -202,6 +215,20 @@ Enterprise extends Community with advanced capabilities:
    └── models.py                    # Report data models
 ```
 
+## Licensing
+
+**Community License:** Mozilla Public License 2.0 (MPL-2.0)
+- Modifications to Community code must stay open source
+- New Enterprise modules can be proprietary
+- Strong patent protection built-in
+- See [DECISIONS.md](DECISIONS.md) #1 for rationale
+
+**Enterprise License:** Proprietary commercial license
+- Enterprise-specific modules not subject to MPL
+- MPL compliance maintained for Community code
+
+---
+
 ## Shared vs Exclusive Dependencies
 
 ### Shared External Dependencies (Both Editions)
@@ -223,40 +250,49 @@ pytest-cov                          # Coverage
 ```
 
 ### Enterprise-Only Dependencies
-```
-# MCP integration (if not open-sourced)
-anthropic-mcp-sdk                   # MCP protocol
+```toml
+[project]
+dependencies = [
+    "4n6nexus>=1.0.0,<2.0.0",       # Community package (MPL-2.0 licensed)
+    "anthropic-mcp-sdk>=1.0.0",     # MCP protocol integration
+    # Additional Enterprise dependencies TBD
+]
 
-# Advanced reporting (if using proprietary tools)
-# TBD based on reporting requirements
+# Note: MPL-2.0 allows Enterprise to depend on Community
+# Enterprise-specific modules are proprietary
 ```
 
 ## Import Path Strategy
 
-### Current (Monorepo)
+### Current (Monorepo - using hackathon name)
 ```python
 from sift_find_evil.parsers.mft_parser import MFTParser
 from sift_find_evil.detectors.registry_detector import RegistryDetector
 from sift_find_evil.self_correction.engine import SelfCorrectionEngine
 ```
 
-### After Split - Community
+### After Split - Community (target name)
 ```python
-from sift_find_evil.parsers.mft_parser import MFTParser
-from sift_find_evil.detectors.registry_detector import RegistryDetector
-from sift_find_evil.findings import Finding, FindingCategory
+# PyPI: pip install 4n6nexus
+# Import: forensic_nexus (numbers not allowed in Python identifiers)
+from forensic_nexus.parsers.mft_parser import MFTParser
+from forensic_nexus.detectors.registry_detector import RegistryDetector
+from forensic_nexus.findings import Finding, FindingCategory
 ```
 
-### After Split - Enterprise
+### After Split - Enterprise (target name)
 ```python
+# PyPI: pip install 4n6nexus-enterprise (or direct distribution)
+# Depends on: 4n6nexus>=1.0.0,<2.0.0
+
 # Import from Community package (git submodule or pip install)
-from sift_find_evil.parsers.mft_parser import MFTParser
-from sift_find_evil.detectors.registry_detector import RegistryDetector
-from sift_find_evil.findings import Finding, FindingCategory
+from forensic_nexus.parsers.mft_parser import MFTParser
+from forensic_nexus.detectors.registry_detector import RegistryDetector
+from forensic_nexus.findings import Finding, FindingCategory
 
 # Enterprise-only imports
-from sift_find_evil_enterprise.self_correction import SelfCorrectionEngine
-from sift_find_evil_enterprise.mcp import MCPServer
+from forensic_nexus_enterprise.self_correction import SelfCorrectionEngine
+from forensic_nexus_enterprise.mcp import MCPServer
 ```
 
 ## Testing Strategy
@@ -264,7 +300,7 @@ from sift_find_evil_enterprise.mcp import MCPServer
 ### Community Tests
 ```bash
 # Community repo includes full test suite for Community features
-pytest tests/ --cov=sift_find_evil --cov-report=term
+pytest tests/ --cov=forensic_nexus --cov-report=term
 
 # Target: 95%+ coverage on Community modules
 ```
@@ -275,7 +311,7 @@ pytest tests/ --cov=sift_find_evil --cov-report=term
 # 1. Tests for Enterprise-only features (self-correction, MCP)
 # 2. Integration tests using Community as dependency
 
-pytest tests/ --cov=sift_find_evil_enterprise --cov-report=term
+pytest tests/ --cov=forensic_nexus_enterprise --cov-report=term
 
 # Target: 95%+ coverage on Enterprise modules
 # Community coverage inherited from Community repo tests
@@ -297,96 +333,70 @@ pytest tests/ --cov=sift_find_evil_enterprise --cov-report=term
 
 **Recommendation:** Keep ALL scenarios in Community. Enterprise scenarios that test self-correction can mock the engine or run with Community detectors only.
 
-## Open Questions
+## Strategic Decisions (FINALIZED)
 
-### Strategic
-1. **Licensing:**
-   - Community: Apache 2.0, MIT, or GPL?
-   - Enterprise: Commercial/Proprietary?
-   - Contributor License Agreement (CLA) for Community PRs?
+All strategic decisions have been made. See [DECISIONS.md](DECISIONS.md) for complete details.
 
-2. **Contribution Model:**
-   - Accept external PRs to Community?
-   - Backport Enterprise fixes to Community?
-   - Community members in Enterprise discussions?
+### Summary of Decisions
+1. **Licensing:** MPL-2.0 (Mozilla Public License) - enables Community protection + Enterprise additions
+2. **Organization:** Strike48 GitHub organization (transferred from personal account)
+3. **CLA:** None required (MPL provides sufficient protection)
+4. **Versioning:** Independent (Community 1.x, Enterprise 1.x - not synchronized)
+5. **Branding:** 4n6nexus (Community) / 4n6nexus Enterprise
+6. **Package Names:** `4n6nexus` (PyPI) / `forensic_nexus` (Python import)
+7. **Contribution Model:** Accept Community PRs under MPL-2.0 terms
+8. **Support Model:** Community (GitHub Issues), Enterprise (SLA-backed)
+9. **Refactor Timing:** NOW (before demo) - APPROVED
 
-3. **Support Model:**
-   - Community: GitHub Issues only?
-   - Enterprise: SLA-backed support?
-   - Separate forums or unified?
+### Technical Decisions (APPROVED)
+1. **Finding Class:** REFACTORING NOW - Move to `findings/finding.py` (see CRITICAL_ARCHITECTURE_ISSUE.md)
+2. **Dependency Management:** Git submodule (initial), migrate to PyPI package (production)
+3. **CI/CD:** Separate GitHub Actions per repo, shared pytest patterns
+4. **Documentation:** Separate docs sites (Community: ReadTheDocs, Enterprise: Private)
+5. **Scenarios:** ALL in Community (12/12 scenarios, enables Community validation)
 
-4. **Versioning:**
-   - Synchronized version numbers (Community 1.0.0 ≠ Enterprise 1.0.0)?
-   - Independent release cycles?
-   - Semantic versioning for both?
-
-5. **Branding:**
-   - "SIFT Find Evil Community" vs "SIFT Find Evil Enterprise"?
-   - Different project names entirely?
-   - Single brand with edition badges?
-
-### Technical
-1. **Finding Class:** (BLOCKER)
-   - Must move from `self_correction/engine.py` to `findings/finding.py` before split
-   - See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md)
-
-2. **Dependency Management:**
-   - Git submodule? (harder to maintain)
-   - PyPI package? (requires publishing Community first)
-   - Monorepo with separate packages? (adds tooling complexity)
-
-3. **CI/CD:**
-   - Separate GitHub Actions workflows?
-   - Shared testing infrastructure?
-   - Cross-repo dependency updates?
-
-4. **Documentation:**
-   - Separate docs sites or unified with feature flags?
-   - API documentation generation (Sphinx, MkDocs)?
-   - Community contributors document their features?
-
-5. **Scenarios:**
-   - All in Community? (recommended)
-   - Split by tier (synthetic→Community, real→Enterprise)?
-   - Enterprise-specific scenarios?
-
-### Operational
+### Operational Decisions (APPROVED)
 1. **Repository Hosting:**
-   - Community: Public GitHub (Strike48 org or personal)?
-   - Enterprise: Private GitHub (Strike48 org)?
-   - Transfer repos to organization accounts?
-
+   - Community: `Strike48/4n6nexus` (public)
+   - Enterprise: `Strike48/4n6nexus-enterprise` (private)
+   
 2. **Package Distribution:**
-   - Community: PyPI? conda-forge?
-   - Enterprise: Private PyPI? Direct distribution?
-   - Docker images for both?
+   - Community: PyPI (`pip install 4n6nexus`)
+   - Enterprise: Direct distribution or private PyPI
+   - Docker: TBD (post-launch)
 
 3. **Issue Tracking:**
-   - Separate GitHub Issues?
-   - Unified issue tracker with labels?
-   - Private Enterprise issues?
-
+   - Community: Public GitHub Issues on `Strike48/4n6nexus`
+   - Enterprise: Private GitHub Issues on `Strike48/4n6nexus-enterprise`
+   
 4. **Documentation Hosting:**
-   - ReadTheDocs (Community)?
-   - Private docs site (Enterprise)?
-   - Unified docs with auth gates?
+   - Community: ReadTheDocs (public, automated from repo)
+   - Enterprise: Private docs site (Strike48-hosted or similar)
 
-## Next Steps
+## Next Steps (IN PROGRESS)
 
-1. **CRITICAL:** Resolve Finding class architecture issue (see CRITICAL_ARCHITECTURE_ISSUE.md)
-2. Answer open questions (strategic, technical, operational)
-3. Create detailed migration plan (see MIGRATION_PLAN.md)
-4. Generate dependency map (verify no circular dependencies post-refactor)
-5. Draft PRD for repository split (see REPOSITORY_SPLIT_PRD.md)
-6. Create test plan for post-split validation
-7. Execute split (post-demo)
+### Immediate (Now)
+1. **Execute Finding refactor** (see CRITICAL_ARCHITECTURE_ISSUE.md) - IN PROGRESS
+2. **Validate with tests** (all 768 tests must pass)
+3. **Update documentation** (reflect refactor completion)
+
+### Post-Refactor (Before Demo)
+4. **Return to demo work** (SFE-ajr: hackathon video)
+5. **Complete demo submission**
+
+### Post-Demo (May 2026)
+6. **Execute repository split** (see REPOSITORY_SPLIT_PRD.md)
+7. **Launch Community edition** (public on Strike48 org)
+8. **Migrate Enterprise customers**
+9. **Monitor and iterate**
 
 ## Status
 
 - [x] Initial analysis complete
-- [ ] Finding class refactored
-- [ ] Open questions answered
-- [ ] Migration plan created
-- [ ] PRD drafted
-- [ ] Stakeholder approval
+- [x] Strategic decisions finalized (see DECISIONS.md)
+- [x] PRD drafted (see REPOSITORY_SPLIT_PRD.md)
+- [x] Dependency map created (see DEPENDENCY_MAP.md)
+- [ ] Finding class refactored (IN PROGRESS)
+- [ ] Tests passing (768/768)
+- [ ] Demo complete
 - [ ] Ready for split execution

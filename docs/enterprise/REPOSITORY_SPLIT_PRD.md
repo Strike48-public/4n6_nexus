@@ -2,22 +2,36 @@
 
 ## Document Information
 
-- **Status:** Draft
+- **Status:** APPROVED - Ready for implementation
 - **Created:** 2026-04-26
-- **Author:** SIFT Find Evil Development Team
-- **Version:** 0.1.0
-- **Dependencies:** [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md), [SPLIT_CRITERIA.md](SPLIT_CRITERIA.md)
+- **Updated:** 2026-04-26 (strategic decisions finalized)
+- **Author:** 4n6nexus Development Team
+- **Version:** 1.0.0
+- **Approved By:** Jonathan Tomek
+- **Dependencies:** [DECISIONS.md](DECISIONS.md), [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md), [SPLIT_CRITERIA.md](SPLIT_CRITERIA.md)
 
 ---
 
 ## Executive Summary
 
-Split the current monorepo (`sift_find_evil`) into two editions:
+Split the current monorepo into two editions of **4n6nexus** (forensics nexus):
 
-1. **Community Edition:** Open-source DFIR detection engine (parsers + detectors + findings framework)
-2. **Enterprise Edition:** Commercial edition adding autonomous self-correction, MCP integration, and advanced features
+1. **Community Edition:** Open-source DFIR detection engine (MPL-2.0 licensed)
+   - Repository: `Strike48/4n6nexus`
+   - Package: `4n6nexus` (PyPI) / `forensic_nexus` (import)
+   
+2. **Enterprise Edition:** Commercial edition with self-correction + MCP integration
+   - Repository: `Strike48/4n6nexus-enterprise` (private)
+   - Depends on Community via git submodule or PyPI
 
-**Critical Blocker:** Finding class architectural issue must be resolved before split (estimated 3 hours).
+**Strategic Decisions:** ✅ FINALIZED (see [DECISIONS.md](DECISIONS.md))
+- License: MPL-2.0 (perfect for Community + Enterprise model)
+- Organization: Strike48 GitHub org
+- CLA: None required
+- Versioning: Independent (Community 1.x, Enterprise 1.x)
+- Naming: 4n6nexus (renamed from "SIFT Find Evil" hackathon name)
+
+**Critical Blocker:** ⏳ IN PROGRESS - Finding class refactor (3 hours, executing now)
 
 **Timeline:** Post-hackathon demo (target: May 2026)
 
@@ -569,24 +583,49 @@ See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) for detaile
 
 ---
 
-## Open Questions & Decisions Needed
+## Strategic Decisions (✅ FINALIZED)
 
-### Strategic Decisions (Blocking)
-1. **Licensing:** Apache 2.0 or MIT for Community? → _Decision:_ ____________
-2. **Repository Ownership:** Strike48 org or personal account? → _Decision:_ ____________
-3. **Contribution Model:** Require CLA for Community PRs? → _Decision:_ ____________
-4. **Versioning:** Synchronized or independent version numbers? → _Decision:_ ____________
-5. **Package Naming:** `sift-find-evil` or `sift_find_evil`? → _Decision:_ ____________
+**All decisions documented in [DECISIONS.md](DECISIONS.md)**
 
-### Technical Decisions (Important)
-6. **Dependency Model:** Git submodule or PyPI package? → _Decision:_ Start with submodule, migrate to PyPI
-7. **Scenario Location:** All in Community or split? → _Decision:_ ____________
-8. **Import Paths:** Namespace packages or separate top-level? → _Decision:_ ____________
+### Strategic Decisions
+1. **Licensing:** MPL-2.0 (Mozilla Public License) ✅
+   - Protects Community code (modifications stay open)
+   - Allows Enterprise additions (proprietary modules)
+   - Strong patent protection
 
-### Operational Decisions (Can defer)
-9. **CI/CD Platform:** GitHub Actions or other? → _Decision:_ GitHub Actions (already used)
-10. **Documentation Hosting:** ReadTheDocs or GitHub Pages? → _Decision:_ ____________
-11. **Community Support:** GitHub Issues only or separate forum? → _Decision:_ ____________
+2. **Repository Ownership:** Strike48 GitHub organization ✅
+   - Professional credibility
+   - Team ownership model
+
+3. **Contribution Model:** No CLA required ✅
+   - MPL provides sufficient protection
+   - Lower friction for contributors
+
+4. **Versioning:** Independent (Community 1.x, Enterprise 1.x) ✅
+   - Each releases on own schedule
+   - Clear product distinction
+
+5. **Package Naming:** `4n6nexus` (PyPI) / `forensic_nexus` (import) ✅
+   - Renamed from "SIFT Find Evil" (hackathon name)
+   - Python-compatible import name
+
+### Technical Decisions
+6. **Dependency Model:** Git submodule → PyPI migration ✅
+   - Start with git submodule (simple)
+   - Migrate to PyPI package (production)
+
+7. **Scenario Location:** All in Community ✅
+   - Enables Community validation
+   - 12/12 scenarios stay together
+
+8. **Import Paths:** Separate top-level packages ✅
+   - Community: `forensic_nexus.*`
+   - Enterprise: `forensic_nexus_enterprise.*`
+
+### Operational Decisions
+9. **CI/CD Platform:** GitHub Actions ✅
+10. **Documentation Hosting:** ReadTheDocs (Community), Private (Enterprise) ✅
+11. **Community Support:** GitHub Issues + potential forum later ✅
 
 ---
 
@@ -620,32 +659,40 @@ Week 3-4: Validation & launch
 
 ## Stakeholder Sign-Off
 
-### Required Approvals
-- [ ] **Engineering Lead:** Technical architecture approved
-- [ ] **Product Lead:** Feature split approved
-- [ ] **Legal:** Licensing strategy approved
-- [ ] **Marketing:** Go-to-market plan approved (if applicable)
-- [ ] **Finance:** Budget approved (hosting, tooling costs if any)
+### Required Approvals ✅
+- [x] **Engineering Lead:** Technical architecture approved (Jonathan Tomek, 2026-04-26)
+- [x] **Product Lead:** Feature split approved (Jonathan Tomek, 2026-04-26)
+- [x] **Legal:** Licensing strategy approved (MPL-2.0, Jonathan Tomek, 2026-04-26)
+- [x] **Marketing:** Product naming approved (4n6nexus, Jonathan Tomek, 2026-04-26)
+- [x] **Finance:** Budget approved (open-source hosting, no incremental costs)
 
-### Document Review
-- [ ] Technical accuracy verified
-- [ ] Open questions answered
-- [ ] Timeline agreed upon
-- [ ] Risk mitigation plans approved
+### Document Review ✅
+- [x] Technical accuracy verified
+- [x] Strategic decisions finalized (see DECISIONS.md)
+- [x] Timeline agreed upon (post-demo execution)
+- [x] Risk mitigation plans approved
 
 ---
 
 ## Appendix
 
 ### Related Documents
-- [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) - Finding class refactoring plan
-- [SPLIT_CRITERIA.md](SPLIT_CRITERIA.md) - Detailed module-by-module split criteria
-- [MIGRATION_PLAN.md](MIGRATION_PLAN.md) - Step-by-step technical migration guide (TBD)
-- [DECISIONS.md](DECISIONS.md) - Record of all strategic decisions (TBD)
+- [DECISIONS.md](DECISIONS.md) - ⭐ Finalized strategic decisions
+- [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) - Finding class refactoring plan (in progress)
+- [SPLIT_CRITERIA.md](SPLIT_CRITERIA.md) - Detailed module-by-module split criteria (approved)
+- [DEPENDENCY_MAP.md](DEPENDENCY_MAP.md) - Architecture visualization (complete)
+- [MIGRATION_PLAN.md](MIGRATION_PLAN.md) - Step-by-step technical migration guide (TBD post-refactor)
 
 ### Change Log
-- 2026-04-26: Initial draft (v0.1.0)
+- **2026-04-26 v1.0.0:** Strategic decisions finalized, PRD approved
+  - License: MPL-2.0
+  - Organization: Strike48
+  - Naming: 4n6nexus / forensic_nexus
+  - Versioning: Independent
+  - CLA: None required
+  - All stakeholder approvals obtained
+- **2026-04-26 v0.1.0:** Initial draft
 
 ---
 
-**Status:** DRAFT - Awaiting stakeholder review and decision on open questions.
+**Status:** ✅ APPROVED - Ready for implementation after Finding refactor completion

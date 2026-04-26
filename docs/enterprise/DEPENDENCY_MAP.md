@@ -1,6 +1,16 @@
 # Dependency Map - Current Architecture
 
-Generated: 2026-04-26
+**Generated:** 2026-04-26
+**Status:** Pre-refactor (using sift_find_evil naming)
+**Target:** Will use 4n6nexus / forensic_nexus naming after split
+
+**Note:** This document shows current state (sift_find_evil). Post-split will use:
+- Community: `4n6nexus` (PyPI) / `forensic_nexus` (import) - MPL-2.0 licensed
+- Enterprise: `4n6nexus-enterprise` / `forensic_nexus_enterprise` - Proprietary
+
+See [DECISIONS.md](DECISIONS.md) for complete naming and licensing strategy.
+
+---
 
 ## Module Dependency Graph
 
@@ -168,7 +178,13 @@ sift_find_evil/mcp/example_integration.py: from ..self_correction.engine import 
 
 ## Module Categories
 
-### Community (Open Source)
+### Community (Open Source - MPL-2.0)
+
+**License:** Mozilla Public License 2.0
+- Modifications must stay open source
+- Can be used in proprietary products (like Enterprise)
+- Strong patent protection
+
 ```
 parsers/                    # 9 modules, 0 Enterprise dependencies
 detectors/                  # 10 modules, currently ALL depend on Finding (will be fixed)
@@ -185,6 +201,8 @@ __main__.py                 # Entry point
 ```
 
 **Total Community Lines:** ~12,000 SLOC (estimated)
+**License:** MPL-2.0 (all files include MPL header)
+**Repository:** `Strike48/4n6nexus` (public)
 
 ### Enterprise (Proprietary)
 ```
@@ -199,6 +217,9 @@ cli_mcp.py                  # MCP-enabled CLI
 ```
 
 **Total Enterprise Lines:** ~8,000 SLOC (estimated)
+**License:** Proprietary commercial license
+**Repository:** `Strike48/4n6nexus-enterprise` (private)
+**Depends On:** Community (4n6nexus>=1.0.0,<2.0.0) - MPL-2.0 allows this
 
 ---
 

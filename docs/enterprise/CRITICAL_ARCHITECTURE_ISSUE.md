@@ -230,10 +230,26 @@ This is foundational architecture. Getting it right enables everything downstrea
 
 **Timeline Impact:** +3 hours to critical path, but removes unknown risk from split.
 
+## Decision: REFACTOR NOW (APPROVED)
+
+**Date:** 2026-04-26
+**Decision Maker:** Jonathan Tomek
+**Rationale:** Fix architectural debt before demo, enables clean split, low risk
+
+See [DECISIONS.md](DECISIONS.md) for full context.
+
 ## Status
 
-- [ ] Decision made (now vs later)
-- [ ] Refactoring complete (if now)
+- [x] Decision made: REFACTOR NOW (before demo)
+- [ ] Refactoring complete
 - [ ] Tests passing (768/768)
 - [ ] Documentation updated
 - [ ] Ready for split planning
+
+## Post-Refactor Product Names
+
+**Note:** After refactor, product will be renamed from "SIFT Find Evil" to "4n6nexus":
+- Current: `sift_find_evil/` → Target: `forensic_nexus/`
+- Current: `import sift_find_evil` → Target: `import forensic_nexus`
+
+See [DECISIONS.md](DECISIONS.md) #5 for complete naming strategy.
