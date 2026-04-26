@@ -389,3 +389,133 @@ def test_confidence_justification_graduated_valid_85():
 
     check = validator._check_confidence_justification(finding)
     assert check.passed
+
+
+def test_validation_report_to_dict():
+    """Test ValidationReport.to_dict() serialization."""
+    from sift_find_evil.validation.adversarial_validator import ValidationCheck, ValidationReport
+
+    checks = [
+        ValidationCheck("test_check", ["issue1"]),
+        ValidationCheck("test_check2", []),
+    ]
+
+    report = ValidationReport(
+        finding_title="Test Finding",
+        checks=checks,
+    )
+
+    result = report.to_dict()
+    assert result["finding_title"] == "Test Finding"
+    assert "validation_timestamp" in result
+    assert len(result["checks"]) == 2
+
+
+def test_check_evidence_completeness_file_path_trigger():
+    """Test evidence completeness with file path in reasoning."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test",
+        evidence={},
+        reasoning_chain=["File path is suspicious"],
+    )
+
+    check = validator._check_evidence_completeness(finding)
+    assert len(check.issues) > 0
+    assert any("path" in issue.lower() for issue in check.issues)
+
+
+def test_check_evidence_completeness_timestamp_trigger():
+    """Test evidence completeness with timestamp in reasoning."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test",
+        evidence={},
+        reasoning_chain=["File saved at specific time"],
+    )
+
+    check = validator._check_evidence_completeness(finding)
+    assert len(check.issues) > 0
+    assert any("timestamp" in issue.lower() for issue in check.issues)
+
+
+def test_check_reasoning_logic_invalid_timestamps():
+    """Test reasoning logic handles invalid timestamps gracefully."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test",
+        category="data_exfiltration",
+        evidence={
+            "file_modified_time": "not-a-date",
+            "email_sent_time": "2025-01-01T10:00:00Z",
+        },
+        reasoning_chain=[],
+    )
+
+    check = validator._check_reasoning_logic(finding)
+    # Should not raise exception
+    assert check is not None
+
+
+def test_check_temporal_consistency_naive_timestamp_fallback():
+    """Test temporal consistency tries fallback parsing for timestamps."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test",
+        evidence={
+            "created_time": "2025-01-01T10:00:00",  # Naive format
+            "modified_time": "2025-01-01T11:00:00",  # Naive format
+        },
+    )
+
+    check = validator._check_temporal_consistency(finding)
+    # Should parse successfully with fallback
+    assert check is not None
+
+
+def test_check_temporal_consistency_invalid_timestamps_ignored():
+    """Test temporal consistency ignores unparseable timestamps."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test",
+        evidence={
+            "created_time": "completely-invalid",
+            "modified_time": "also-bad",
+        },
+    )
+
+    check = validator._check_temporal_consistency(finding)
+    assert check.passed  # No issues since timestamps couldn't be parsed
+
+
+def test_check_hash_format_non_string_sha256():
+    """Test hash format catches non-string SHA-256."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test",
+        evidence={"sha256_hash": 12345},  # Not a string
+    )
+
+    check = validator._check_hash_format(finding)
+    assert len(check.issues) > 0
+    assert any("should be string" in issue.lower() for issue in check.issues)
+
+
+def test_check_hash_format_non_string_md5():
+    """Test hash format catches non-string MD5."""
+    validator = AdversarialValidator()
+
+    finding = MockFinding(
+        title="Test",
+        evidence={"md5_hash": ["not", "string"]},  # Not a string
+    )
+
+    check = validator._check_hash_format(finding)
+    assert len(check.issues) > 0
+    assert any("should be string" in issue.lower() for issue in check.issues)
