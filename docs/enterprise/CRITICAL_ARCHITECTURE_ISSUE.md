@@ -241,10 +241,23 @@ See [DECISIONS.md](DECISIONS.md) for full context.
 ## Status
 
 - [x] Decision made: REFACTOR NOW (before demo)
-- [ ] Refactoring complete
-- [ ] Tests passing (768/768)
-- [ ] Documentation updated
-- [ ] Ready for split planning
+- [x] Refactoring complete (commit: 80fb97f)
+- [x] Tests passing (768/768)
+- [x] Documentation updated
+- [x] Ready for split planning
+
+## Resolution
+
+**Completed:** 2026-04-26
+**Commit:** 80fb97f - "refactor: move Finding class from self_correction to findings module"
+**Result:** ✅ SUCCESS
+
+All 768 tests passing. Zero functionality changes. Clean one-way dependency established:
+```
+Community (findings/) ← Enterprise (self_correction/)
+```
+
+Finding class now lives in its correct location. Repository is ready for Community/Enterprise split post-demo.
 
 ## Post-Refactor Product Names
 

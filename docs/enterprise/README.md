@@ -17,11 +17,11 @@ This directory contains planning documents for splitting the repository into Com
    - **Refactor Timing:** NOW (approved for immediate execution)
    - **Status:** ✅ FINALIZED
 
-2. **[CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md)** - TECHNICAL BLOCKER
+2. **[CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md)** - TECHNICAL BLOCKER (RESOLVED)
    - **Problem:** Finding class in wrong module prevents clean split
    - **Solution:** Move Finding from `self_correction/engine.py` to `findings/finding.py`
-   - **Status:** ⏳ IN PROGRESS (executing refactor now)
-   - **Effort:** 3 hours
+   - **Status:** ✅ COMPLETE (commit 80fb97f, all 768 tests passing)
+   - **Effort:** 2.5 hours (faster than estimated)
 
 3. **[SPLIT_CRITERIA.md](SPLIT_CRITERIA.md)** - What goes where
    - Community modules (parsers, detectors, findings, scenarios)
@@ -92,10 +92,10 @@ All decisions made and documented in [DECISIONS.md](DECISIONS.md):
 - [x] PRD approved
 - [x] Stakeholder alignment (Jonathan Tomek approved all decisions)
 
-### ⏳ In Progress
-- [ ] **Finding class refactoring** (executing now, ~3 hours)
-- [ ] **Test validation** (all 768 tests must pass)
-- [ ] **Documentation updates** (reflect refactor completion)
+### ✅ Refactor Complete
+- [x] **Finding class refactoring** (completed, commit 80fb97f)
+- [x] **Test validation** (all 768 tests passing)
+- [x] **Documentation updates** (complete)
 
 ### 📅 Post-Refactor (Before Demo)
 - [ ] Return to demo work (SFE-ajr: hackathon video)
