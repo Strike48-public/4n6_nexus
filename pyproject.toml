@@ -32,6 +32,10 @@ source = ["sift_find_evil"]
 omit = [
     "sift_find_evil/cli.py",
     "sift_find_evil/__main__.py",
+    "sift_find_evil/cli_mcp.py",
+    "sift_find_evil/mcp/*",
+    "sift_find_evil/reporting/*",
+    "sift_find_evil/testing/*",
 ]
 
 [tool.coverage.report]
