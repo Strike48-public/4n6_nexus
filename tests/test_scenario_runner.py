@@ -212,3 +212,147 @@ def test_yara_only_scenario_loads_fixtures(synthetic_yara_dir: Path) -> None:
     assert "mft" not in manifest.fixtures
     assert "prefetch" not in manifest.fixtures
     assert "evtx" not in manifest.fixtures
+
+
+def test_load_scenario_rejects_non_dict_top_level(tmp_path: Path) -> None:
+    """Test load_scenario rejects non-dict top-level YAML."""
+    (tmp_path / "scenario.yaml").write_text("- item1\n- item2\n", encoding="utf-8")
+
+    with pytest.raises(ScenarioLoadError, match="top-level must be a mapping"):
+        load_scenario(tmp_path)
+
+
+def test_load_scenario_rejects_non_dict_fixtures(tmp_path: Path) -> None:
+    """Test load_scenario rejects non-dict fixtures."""
+    _write_manifest(
+        tmp_path,
+        "name: bad\n"
+        "tier: synthetic\n"
+        "fixtures:\n"
+        "  - mft.csv\n",
+    )
+
+    with pytest.raises(ScenarioLoadError, match="'fixtures' must be a mapping"):
+        load_scenario(tmp_path)
+
+
+def test_load_scenario_skips_empty_fixture_values(tmp_path: Path) -> None:
+    """Test load_scenario skips fixtures with null/empty values."""
+    _write_manifest(
+        tmp_path,
+        "name: test\n"
+        "tier: synthetic\n"
+        "fixtures:\n"
+        "  mft: mft.csv\n"
+        "  prefetch: null\n"
+        "  evtx: ''\n",
+    )
+
+    manifest = load_scenario(tmp_path)
+    assert "mft" in manifest.fixtures
+    assert "prefetch" not in manifest.fixtures
+    assert "evtx" not in manifest.fixtures
+
+
+def test_load_scenario_rejects_non_list_evidence(tmp_path: Path) -> None:
+    """Test load_scenario rejects non-list evidence."""
+    _write_manifest(
+        tmp_path,
+        "name: bad\n"
+        "tier: real\n"
+        "evidence:\n"
+        "  path: disk.dd\n",
+    )
+
+    with pytest.raises(ScenarioLoadError, match="'evidence' must be a list"):
+        load_scenario(tmp_path)
+
+
+def test_load_scenario_skips_non_dict_evidence_entries(tmp_path: Path) -> None:
+    """Test load_scenario skips non-dict evidence entries."""
+    _write_manifest(
+        tmp_path,
+        "name: test\n"
+        "tier: real\n"
+        "evidence:\n"
+        "  - disk.dd\n"
+        "  - path: valid.dd\n"
+        "    kind: raw\n",
+    )
+
+    manifest = load_scenario(tmp_path)
+    assert len(manifest.evidence) == 1
+    assert manifest.evidence[0]["path"] == "valid.dd"
+
+
+def test_load_scenario_rejects_evidence_entry_missing_path(tmp_path: Path) -> None:
+    """Test load_scenario rejects evidence entry missing path."""
+    _write_manifest(
+        tmp_path,
+        "name: bad\n"
+        "tier: real\n"
+        "evidence:\n"
+        "  - kind: raw\n",
+    )
+
+    with pytest.raises(ScenarioLoadError, match="evidence entry missing string 'path'"):
+        load_scenario(tmp_path)
+
+
+def test_load_scenario_rejects_evidence_entry_empty_path(tmp_path: Path) -> None:
+    """Test load_scenario rejects evidence entry with empty path."""
+    _write_manifest(
+        tmp_path,
+        "name: bad\n"
+        "tier: real\n"
+        "evidence:\n"
+        "  - path: ''\n"
+        "    kind: raw\n",
+    )
+
+    with pytest.raises(ScenarioLoadError, match="evidence entry missing string 'path'"):
+        load_scenario(tmp_path)
+
+
+def test_load_scenario_rejects_non_dict_finding_counts(tmp_path: Path) -> None:
+    """Test load_scenario rejects non-dict finding_counts."""
+    _write_manifest(
+        tmp_path,
+        "name: bad\n"
+        "tier: synthetic\n"
+        "expected:\n"
+        "  finding_counts:\n"
+        "    - total: 5\n",
+    )
+
+    with pytest.raises(ScenarioLoadError, match="expected.finding_counts must be a mapping"):
+        load_scenario(tmp_path)
+
+
+def test_load_scenario_rejects_non_integer_finding_count_values(tmp_path: Path) -> None:
+    """Test load_scenario rejects non-integer finding_counts values."""
+    _write_manifest(
+        tmp_path,
+        "name: bad\n"
+        "tier: synthetic\n"
+        "expected:\n"
+        "  finding_counts:\n"
+        "    total: five\n",
+    )
+
+    with pytest.raises(ScenarioLoadError, match="finding_counts values must be integers"):
+        load_scenario(tmp_path)
+
+
+def test_load_scenario_rejects_non_numeric_min_recall(tmp_path: Path) -> None:
+    """Test load_scenario rejects non-numeric min_recall."""
+    _write_manifest(
+        tmp_path,
+        "name: bad\n"
+        "tier: synthetic\n"
+        "expected:\n"
+        "  min_recall: high\n",
+    )
+
+    with pytest.raises(ScenarioLoadError, match="must be numeric"):
+        load_scenario(tmp_path)
