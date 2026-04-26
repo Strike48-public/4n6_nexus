@@ -55,7 +55,7 @@ from ..memory.volatility_runner import (
     NetworkRow,
     ProcessRow,
 )
-from ..self_correction.engine import Finding
+from ..findings import Finding
 
 # PIDs that routinely appear in psscan but not pslist because they have
 # already terminated / are synthetic. Keeping them out of the hidden-

@@ -17,7 +17,7 @@ from typing import Iterable, Optional
 
 from ..parsers.browser_history_parser import BrowserHistoryEntry
 from ..parsers.pcap_parser import DNSQuery, HTTPRequest, SMTPMessage, TCPConversation
-from ..self_correction.engine import Finding
+from ..findings import Finding
 from .cloud_upload_detector import CloudUploadDetector
 from .exfil_ratio_detector import ExfilRatioDetector
 from .stats_detector import BeaconingDetector, DNSAnomalyDetector

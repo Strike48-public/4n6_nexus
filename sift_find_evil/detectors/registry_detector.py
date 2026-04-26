@@ -36,7 +36,7 @@ from ..parsers.registry_parser import (
     ShimcacheEntry,
     UserAssistEntry,
 )
-from ..self_correction.engine import Finding
+from ..findings import Finding
 
 
 # --- defaults ----------------------------------------------------------------

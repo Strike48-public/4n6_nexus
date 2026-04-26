@@ -29,7 +29,7 @@ from typing import Iterable, Optional
 
 from ..findings import FindingCategory
 from ..parsers.lnk_jumplist_parser import JumpListEntry, LnkEntry
-from ..self_correction.engine import Finding
+from ..findings import Finding
 
 
 # --- defaults ----------------------------------------------------------------

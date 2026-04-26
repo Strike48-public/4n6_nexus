@@ -15,7 +15,7 @@ from .contradiction_detector import (
 from .confidence_scorer import ConfidenceScorer, Resolution
 from .attack_pattern_detector import AttackPatternDetector, AttackPattern
 from ..validators.timestamp_comparator import TimestampComparator
-from ..findings import FindingCategory
+from ..findings import Finding, FindingCategory
 
 
 # Which finding category a given contradiction type maps to. Every known
@@ -45,81 +45,8 @@ def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
     return FindingCategory.UNKNOWN
 
 
-@dataclass
-class Finding:
-    """Represents a forensic finding with confidence and reasoning."""
-
-    # Core finding information
-    title: str
-    description: str
-    finding_type: str  # indicator, behavior, timeline_event
-    severity: str  # critical, high, medium, low, info
-    category: FindingCategory  # case-agnostic taxonomy label
-
-    # Evidence
-    evidence: dict = field(default_factory=dict)
-
-    # Confidence and reasoning
-    confidence: float = 0.85
-    confidence_label: str = "High"
-    reasoning_chain: List[str] = field(default_factory=list)
-
-    # Self-correction metadata
-    contradictions: List[Contradiction] = field(default_factory=list)
-    resolutions: List[Resolution] = field(default_factory=list)
-    confidence_calculation: dict = field(default_factory=dict)
-
-    # Metadata
-    detected_at: datetime = field(default_factory=lambda: datetime.now())
-    artifact_sources: List[str] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "title": self.title,
-            "description": self.description,
-            "type": self.finding_type,
-            "severity": self.severity,
-            "category": self.category.value,
-            "evidence": self.evidence,
-            "confidence": round(self.confidence, 2),
-            "confidence_label": self.confidence_label,
-            "reasoning_chain": self.reasoning_chain,
-            "contradictions": [c.to_dict() for c in self.contradictions],
-            "resolutions": [
-                {
-                    "type": r.contradiction_type,
-                    "method": r.resolution_method,
-                    "recovery": r.confidence_recovery,
-                    "evidence": r.evidence,
-                }
-                for r in self.resolutions
-            ],
-            "confidence_calculation": self.confidence_calculation,
-            "detected_at": self.detected_at.isoformat(),
-            "artifact_sources": self.artifact_sources,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Finding":
-        """Create Finding from dictionary (inverse of to_dict)."""
-        return cls(
-            title=data["title"],
-            description=data["description"],
-            finding_type=data["type"],
-            severity=data["severity"],
-            category=FindingCategory(data["category"]),
-            evidence=data.get("evidence", {}),
-            confidence=data.get("confidence", 0.85),
-            confidence_label=data.get("confidence_label", "High"),
-            reasoning_chain=data.get("reasoning_chain", []),
-            contradictions=[],  # Skip reconstruction for comparison purposes
-            resolutions=[],  # Skip reconstruction for comparison purposes
-            confidence_calculation=data.get("confidence_calculation", {}),
-            detected_at=datetime.fromisoformat(data["detected_at"]),
-            artifact_sources=data.get("artifact_sources", []),
-        )
-
+# Finding class moved to findings/finding.py to enable clean Community/Enterprise split.
+# It is now imported above from ..findings import Finding
 
 class SelfCorrectionEngine:
     """Main orchestrator for autonomous self-correction.

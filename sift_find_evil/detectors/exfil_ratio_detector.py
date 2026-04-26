@@ -29,7 +29,7 @@ from typing import Iterable, Optional
 
 from ..findings import FindingCategory
 from ..parsers.pcap_parser import DNSQuery, TCPConversation
-from ..self_correction.engine import Finding
+from ..findings import Finding
 
 
 _DEFAULT_DATA_PORTS: frozenset[int] = frozenset(

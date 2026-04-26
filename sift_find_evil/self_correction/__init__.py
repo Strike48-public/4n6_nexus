@@ -2,7 +2,10 @@
 
 from .contradiction_detector import ContradictionDetector, Contradiction
 from .confidence_scorer import ConfidenceScorer, Resolution
-from .engine import SelfCorrectionEngine, Finding
+from .engine import SelfCorrectionEngine
+
+# Finding moved to findings module for Community/Enterprise split
+from ..findings import Finding
 
 __all__ = [
     "ContradictionDetector",
@@ -10,5 +13,5 @@ __all__ = [
     "ConfidenceScorer",
     "Resolution",
     "SelfCorrectionEngine",
-    "Finding",
+    "Finding",  # Re-exported for backward compatibility
 ]

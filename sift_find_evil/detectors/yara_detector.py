@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Iterable
 
 from ..findings import FindingCategory
-from ..self_correction.engine import Finding
+from ..findings import Finding
 from ..yara_scan.scanner import YaraMatch, YaraScanner
 
 # Severity → base confidence. Values tuned so HIGH fires the default 0.85

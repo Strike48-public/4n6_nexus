@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sift_find_evil.self_correction.engine import Finding
+from sift_find_evil.findings import Finding
 
 # Thresholds for comparison
 CONFIDENCE_CHANGE_THRESHOLD = 0.05  # Report changes > 5%

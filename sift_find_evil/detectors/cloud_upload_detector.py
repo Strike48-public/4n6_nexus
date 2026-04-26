@@ -27,7 +27,7 @@ from typing import Iterable, Optional
 from ..findings import FindingCategory
 from ..parsers.browser_history_parser import BrowserHistoryEntry
 from ..parsers.pcap_parser import HTTPRequest
-from ..self_correction.engine import Finding
+from ..findings import Finding
 from .webmail_exfil_detector import MFTAccessRecord
 
 
