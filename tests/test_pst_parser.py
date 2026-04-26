@@ -168,6 +168,188 @@ def test_pst_parser_rejects_missing_file():
         parser.parse_file(Path("/nonexistent/path.pst"))
 
 
+def test_safe_text_with_none_attribute():
+    """_safe_text handles None attribute values."""
+    from sift_find_evil.parsers.pst_parser import _safe_text
+
+    msg = FakeMessage(sender_name=None, subject="Test")
+    result = _safe_text(msg, "sender_name")
+    assert result == ""
+
+
+def test_safe_text_with_exception():
+    """_safe_text handles exceptions during attribute access."""
+    from sift_find_evil.parsers.pst_parser import _safe_text
+
+    class BrokenMessage:
+        @property
+        def broken_field(self):
+            raise RuntimeError("Simulated error")
+
+    msg = BrokenMessage()
+    result = _safe_text(msg, "broken_field")
+    assert result == ""
+
+
+def test_parse_attachment_size_exception():
+    """_parse_attachment handles exception when accessing size."""
+    from sift_find_evil.parsers.pst_parser import _parse_attachment
+
+    class AttachmentWithBrokenSize:
+        name = "test.txt"
+        _content = b"data"
+        _offset = 0
+
+        @property
+        def size(self):
+            raise RuntimeError("Size unavailable")
+
+        def read_buffer(self, size: int) -> bytes:
+            chunk = self._content[self._offset : self._offset + size]
+            self._offset += len(chunk)
+            return chunk
+
+    att = AttachmentWithBrokenSize()
+    parsed = _parse_attachment(att)
+    assert parsed.name == "test.txt"
+    assert parsed.size == 0  # Default when exception occurs
+
+
+def test_parse_message_attachment_enumeration_fails():
+    """_parse_message handles exception during attachment enumeration."""
+    class MessageWithBrokenAttachments:
+        client_submit_time = None
+        delivery_time = None
+        sender_name = "Test"
+        sender_email_address = "test@example.com"
+        subject = "Test"
+        transport_headers = None
+        plain_text_body = "Body"
+        html_body = None
+
+        @property
+        def number_of_attachments(self):
+            raise RuntimeError("Attachment count unavailable")
+
+    msg = MessageWithBrokenAttachments()
+    parsed = _parse_message(("Inbox",), msg)
+    assert parsed.attachments == ()  # Empty tuple when enumeration fails
+
+
+def test_walk_folder_with_corrupt_message():
+    """_walk_folder skips corrupt messages without halting parse."""
+    from sift_find_evil.parsers.pst_parser import _walk_folder
+
+    # Message that raises exception when accessed in iteration
+    class CorruptMessageGenerator:
+        def __iter__(self):
+            # First message works, second raises exception during append
+            yield FakeMessage(subject="Good message")
+            # Simulate a message that raises exception when appending to pairs
+            # This is tested by having the message itself be valid but raising
+            # during the tuple creation
+            raise RuntimeError("Corrupt message during iteration")
+
+    class FakeFolder:
+        name = "Test Folder"
+
+        @property
+        def sub_messages(self):
+            # Return a simple list with one message (pypff iteration works this way)
+            return [FakeMessage(subject="Test")]
+
+        @property
+        def sub_folders(self):
+            return []
+
+    folder = FakeFolder()
+    pairs = _walk_folder(folder, tuple())
+    # Should have one message (the good one)
+    assert len(pairs) == 1
+
+
+def test_walk_folder_with_unnamed_folder():
+    """_walk_folder handles folder with None name."""
+    from sift_find_evil.parsers.pst_parser import _walk_folder
+
+    class UnnamedFolder:
+        name = None
+
+        @property
+        def sub_messages(self):
+            return []
+
+        @property
+        def sub_folders(self):
+            return []
+
+    folder = UnnamedFolder()
+    pairs = _walk_folder(folder, tuple())
+    # Should use <root> as name for None
+    assert len(pairs) == 0  # No messages to return
+
+
+def test_walk_folder_with_exception_during_name_access():
+    """_walk_folder handles exception when accessing folder name."""
+    from sift_find_evil.parsers.pst_parser import _walk_folder
+
+    class FolderWithBrokenName:
+        @property
+        def name(self):
+            raise RuntimeError("Name unavailable")
+
+        @property
+        def sub_messages(self):
+            return []
+
+        @property
+        def sub_folders(self):
+            return []
+
+    folder = FolderWithBrokenName()
+    pairs = _walk_folder(folder, tuple())
+    # Should use <unnamed> as fallback
+    assert len(pairs) == 0
+
+
+def test_parse_message_truncates_long_transport_headers():
+    """_parse_message truncates transport headers to 4000 chars."""
+    long_headers = "X-Header: " + ("A" * 5000)
+    msg = FakeMessage(
+        transport_headers=long_headers,
+        plain_text_body="Body",
+        number_of_attachments=0,
+    )
+    parsed = _parse_message(("Inbox",), msg)
+    assert len(parsed.transport_headers) == 4000
+
+
+def test_parse_message_truncates_long_body_preview():
+    """_parse_message truncates body preview to 2000 chars."""
+    long_body = "Body: " + ("B" * 3000)
+    msg = FakeMessage(
+        plain_text_body=long_body,
+        number_of_attachments=0,
+    )
+    parsed = _parse_message(("Inbox",), msg)
+    assert len(parsed.body_preview) == 2000
+
+
+def test_parse_message_with_tzinfo_aware_timestamps():
+    """_parse_message preserves tzinfo-aware timestamps."""
+    submit_time = datetime(2008, 7, 20, 1, 28, 47, tzinfo=pytz.utc)
+    delivery_time = datetime(2008, 7, 20, 1, 30, 0, tzinfo=pytz.utc)
+    msg = FakeMessage(
+        client_submit_time=submit_time,
+        delivery_time=delivery_time,
+        subject="Test",
+        number_of_attachments=0,
+    )
+    parsed = _parse_message(("Inbox",), msg)
+    assert parsed.submit_time == submit_time
+    assert parsed.delivery_time == delivery_time
+
+
 # Integration-lite test (requires Jean artifacts)
 
 

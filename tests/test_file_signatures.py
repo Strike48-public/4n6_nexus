@@ -55,6 +55,26 @@ def test_detect_xlsx():
     assert "XLSX" in desc
 
 
+def test_detect_pptx():
+    """Detect PPTX presentations (ZIP with ppt/ dir)."""
+    data = b"PK\x03\x04" + b"\x00" * 100 + b"ppt/presentation.xml"
+    ext, desc = detect_file_type(data)
+    assert ext == "pptx"
+    assert "PPTX" in desc
+
+
+def test_detect_odt():
+    """Detect OpenDocument text (ZIP with mimetype)."""
+    data = (
+        b"PK\x03\x04" + b"\x00" * 50
+        + b"mimetype" + b"\x00" * 20
+        + b"application/vnd.oasis.opendocument.text"
+    )
+    ext, desc = detect_file_type(data)
+    assert ext == "odt"
+    assert "OpenDocument" in desc
+
+
 def test_detect_exe():
     """Detect Windows executables."""
     data = b"MZ\x90\x00\x03\x00\x00\x00"
@@ -101,6 +121,22 @@ def test_detect_ntfs_boot():
     ext, desc = detect_file_type(data)
     assert ext == "ntfs"
     assert "NTFS" in desc
+
+
+def test_detect_avi():
+    """Detect AVI video (RIFF with AVI subtype)."""
+    data = b"RIFF\x00\x00\x00\x00AVI \x00\x00"
+    ext, desc = detect_file_type(data)
+    assert ext == "avi"
+    assert "AVI" in desc
+
+
+def test_detect_wav():
+    """Detect WAV audio (RIFF with WAVE subtype)."""
+    data = b"RIFF\x00\x00\x00\x00WAVE\x00\x00"
+    ext, desc = detect_file_type(data)
+    assert ext == "wav"
+    assert "WAV" in desc
 
 
 def test_detect_unknown():
