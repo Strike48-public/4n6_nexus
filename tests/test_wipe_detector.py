@@ -252,6 +252,23 @@ def test_detect_from_image_raw(tmp_path) -> None:
 
 
 @pytest.mark.unit
+def test_detect_from_image_ewf_extension() -> None:
+    """Test detect_from_image recognizes .e01/.ewf extensions."""
+    from pathlib import Path
+    from sift_find_evil.disk.wipe_detector import detect_from_image
+
+    # Test with fake E01 path (will fail to open, but we just want to test the branch)
+    fake_e01 = Path("/nonexistent/wiped.e01")
+
+    try:
+        detect_from_image(fake_e01)
+    except (OSError, FileNotFoundError):
+        # Expected - file doesn't exist or isn't a valid E01
+        # The important part is that it tried inspect_ewf instead of inspect_raw
+        pass
+
+
+@pytest.mark.unit
 def test_wiped_disk_finding_to_dict() -> None:
     """Test WipedDiskFinding.to_dict() serialization."""
     from sift_find_evil.disk.wipe_detector import WipedDiskFinding

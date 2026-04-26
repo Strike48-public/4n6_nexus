@@ -199,6 +199,58 @@ def test_missing_severity_defaults_to_medium(
     assert f.confidence == pytest.approx(0.70, abs=0.001)
 
 
+def test_severity_non_string_defaults_to_medium(tmp_path: Path) -> None:
+    """Test _severity_from_meta returns default when severity is not a string."""
+    rule_source = """
+rule non_string_severity {
+    meta:
+        severity = 42
+    strings:
+        $test = "TEST"
+    condition:
+        $test
+}
+"""
+    rule_file = tmp_path / "non_string.yara"
+    rule_file.write_text(rule_source)
+
+    scanner = YaraScanner.compile_from_directory(rule_file.parent)
+
+    test_file = tmp_path / "test.bin"
+    test_file.write_bytes(b"TEST")
+
+    detector = YaraDetector(scanner=scanner)
+    findings = detector.analyze_file(test_file)
+    assert findings
+    assert findings[0].severity == "medium"
+
+
+def test_severity_invalid_string_defaults_to_medium(tmp_path: Path) -> None:
+    """Test _severity_from_meta returns default when severity is invalid string."""
+    rule_source = """
+rule invalid_severity {
+    meta:
+        severity = "INVALID"
+    strings:
+        $test = "TEST"
+    condition:
+        $test
+}
+"""
+    rule_file = tmp_path / "invalid_severity.yara"
+    rule_file.write_text(rule_source)
+
+    scanner = YaraScanner.compile_from_directory(rule_file.parent)
+
+    test_file = tmp_path / "test.bin"
+    test_file.write_bytes(b"TEST")
+
+    detector = YaraDetector(scanner=scanner)
+    findings = detector.analyze_file(test_file)
+    assert findings
+    assert findings[0].severity == "medium"
+
+
 def test_confidence_is_capped(tmp_path: Path) -> None:
     """Synthetic rule carrying every bonus still caps at 0.95."""
     rule = """

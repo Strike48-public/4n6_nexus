@@ -166,3 +166,9 @@ def test_zero_inbound_bytes_does_not_divide_by_zero():
     )
     assert len(findings) == 1
     assert findings[0].evidence["inbound_bytes"] == 0
+
+
+def test_format_bytes_tb():
+    """Test _fmt_bytes with terabyte values."""
+    detector = ExfilRatioDetector()
+    assert detector._fmt_bytes(5_000_000_000_000) == "4.5 TB"

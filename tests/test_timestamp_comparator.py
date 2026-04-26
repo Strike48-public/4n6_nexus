@@ -145,6 +145,19 @@ class TestCausalityViolation:
         assert violation["type"] == "causality_violation"
         assert violation["time_delta_seconds"] == 600  # 10 minutes
 
+    def test_violation_with_null_timestamp_returns_none(self):
+        """Test causality violation returns None when timestamp is null."""
+        comparator = TimestampComparator()
+
+        file_modified = comparator.parse_iso8601("1601-01-01T00:00:00Z")  # Null
+        process_executed = comparator.parse_iso8601("2025-03-15T14:20:00Z")
+
+        violation = comparator.detect_causality_violation(
+            file_modified, process_executed
+        )
+
+        assert violation is None
+
     def test_violation_severity_high_for_large_delta(self):
         """Test high severity for large time deltas."""
         comparator = TimestampComparator()
