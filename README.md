@@ -9,6 +9,8 @@
 
 Built for the SANS FIND EVIL! Hackathon with production-grade architecture designed for real-world forensic investigations.
 
+> **Note:** This is the SANS FIND EVIL! Hackathon submission (April 2026). The production product will be named **4n6nexus** (forensics nexus) after the competition.
+
 ---
 
 ## Detection Accuracy: 12/12 Scenarios @ F1=1.00
@@ -577,6 +579,21 @@ python -m sift_find_evil.cli case verify --case-id INC-2026-001
 python -m sift_find_evil.cli audit summary \
   --audit-file /cases/INC-2026-001/audit.jsonl
 ```
+
+---
+
+## Documentation
+
+This repository includes comprehensive documentation:
+
+- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete map of all documentation
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and component architecture
+- **[Accuracy Report](docs/ACCURACY_REPORT.md)** - Detection metrics and methodology
+- **[Contributing](docs/CONTRIBUTING.md)** - Development guide and coding standards
+- **[Examples](docs/EXAMPLES.md)** - Real-world usage examples
+- **[Testing Guides](BATCH_TESTING.md)** - Systematic testing approach
+
+See [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) for the complete documentation map.
 
 ---
 
