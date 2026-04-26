@@ -9,7 +9,7 @@ USB_MOUNT="${USB_MOUNT:-/mnt/usb-evidence/sift_evidence}"
 WORK_DIR="${WORK_DIR:-$HOME/sift_project}"
 RESULTS_BASE="${RESULTS_BASE:-$HOME/batch-test-results}"
 VENV_PATH="${VENV_PATH:-$HOME/sift_find_evil_env}"
-MAX_SCENARIO_SIZE="${MAX_SCENARIO_SIZE:-20000000000}"  # 20GB max per scenario
+MAX_SCENARIO_SIZE="${MAX_SCENARIO_SIZE:-120000000000}"  # 120GB max per scenario
 
 # Colors
 RED='\033[0;31m'
