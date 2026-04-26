@@ -340,3 +340,19 @@ def test_full_pipeline_produces_mixed_findings():
     assert any("Run key" in t for t in titles)
     assert any("attacker-writable" in t for t in titles)
     assert any("UserAssist" in t for t in titles)
+
+
+def test_basename_with_empty_path():
+    """Test _basename handles empty path."""
+    from sift_find_evil.detectors.registry_detector import _basename
+
+    assert _basename("") == ""
+
+
+def test_launcher_basename_malformed_quotes():
+    """Test _launcher_basename with malformed quoted command."""
+    from sift_find_evil.detectors.registry_detector import RegistryDetector
+
+    # Missing closing quote - should return None
+    result = RegistryDetector._launcher_basename('"C:\\test.exe')
+    assert result is None
