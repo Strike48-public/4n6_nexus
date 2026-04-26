@@ -158,27 +158,12 @@ test_scenario() {
         return 1
     fi
 
-    # Copy scenario to work directory
-    local work_scenario_dir="$WORK_DIR/scenarios/usb-batch/$scenario_name"
-    info "Copying to: $work_scenario_dir"
-
-    rm -rf "$work_scenario_dir"
-    mkdir -p "$work_scenario_dir"
-
-    # Copy scenario.yaml
-    cp "$scenario_file" "$work_scenario_dir/"
-
-    # Copy evidence directory
-    if [ -d "$scenario_dir/evidence" ]; then
-        cp -r "$scenario_dir/evidence" "$work_scenario_dir/"
-    fi
-
-    # Run analysis
-    info "Running analysis..."
+    # Run analysis directly from USB (no copy to avoid disk space issues)
+    info "Running analysis directly from USB..."
     local start_time=$(date +%s)
 
     if timeout 3600 python3 -m sift_find_evil.cli run \
-        --scenario "$work_scenario_dir" \
+        --scenario "$scenario_dir" \
         > "$RUN_DIR/${scenario_name}.log" 2>&1; then
 
         local end_time=$(date +%s)
