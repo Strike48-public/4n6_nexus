@@ -102,7 +102,7 @@ def main() -> None:
 
     print(f"Wrote {len(MALICIOUS_CMDLINES)} cmdline entries to {output_path}")
     print("\nExpected finding count delta:")
-    print(f"  Original: 1 cmdline finding (PID 5580)")
+    print("  Original: 1 cmdline finding (PID 5580)")
     print(f"  New: {len(MALICIOUS_CMDLINES)} cmdline findings (PIDs 5580, 6001-6010)")
     print(f"  Delta: +{len(MALICIOUS_CMDLINES) - 1} findings")
     print("\nScenario expectation update required:")

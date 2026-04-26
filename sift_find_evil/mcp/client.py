@@ -1,12 +1,11 @@
 """MCP client for forensic tool execution with safety guards."""
 
-import json
 import subprocess
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from ..audit.logger import AuditLogger
 

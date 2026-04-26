@@ -53,7 +53,7 @@ def cmd_analyze_live(args):
     print("  MCP Live Analysis")
     print("=" * 70)
     print(f"\nCase ID: {args.case_id}")
-    print(f"Evidence:")
+    print("Evidence:")
     if args.mft_file:
         print(f"  - MFT: {args.mft_file}")
     if args.prefetch_dir:
@@ -104,14 +104,14 @@ def cmd_analyze_live(args):
                 # Handle known Windows-only error gracefully
                 if "Non-Windows platforms" in str(e) or "PECmd" in str(e):
                     print(f"    ⚠️  PECmd skipped (requires Windows): {str(e)[:100]}")
-                    print(f"    Continuing analysis without Prefetch data...")
+                    print("    Continuing analysis without Prefetch data...")
                 else:
                     # Unknown error - respect strict mode
                     if args.strict_mode:
                         raise  # Re-raise in strict mode
                     else:
                         print(f"    ⚠️  PECmd failed: {e}")
-                        print(f"    Continuing analysis without Prefetch data...")
+                        print("    Continuing analysis without Prefetch data...")
 
         if args.evtx_file:
             print(f"  Running EvtxECmd on {args.evtx_file}...")
@@ -172,10 +172,10 @@ def cmd_analyze_live(args):
             if count > 0:
                 print(f"  {severity.upper()}: {count}")
 
-    print(f"\nNext steps:")
+    print("\nNext steps:")
     print(f"  1. Review findings: {findings_file}")
-    print(f"  2. Approve findings: python -m sift_find_evil.cli approve ...")
-    print(f"  3. Generate report: python -m sift_find_evil.cli report ...")
+    print("  2. Approve findings: python -m sift_find_evil.cli approve ...")
+    print("  3. Generate report: python -m sift_find_evil.cli report ...")
 
     return 0
 

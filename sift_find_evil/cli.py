@@ -32,7 +32,7 @@ from .scenario_runner import ScenarioLoadError, run_scenario_path
 from .validation import AdversarialValidator
 from .approval import ApprovalManager, ApprovalStatus, FindingWithApproval
 from .audit import AuditLogger
-from .case import Case, CaseManager, CaseStatus, EvidenceFile
+from .case import CaseManager
 from .reporting import ReportFormat, ReportGenerator
 
 try:
@@ -1385,13 +1385,13 @@ def cmd_case_init(args):
     print(f"  Created: {case.created_at.isoformat()}")
     print("\n  Directory structure:")
     print(f"    {case.directory}/")
-    print(f"      evidence/")
-    print(f"      analysis/")
-    print(f"      reports/")
-    print(f"      exports/")
-    print(f"      CASE.yaml")
-    print(f"      evidence.json")
-    print(f"      audit.jsonl")
+    print("      evidence/")
+    print("      analysis/")
+    print("      reports/")
+    print("      exports/")
+    print("      CASE.yaml")
+    print("      evidence.json")
+    print("      audit.jsonl")
 
 
 def cmd_evidence_register(args):
@@ -1429,7 +1429,7 @@ def cmd_evidence_register(args):
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\n  Evidence registered:")
+    print("\n  Evidence registered:")
     print(f"    SHA-256: {evidence.sha256_hash}")
     print(f"    Size: {evidence.file_size:,} bytes")
     print(f"    Registered: {evidence.registered_at.isoformat()}")

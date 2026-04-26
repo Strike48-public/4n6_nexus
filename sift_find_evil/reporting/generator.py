@@ -3,7 +3,6 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from ..approval import ApprovalManager, ApprovalStatus
 from ..case import CaseManager
@@ -229,7 +228,7 @@ class ReportGenerator:
         lines = []
 
         # Header
-        lines.append(f"# Forensic Investigation Report")
+        lines.append("# Forensic Investigation Report")
         lines.append(f"## Case: {report.case_name}")
         lines.append("")
 
