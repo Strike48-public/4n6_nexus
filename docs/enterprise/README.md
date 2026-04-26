@@ -106,6 +106,10 @@ All decisions made and documented in [DECISIONS.md](DECISIONS.md):
 - [ ] Phase 2: Create Enterprise repo
 - [ ] Phase 3: Validation & launch
 - [ ] Public Community launch
+- [ ] Convert documentation to GitHub Wiki (Enterprise)
+  - Current: 73 markdown files in docs/
+  - Future: Streamlined README + GitHub Wiki for comprehensive guides
+  - Rationale: Better navigation, separate from code, community-editable
 
 ## Next Actions (APPROVED)
 
