@@ -33,7 +33,7 @@ def _int(s: str) -> int:
 
 def _bytes(n: str, unit: str) -> int:
     """Parse a (value, unit) pair from tshark byte columns."""
-    return _int(n) * _BYTE_UNITS.get(unit, 1)
+    return int(float(n.replace(",", "")) * _BYTE_UNITS.get(unit, 1))
 
 
 @dataclass(frozen=True)
@@ -452,9 +452,9 @@ class PcapParser:
         conversations: list[TCPConversation] = []
         row_re = re.compile(
             r"^(?P<a>\S+:\d+)\s+<->\s+(?P<b>\S+:\d+)\s+"
-            r"(?P<rxf>[\d,]+)\s+(?P<rxb>[\d,]+)\s+(?P<rxu>\w+)\s+"
-            r"(?P<txf>[\d,]+)\s+(?P<txb>[\d,]+)\s+(?P<txu>\w+)\s+"
-            r"(?P<tf>[\d,]+)\s+(?P<tb>[\d,]+)\s+(?P<tu>\w+)"
+            r"(?P<rxf>[\d,]+)\s+(?P<rxb>[\d,.]+)\s+(?P<rxu>\w+)\s+"
+            r"(?P<txf>[\d,]+)\s+(?P<txb>[\d,.]+)\s+(?P<txu>\w+)\s+"
+            r"(?P<tf>[\d,]+)\s+(?P<tb>[\d,.]+)\s+(?P<tu>\w+)"
         )
         for line in text.splitlines():
             m = row_re.match(line.strip())
