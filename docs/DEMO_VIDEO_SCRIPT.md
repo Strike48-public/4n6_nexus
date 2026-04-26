@@ -30,7 +30,7 @@
 >
 > Existing automation falls short: scripts lack reasoning capability, and prompt-engineered LLMs hallucinate findings without evidence integrity guarantees.
 >
-> This is SIFT Find Evil - an autonomous DFIR agent with architectural self-correction."
+> This is SIFT Find Evil - our SANS hackathon submission - an autonomous DFIR agent with architectural self-correction. The production version will be called 4n6nexus, forensics nexus."
 
 ### SEGMENT 2: Solution Overview (0:30-1:00)
 
@@ -190,11 +190,11 @@ ARCHITECTURE SAFETY FEATURES:
 >
 > Architecture safety features ensure evidence integrity: read-only enforcement prevents modification, timeout guards prevent runaway processes, circuit breakers handle tool failures gracefully, and every action is logged for chain-of-custody.
 >
-> All code is open source MIT license on GitHub. Documentation, setup instructions, and accuracy reports included.
+> All code is open source MIT license at Strike48 slash sift underscore find underscore evil. Comprehensive documentation included with setup guides and navigation tools for judges and contributors.
 >
 > SIFT Find Evil - autonomous DFIR with architectural self-correction."
 
-**[Screen: Fade to project README on GitHub]**
+**[Screen: Fade to project README on GitHub - github.com/Strike48/sift_find_evil]**
 
 ---
 
@@ -310,7 +310,7 @@ If live demo fails during recording:
 
 **YouTube/Vimeo Settings:**
 - Title: "SIFT Find Evil - Autonomous DFIR with Self-Correction | FIND EVIL! Hackathon"
-- Description: Include GitHub URL, license, setup instructions link
+- Description: Include GitHub URL (https://github.com/Strike48/sift_find_evil), MIT license, setup instructions link
 - Tags: DFIR, digital forensics, autonomous agent, Claude Code, SANS SIFT
 - Thumbnail: Terminal screenshot with "F1=1.00" or "Self-Correction" overlay
 - Visibility: Unlisted (shareable link) or Public
