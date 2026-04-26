@@ -19,21 +19,21 @@ ls scenarios/synthetic/ | head -12
 sleep 2
 
 # ==============================================================================
-# SEGMENT 2: Run Memory Intrusion Scenario (0:30-2:00)
+# SEGMENT 2: Run Ransomware Scenario (0:30-2:00)
 # ==============================================================================
 
 echo ""
-echo "=== Running Scenario: Memory Intrusion Detection ==="
+echo "=== Running Scenario: Ransomware Detection ==="
 echo ""
 
-# Run the most comprehensive scenario (27 findings)
+# Run ransomware scenario (clear, impactful)
 PYTHONPATH=. python -m sift_find_evil.cli run \
-  --scenario scenarios/synthetic/12_memory_intrusion \
-  --output analysis/demo_memory_intrusion.json
+  --scenario scenarios/synthetic/02_ransomware \
+  --output analysis/demo_ransomware.json
 
 # This will show:
 # - Detection engine running
-# - 27 findings detected
+# - Ransomware findings detected
 # - Self-correction evaluating
 # - F1=1.00 result
 
@@ -48,25 +48,16 @@ echo "=== Reviewing Findings ==="
 echo ""
 
 # Load and display findings
-cat analysis/demo_memory_intrusion.json | jq '.findings[] | {title, severity, confidence}' | head -30
+cat analysis/demo_ransomware.json | jq '.findings[] | {title, severity, confidence}' | head -15
 
 sleep 2
 
 echo ""
-echo "=== Example: Process Injection Detection ==="
+echo "=== Example: Mass File Encryption Detected ==="
 echo ""
 
 # Show a specific finding with details
-cat analysis/demo_memory_intrusion.json | jq '.findings[0]'
-
-sleep 3
-
-echo ""
-echo "=== Example: Malicious Network Connection ==="
-echo ""
-
-# Show another finding
-cat analysis/demo_memory_intrusion.json | jq '.findings[5]'
+cat analysis/demo_ransomware.json | jq '.findings[0]'
 
 sleep 3
 
