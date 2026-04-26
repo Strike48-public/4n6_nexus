@@ -138,7 +138,7 @@ All decisions made and documented in [DECISIONS.md](DECISIONS.md):
 
 ## Questions?
 
-Contact: Jonathan Tomek (jonathan.tomek@madx.co)
+Contact: Jonathan Tomek (jonathan.tomek@strike48.com)
 
 ---
 

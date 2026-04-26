@@ -486,4 +486,4 @@ done
 
 ---
 
-Built with Claude Code - Demonstrating autonomous DFIR analysis.
+Demonstrating autonomous DFIR analysis.

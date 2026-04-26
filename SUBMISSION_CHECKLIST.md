@@ -317,7 +317,7 @@ After submitting on Devpost:
 ## Contact Information
 
 **Team/Individual:** Jonathan Tomek
-**Email:** jonathan.tomek@madx.co
+**Email:** jonathan.tomek@strike48.com
 **GitHub:** https://github.com/jtomek
 **Project Repository:** https://github.com/Strike48/sift_find_evil
 

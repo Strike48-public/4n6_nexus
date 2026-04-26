@@ -423,7 +423,7 @@ Throughout the documentation, you'll see status indicators:
 ## Need Help?
 
 - **Issues:** https://github.com/Strike48/sift_find_evil/issues
-- **Author:** Jonathan Tomek (jonathan.tomek@madx.co)
+- **Author:** Jonathan Tomek (jonathan.tomek@strike48.com)
 - **GitHub:** https://github.com/Strike48/sift_find_evil
 
 ---

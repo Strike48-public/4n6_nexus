@@ -587,7 +587,7 @@ Violations may result in temporary or permanent ban from the project.
 
 - **GitHub Issues:** https://github.com/jtomek-strike48/sift_find_evil/issues
 - **Documentation:** [README.md](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Email:** jonathan.tomek@madx.co
+- **Email:** jonathan.tomek@strike48.com
 
 ---
 

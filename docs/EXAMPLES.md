@@ -585,4 +585,4 @@ findings = detect_exfiltration(
 
 ---
 
-Built with Claude Code - Real-world forensic analysis examples.
+Real-world forensic analysis examples.

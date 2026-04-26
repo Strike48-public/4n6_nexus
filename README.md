@@ -918,6 +918,6 @@ Open-source community edition. Commercial SaaS offering coming 2026.
 
 - **GitHub:** https://github.com/Strike48/sift_find_evil
 - **Issues:** https://github.com/Strike48/sift_find_evil/issues
-- **Author:** Jonathan Tomek (jonathan.tomek@madx.co)
+- **Author:** Jonathan Tomek (jonathan.tomek@strike48.com)
 
-Built with Claude Code - Demonstrating the future of autonomous DFIR.
+Demonstrating the future of autonomous DFIR.
