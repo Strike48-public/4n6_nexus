@@ -61,7 +61,9 @@ def main() -> int:
             offset += len(buf)
 
         print(f"Sectors scanned: {total_sectors:,}")
-        print(f"Sectors with any non-zero content in first 32 bytes: {nonzero_sectors:,}")
+        print(
+            f"Sectors with any non-zero content in first 32 bytes: {nonzero_sectors:,}"
+        )
         print(f"Non-zero ratio: {nonzero_sectors / total_sectors:.4%}\n")
         print("Signature hits:")
         for label, c in sorted(counts.items(), key=lambda kv: -kv[1]):

@@ -181,29 +181,35 @@ class CaseManager:
 
             if not file_path.exists():
                 results["missing"] += 1
-                results["details"].append({
-                    "file": str(file_path),
-                    "status": "MISSING",
-                    "registered_hash": evidence.sha256_hash,
-                })
+                results["details"].append(
+                    {
+                        "file": str(file_path),
+                        "status": "MISSING",
+                        "registered_hash": evidence.sha256_hash,
+                    }
+                )
                 continue
 
             current_hash = self._calculate_sha256(file_path)
             if current_hash == evidence.sha256_hash:
                 results["verified"] += 1
-                results["details"].append({
-                    "file": str(file_path),
-                    "status": "VERIFIED",
-                    "hash": current_hash,
-                })
+                results["details"].append(
+                    {
+                        "file": str(file_path),
+                        "status": "VERIFIED",
+                        "hash": current_hash,
+                    }
+                )
             else:
                 results["failed"] += 1
-                results["details"].append({
-                    "file": str(file_path),
-                    "status": "FAILED",
-                    "registered_hash": evidence.sha256_hash,
-                    "current_hash": current_hash,
-                })
+                results["details"].append(
+                    {
+                        "file": str(file_path),
+                        "status": "FAILED",
+                        "registered_hash": evidence.sha256_hash,
+                        "current_hash": current_hash,
+                    }
+                )
 
         return results
 

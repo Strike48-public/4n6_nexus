@@ -101,6 +101,7 @@ class EWFImg(pytsk3.Img_Info):
 @dataclass(frozen=True)
 class ExtractedFile:
     """Metadata for an extracted file."""
+
     src: str
     dst: Path
     size: int
@@ -184,8 +185,13 @@ def _maybe_extract_usnjrnl(fs: pytsk3.FS_Info, dst: Path) -> ExtractedFile | Non
         # Walk attributes looking for the $J data stream
         f = fs.open_meta(inode=entry.info.meta.addr)
         for attr in f:
-            attr_name = attr.info.name.decode(errors="replace") if attr.info.name else ""
-            if attr.info.type == pytsk3.TSK_FS_ATTR_TYPE_NTFS_DATA and attr_name == "$J":
+            attr_name = (
+                attr.info.name.decode(errors="replace") if attr.info.name else ""
+            )
+            if (
+                attr.info.type == pytsk3.TSK_FS_ATTR_TYPE_NTFS_DATA
+                and attr_name == "$J"
+            ):
                 size = attr.info.size
                 if size <= 0:
                     return None
@@ -262,7 +268,9 @@ def main() -> int:
         with manifest.open("w") as m:
             m.write("sha256\tsize\tsrc\tdst\n")
             for item in extracted:
-                m.write(f"{item.sha256}\t{item.size}\t{item.src}\t{item.dst.relative_to(OUT_ROOT)}\n")
+                m.write(
+                    f"{item.sha256}\t{item.size}\t{item.src}\t{item.dst.relative_to(OUT_ROOT)}\n"
+                )
         print(f"\nWrote manifest: {manifest} ({len(extracted)} entries)")
         print(f"Elapsed: {time.time() - start:.1f}s")
         return 0

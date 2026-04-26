@@ -41,7 +41,12 @@ def cmd_analyze_live(args):
         # Auto-detect Event Logs (Security.evtx)
         if not args.evtx_file:
             evtx_paths = [
-                mount_path / "Windows" / "System32" / "winevt" / "Logs" / "Security.evtx",
+                mount_path
+                / "Windows"
+                / "System32"
+                / "winevt"
+                / "Logs"
+                / "Security.evtx",
                 mount_path / "Windows" / "System32" / "winevt" / "Logs" / "System.evtx",
             ]
             for evtx_path in evtx_paths:
@@ -182,9 +187,7 @@ def cmd_analyze_live(args):
 
 def main():
     """MCP CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="SIFT Find Evil - MCP Live Analysis"
-    )
+    parser = argparse.ArgumentParser(description="SIFT Find Evil - MCP Live Analysis")
 
     parser.add_argument(
         "command",
@@ -245,7 +248,15 @@ def main():
     args = parser.parse_args()
 
     # Validate at least one evidence source
-    if not any([args.windows_mount, args.mft_file, args.prefetch_dir, args.evtx_file, args.memory_file]):
+    if not any(
+        [
+            args.windows_mount,
+            args.mft_file,
+            args.prefetch_dir,
+            args.evtx_file,
+            args.memory_file,
+        ]
+    ):
         print(
             "ERROR: At least one evidence source required (--windows-mount, --mft-file, --prefetch-dir, --evtx-file, or --memory-file)",
             file=sys.stderr,

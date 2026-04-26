@@ -1162,22 +1162,26 @@ def _save_detailed_results(report, base_dir: Path = None):
     ]
 
     if report.findings:
-        summary_lines.extend([
-            "## Detailed Findings",
-            "",
-        ])
+        summary_lines.extend(
+            [
+                "## Detailed Findings",
+                "",
+            ]
+        )
         for i, finding in enumerate(report.findings, 1):
-            summary_lines.extend([
-                f"### Finding {i}: {finding.title}",
-                "",
-                f"- **Severity**: {finding.severity.upper()}",
-                f"- **Category**: {finding.category.value}",
-                f"- **Confidence**: {finding.confidence:.2f} ({finding.confidence_label})",
-                f"- **Type**: {finding.finding_type}",
-                "",
-                f"{finding.description}",
-                "",
-            ])
+            summary_lines.extend(
+                [
+                    f"### Finding {i}: {finding.title}",
+                    "",
+                    f"- **Severity**: {finding.severity.upper()}",
+                    f"- **Category**: {finding.category.value}",
+                    f"- **Confidence**: {finding.confidence:.2f} ({finding.confidence_label})",
+                    f"- **Type**: {finding.finding_type}",
+                    "",
+                    f"{finding.description}",
+                    "",
+                ]
+            )
 
     summary_path = result_dir / "SUMMARY.md"
     with summary_path.open("w", encoding="utf-8") as f:
@@ -1314,7 +1318,10 @@ def cmd_list_findings(args):
             findings = manager.get_by_status(status)
             title = f"Findings ({status.value})"
         except ValueError:
-            print(f"Error: Invalid status '{status_filter}'. Valid: DRAFT, APPROVED, REJECTED", file=sys.stderr)
+            print(
+                f"Error: Invalid status '{status_filter}'. Valid: DRAFT, APPROVED, REJECTED",
+                file=sys.stderr,
+            )
             sys.exit(1)
     else:
         findings = all_findings
@@ -1564,18 +1571,20 @@ def cmd_audit_summary(args):
     print(f"\n  Total entries: {stats['total_entries']}")
     print(f"  Unique tools: {stats['unique_tools']}")
 
-    if stats['tools']:
+    if stats["tools"]:
         print("\n  Tools used:")
-        for tool in stats['tools']:
+        for tool in stats["tools"]:
             print(f"    - {tool}")
 
-    if stats['examiners']:
+    if stats["examiners"]:
         print("\n  Examiners:")
-        for examiner in stats['examiners']:
+        for examiner in stats["examiners"]:
             print(f"    - {examiner}")
 
     print("\n  Actions:")
-    for action, count in sorted(stats['actions'].items(), key=lambda x: x[1], reverse=True):
+    for action, count in sorted(
+        stats["actions"].items(), key=lambda x: x[1], reverse=True
+    ):
         print(f"    {action}: {count}")
 
 
@@ -1850,7 +1859,9 @@ Examples:
         "case",
         help="Case management commands",
     )
-    case_subparsers = case_parser.add_subparsers(dest="case_command", help="Case operations")
+    case_subparsers = case_parser.add_subparsers(
+        dest="case_command", help="Case operations"
+    )
 
     # Case init subcommand
     case_init_parser = case_subparsers.add_parser(
@@ -1946,7 +1957,9 @@ Examples:
         "audit",
         help="Audit log commands",
     )
-    audit_subparsers = audit_parser.add_subparsers(dest="audit_command", help="Audit operations")
+    audit_subparsers = audit_parser.add_subparsers(
+        dest="audit_command", help="Audit operations"
+    )
 
     # Audit log subcommand
     audit_log_parser = audit_subparsers.add_parser(

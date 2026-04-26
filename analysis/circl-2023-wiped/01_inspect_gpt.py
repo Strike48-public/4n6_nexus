@@ -45,7 +45,9 @@ def main() -> int:
         total_bytes = handle.get_media_size()
         total_sectors = total_bytes // SECTOR
         print(f"Image: {E01_PATH}")
-        print(f"Logical size: {total_bytes:,} bytes ({total_sectors:,} sectors of {SECTOR} B)\n")
+        print(
+            f"Logical size: {total_bytes:,} bytes ({total_sectors:,} sectors of {SECTOR} B)\n"
+        )
 
         dump_sector(handle, 0, "Protective MBR / LBA 0")
         dump_sector(handle, 1, "Primary GPT header / LBA 1")

@@ -61,7 +61,9 @@ def main() -> int:
         print(f"Total zero 1 MiB chunks: {zero_bytes // CHUNK}")
         print(f"First non-zero offset: {first_nonzero_offset!r}")
         if first_nonzero_offset is not None:
-            print(f"  distance from partition start: {(first_nonzero_offset - start) / 1e6:.2f} MB")
+            print(
+                f"  distance from partition start: {(first_nonzero_offset - start) / 1e6:.2f} MB"
+            )
         print(f"NTFS boot sector candidates: {len(ntfs_boot_offsets)}")
         for o in ntfs_boot_offsets[:5]:
             print(f"  - {o:,}  (LBA {o // SECTOR})")

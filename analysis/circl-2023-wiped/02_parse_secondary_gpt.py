@@ -141,7 +141,9 @@ def main() -> int:
             print(f"    unique GUID   : {e.unique_guid}")
             print(f"    first LBA     : {e.first_lba}")
             print(f"    last LBA      : {e.last_lba}")
-            print(f"    size          : {e.size_sectors:,} sectors ({e.size_bytes / 1e9:.2f} GB)")
+            print(
+                f"    size          : {e.size_sectors:,} sectors ({e.size_bytes / 1e9:.2f} GB)"
+            )
     finally:
         handle.close()
 

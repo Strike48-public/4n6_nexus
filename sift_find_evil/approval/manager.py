@@ -30,7 +30,9 @@ class ApprovalManager:
         with open(self.findings_path, "r") as f:
             data = json.load(f)
 
-        return [FindingWithApproval.from_dict(item) for item in data.get("findings", [])]
+        return [
+            FindingWithApproval.from_dict(item) for item in data.get("findings", [])
+        ]
 
     def save_findings(self, findings: List[FindingWithApproval]) -> None:
         """Save findings to JSON file."""

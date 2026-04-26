@@ -3,6 +3,7 @@
 Takes the MALICIOUS corpus from realworld_cmdlines.py and generates a
 Volatility-shaped JSON fixture for scenario 12_memory_intrusion.
 """
+
 from __future__ import annotations
 
 import base64

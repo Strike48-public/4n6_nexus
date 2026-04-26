@@ -170,7 +170,9 @@ class ReportGenerator:
         if medium:
             summary += f"{medium} MEDIUM severity. "
 
-        summary += "All findings have been reviewed and approved for inclusion in this report."
+        summary += (
+            "All findings have been reviewed and approved for inclusion in this report."
+        )
 
         return summary
 
@@ -201,17 +203,13 @@ class ReportGenerator:
             recommendations.append(
                 "Review and harden security controls to prevent recurrence."
             )
-            recommendations.append(
-                "Implement enhanced monitoring for detected IOCs."
-            )
+            recommendations.append("Implement enhanced monitoring for detected IOCs.")
 
         if not findings:
             recommendations.append(
                 "Continue monitoring systems for suspicious activity."
             )
-            recommendations.append(
-                "Review and update detection rules periodically."
-            )
+            recommendations.append("Review and update detection rules periodically.")
 
         return recommendations
 
@@ -263,7 +261,9 @@ class ReportGenerator:
                 sha256 = item.get("sha256_hash", "N/A")[:16] + "..."
                 size = item.get("file_size", 0)
                 size_mb = size / (1024 * 1024) if size else 0
-                lines.append(f"| {Path(file_path).name} | {sha256} | {size_mb:.2f} MB |")
+                lines.append(
+                    f"| {Path(file_path).name} | {sha256} | {size_mb:.2f} MB |"
+                )
             lines.append("")
         else:
             lines.append("No evidence files registered.")
@@ -281,19 +281,25 @@ class ReportGenerator:
             # Group by severity
             for severity in ["critical", "high", "medium", "low"]:
                 severity_findings = [
-                    f for f in report.findings if f.get("finding", {}).get("severity") == severity
+                    f
+                    for f in report.findings
+                    if f.get("finding", {}).get("severity") == severity
                 ]
                 if not severity_findings:
                     continue
 
-                lines.append(f"### {severity.upper()} Severity ({len(severity_findings)})")
+                lines.append(
+                    f"### {severity.upper()} Severity ({len(severity_findings)})"
+                )
                 lines.append("")
 
                 for idx, item in enumerate(severity_findings, 1):
                     finding = item.get("finding", {})
                     finding_id = item.get("finding_id", "Unknown")
                     title = finding.get("title", "Unknown")
-                    description = finding.get("description", "No description available.")
+                    description = finding.get(
+                        "description", "No description available."
+                    )
                     confidence = finding.get("confidence", 0.0)
 
                     lines.append(f"#### [{finding_id}] {title}")

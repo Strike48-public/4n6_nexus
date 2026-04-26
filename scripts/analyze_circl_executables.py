@@ -185,7 +185,9 @@ def filter_with_nsrl(
         # Convert to format expected by filter_files (path, hash)
         sha1_files = [(str(p), sha1) for p, _, sha1 in hashed_files]
 
-        known_good_sha1, unknown_sha1 = nsrl_filter.filter_files(sha1_files, hash_type="sha1")
+        known_good_sha1, unknown_sha1 = nsrl_filter.filter_files(
+            sha1_files, hash_type="sha1"
+        )
 
         # Convert back to original format
         known_good_set = {sha1 for _, sha1 in known_good_sha1}
@@ -274,7 +276,9 @@ def generate_report(
     print("=" * 60)
     print(f"Total executables: {len(all_files)}")
     if len(known_good) > 0:
-        print(f"Known-good (NSRL): {len(known_good)} ({len(known_good) * 100 // len(all_files)}%)")
+        print(
+            f"Known-good (NSRL): {len(known_good)} ({len(known_good) * 100 // len(all_files)}%)"
+        )
     print(f"Unknown: {len(unknown)} (requires investigation)")
     print("\nNext steps:")
     print("  1. Review unknown hashes in VirusTotal")

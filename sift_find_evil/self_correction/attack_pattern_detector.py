@@ -337,9 +337,13 @@ class AttackPatternDetector:
         # Normalize command line for case-insensitive matching
         cmd_lower = command_line.lower()
 
-        for pattern_regex, description, technique, mitre_id, confidence in (
-            self.all_patterns
-        ):
+        for (
+            pattern_regex,
+            description,
+            technique,
+            mitre_id,
+            confidence,
+        ) in self.all_patterns:
             if re.search(pattern_regex, cmd_lower, re.IGNORECASE):
                 # Determine severity based on technique and confidence
                 if technique in (
@@ -347,7 +351,9 @@ class AttackPatternDetector:
                     AttackTechnique.LATERAL_MOVEMENT,
                 ):
                     severity = "critical"
-                elif technique == AttackTechnique.DEFENSE_EVASION and confidence >= 0.90:
+                elif (
+                    technique == AttackTechnique.DEFENSE_EVASION and confidence >= 0.90
+                ):
                     severity = "critical"
                 elif technique in (
                     AttackTechnique.PERSISTENCE,
@@ -388,4 +394,6 @@ class AttackPatternDetector:
 
         severity_order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 
-        return max(patterns, key=lambda p: (severity_order.get(p.severity, 0), p.confidence))
+        return max(
+            patterns, key=lambda p: (severity_order.get(p.severity, 0), p.confidence)
+        )

@@ -24,10 +24,14 @@ def main() -> int:
             head = handle.read(512)
             sig = head[:16].hex(" ", 1)
             try:
-                ascii_head = head[:64].decode("ascii", errors="replace").replace("\0", ".")
+                ascii_head = (
+                    head[:64].decode("ascii", errors="replace").replace("\0", ".")
+                )
             except Exception:
                 ascii_head = "?"
-            print(f"{label}: LBA {first}..{last} ({(last - first + 1) * SECTOR / 1e9:.2f} GB)")
+            print(
+                f"{label}: LBA {first}..{last} ({(last - first + 1) * SECTOR / 1e9:.2f} GB)"
+            )
             print(f"  first 16 bytes hex : {sig}")
             print(f"  first 64 bytes text: {ascii_head!r}")
             # Identify

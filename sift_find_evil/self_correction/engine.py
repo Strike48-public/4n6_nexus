@@ -552,9 +552,7 @@ class SelfCorrectionEngine:
 
         return "\n".join(lines)
 
-    def _detect_attack_patterns(
-        self, event_log_entries: List[Any]
-    ) -> List[Finding]:
+    def _detect_attack_patterns(self, event_log_entries: List[Any]) -> List[Finding]:
         """Detect attack patterns in Event Log command lines.
 
         Args:
@@ -567,11 +565,16 @@ class SelfCorrectionEngine:
 
         # Only analyze process creation events (Event ID 4688)
         for event in event_log_entries:
-            if not hasattr(event, "is_process_creation") or not event.is_process_creation():
+            if (
+                not hasattr(event, "is_process_creation")
+                or not event.is_process_creation()
+            ):
                 continue
 
             # Get command line
-            command_line = event.get_command_line() if hasattr(event, "get_command_line") else None
+            command_line = (
+                event.get_command_line() if hasattr(event, "get_command_line") else None
+            )
             if not command_line:
                 continue
 
@@ -581,12 +584,18 @@ class SelfCorrectionEngine:
                 continue
 
             # Get highest severity pattern
-            primary_pattern = self.attack_detector.get_highest_severity_pattern(patterns)
+            primary_pattern = self.attack_detector.get_highest_severity_pattern(
+                patterns
+            )
             if not primary_pattern:
                 continue
 
             # Get executable name
-            exe_name = event.get_executable_name() if hasattr(event, "get_executable_name") else "unknown"
+            exe_name = (
+                event.get_executable_name()
+                if hasattr(event, "get_executable_name")
+                else "unknown"
+            )
 
             # Create finding for attack pattern
             finding = Finding(
@@ -605,7 +614,9 @@ class SelfCorrectionEngine:
                     "time_created": event.time_created.isoformat(),
                 },
                 confidence=primary_pattern.confidence,
-                confidence_label=self.scorer.get_confidence_label(primary_pattern.confidence),
+                confidence_label=self.scorer.get_confidence_label(
+                    primary_pattern.confidence
+                ),
                 reasoning_chain=[
                     f"Event ID {event.event_id} captured process execution",
                     f"Command line matches pattern: {primary_pattern.pattern_name}",
