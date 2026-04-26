@@ -203,3 +203,75 @@ def test_tiny_image_returns_empty_inspection() -> None:
 @pytest.mark.unit
 def test_entry_array_cap_is_16mib() -> None:
     assert MAX_ENTRY_ARRAY_BYTES == 16 * 1024 * 1024
+
+
+@pytest.mark.unit
+def test_detect_wiped_disk_with_source_path() -> None:
+    """Test detect_wiped_disk includes source path in evidence."""
+    from pathlib import Path
+
+    inspection = GPTInspection(
+        total_sectors=15974400,
+        primary_mbr_zeroed=True,
+        primary_header_zeroed=True,
+        primary_header=None,
+        secondary_header=_make_header(),
+        secondary_entries=(_make_entry(),),
+    )
+    finding = detect_wiped_disk(inspection, source=Path("/test/disk.e01"))
+    assert finding is not None
+    assert finding.evidence["image_path"] == "/test/disk.e01"
+
+
+@pytest.mark.unit
+def test_detect_from_image_raw(tmp_path) -> None:
+    """Test detect_from_image with raw image."""
+    from sift_find_evil.disk.wipe_detector import detect_from_image
+
+    # Create raw image with wiped primary, valid secondary
+    image_file = tmp_path / "wiped.dd"
+    total_sectors = 100
+    mbr = b"\x00" * SECTOR
+    primary_header = b"\x00" * SECTOR
+    filler = b"\x00" * (SECTOR * 97)
+
+    secondary_header = _forge_gpt_header_bytes(
+        my_lba=total_sectors - 1,
+        alt_lba=1,
+        entry_lba=total_sectors - 32,
+        entry_count=128,
+        entry_size=128,
+    )
+
+    image_file.write_bytes(mbr + primary_header + filler + secondary_header)
+
+    finding = detect_from_image(image_file)
+    assert finding is not None
+    assert finding.severity == "critical"
+    assert str(image_file) in finding.evidence["image_path"]
+
+
+@pytest.mark.unit
+def test_wiped_disk_finding_to_dict() -> None:
+    """Test WipedDiskFinding.to_dict() serialization."""
+    from sift_find_evil.disk.wipe_detector import WipedDiskFinding
+    from sift_find_evil.findings import FindingCategory
+    from datetime import datetime, timezone
+
+    finding = WipedDiskFinding(
+        title="Test Finding",
+        description="Test Description",
+        finding_type="indicator",
+        severity="critical",
+        confidence=0.95,
+        confidence_label="Very High",
+        category=FindingCategory.ANTI_FORENSICS,
+        detected_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+    )
+
+    result = finding.to_dict()
+    assert result["title"] == "Test Finding"
+    assert result["severity"] == "critical"
+    assert result["confidence"] == 0.95
+    assert result["category"] == "anti_forensics"
+    assert result["detected_at"] == "2024-01-01T12:00:00+00:00"
