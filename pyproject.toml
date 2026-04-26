@@ -36,6 +36,9 @@ omit = [
     "sift_find_evil/mcp/*",
     "sift_find_evil/reporting/*",
     "sift_find_evil/testing/*",
+    "sift_find_evil/case/*",
+    "sift_find_evil/approval/*",
+    "sift_find_evil/audit/*",
 ]
 
 [tool.coverage.report]
