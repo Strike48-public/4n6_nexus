@@ -470,3 +470,15 @@ def test_firefox_timestamp_conversion(temp_firefox_db):
     # Verify timestamp is 2025-03-15T10:30:00Z
     expected = datetime(2025, 3, 15, 10, 30, 0, tzinfo=timezone.utc)
     assert entries[0].timestamp == expected
+
+
+def test_parse_firefox_database_error(tmp_path):
+    """Test parse_firefox raises DatabaseError for corrupt database."""
+    parser = BrowserHistoryParser()
+
+    # Create a corrupt SQLite file
+    corrupt_db = tmp_path / "corrupt.sqlite"
+    corrupt_db.write_bytes(b"Not a valid SQLite database file")
+
+    with pytest.raises(sqlite3.DatabaseError):
+        parser.parse_firefox(corrupt_db)
