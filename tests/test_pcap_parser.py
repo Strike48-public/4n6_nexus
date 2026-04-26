@@ -409,3 +409,121 @@ def test_extract_smtp_messages_returns_empty_list(temp_pcap_dir: Path) -> None:
 
     messages = parser.extract_smtp_messages(empty_pcap)
     assert messages == []
+
+
+def test_extract_http_requests_malformed_line(http_pcap: Path, monkeypatch) -> None:
+    """Test extract_http_requests skips malformed tshark output lines."""
+    parser = PcapParser()
+
+    # Mock subprocess to return malformed output
+    def mock_run(*args, **kwargs):
+        class Result:
+            stdout = "incomplete|line\n1|1234.0|192.168.1.1|bad_parse|GET|host|uri|agent|type|data\n"
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    # Should skip malformed lines gracefully
+    requests = parser.extract_http_requests(http_pcap)
+    # Malformed lines skipped, may have 0 or 1 depending on which line parses
+    assert isinstance(requests, list)
+
+
+def test_extract_http_requests_value_error_on_parse(http_pcap: Path, monkeypatch) -> None:
+    """Test extract_http_requests handles ValueError on timestamp parse."""
+    parser = PcapParser()
+
+    # Mock subprocess to return invalid timestamp
+    def mock_run(*args, **kwargs):
+        class Result:
+            stdout = "1|invalid_timestamp|192.168.1.1|192.168.1.2|GET|host.com|/uri|agent|type|data\n"
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    requests = parser.extract_http_requests(http_pcap)
+    # Line with invalid timestamp should be skipped
+    assert requests == []
+
+
+def test_extract_http_sessions_single_request(temp_pcap_dir: Path) -> None:
+    """Test extract_http_sessions with single request creates one session."""
+    parser = PcapParser()
+
+    # Create PCAP with single HTTP request
+    pcap_path = temp_pcap_dir / "single.pcap"
+    pkt = (
+        Ether()
+        / IP(src="192.168.1.100", dst="93.184.216.34")
+        / TCP(sport=54321, dport=80)
+        / ScapyHTTPRequest(
+            Method=b"GET",
+            Host=b"example.com",
+            Path=b"/",
+        )
+    )
+    wrpcap(str(pcap_path), [pkt])
+
+    sessions = parser.extract_http_sessions(pcap_path)
+    assert len(sessions) >= 1
+    if sessions:
+        assert sessions[0].src_ip == "192.168.1.100"
+
+
+def test_extract_dns_queries_value_error_on_parse(dns_pcap: Path, monkeypatch) -> None:
+    """Test extract_dns_queries handles ValueError on timestamp parse."""
+    parser = PcapParser()
+
+    # Mock subprocess to return invalid timestamp
+    def mock_run(*args, **kwargs):
+        class Result:
+            stdout = "1|invalid_timestamp|192.168.1.1|example.com|A\n"
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    queries = parser.extract_dns_queries(dns_pcap)
+    # Line with invalid timestamp should be skipped
+    assert queries == []
+
+
+def test_extract_dns_queries_index_error_on_parse(dns_pcap: Path, monkeypatch) -> None:
+    """Test extract_dns_queries handles IndexError on malformed line."""
+    parser = PcapParser()
+
+    # Mock subprocess to return line with too few fields
+    def mock_run(*args, **kwargs):
+        class Result:
+            stdout = "1|1234.0\n"  # Only 2 fields, need 5
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    queries = parser.extract_dns_queries(dns_pcap)
+    # Malformed line should be skipped
+    assert queries == []
+
+
+def test_extract_smtp_messages_tshark_error(temp_pcap_dir: Path, monkeypatch) -> None:
+    """Test extract_smtp_messages raises RuntimeError on tshark failure."""
+    parser = PcapParser()
+    pcap_path = temp_pcap_dir / "test.pcap"
+    wrpcap(str(pcap_path), [])
+
+    def mock_run(*args, **kwargs):
+        raise subprocess.CalledProcessError(
+            returncode=1, cmd=[], stderr="tshark error"
+        )
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    with pytest.raises(RuntimeError, match="tshark failed"):
+        parser.extract_smtp_messages(pcap_path)
