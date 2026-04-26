@@ -383,7 +383,7 @@ Open Source:
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║           SIFT Find Evil - Autonomous DFIR Agent                     ║
-║              github.com/jtomek/sift_find_evil                        ║
+║              github.com/Strike48/sift_find_evil                        ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -392,7 +392,7 @@ Open Source:
 ### Final Frame - GitHub Repository:
 
 ```
-Browser shows: https://github.com/jtomek/sift_find_evil
+Browser shows: https://github.com/Strike48/sift_find_evil
 
 Repository page visible with:
   • README.md preview showing F1=1.00 table
@@ -435,7 +435,7 @@ Repository page visible with:
 ```
 ┌────────────────────────────────────────────┐
 │                                            │
-│    github.com/jtomek/sift_find_evil        │
+│    github.com/Strike48/sift_find_evil        │
 │                                            │
 │    MIT Open Source License                 │
 │                                            │

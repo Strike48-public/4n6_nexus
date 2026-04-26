@@ -99,7 +99,7 @@ Say: "Using pre-extracted findings from earlier analysis..."
 
 ## GitHub URL
 
-**github.com/jtomek/sift_find_evil**
+**github.com/Strike48/sift_find_evil**
 
 ---
 

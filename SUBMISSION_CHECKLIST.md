@@ -7,7 +7,7 @@
 ## Required Deliverables
 
 ### 1. Code Repository ✅
-- [x] Public GitHub repository: https://github.com/jtomek/sift_find_evil
+- [x] Public GitHub repository: https://github.com/Strike48/sift_find_evil
 - [x] MIT License file in root (visible in About section)
 - [x] README.md with setup instructions
 - [x] All source code, assets, and dependencies included
@@ -168,7 +168,7 @@ cat analysis/scenario_report.json | jq .
 
 4. **GitHub Repository URL**
    ```
-   https://github.com/jtomek/sift_find_evil
+   https://github.com/Strike48/sift_find_evil
    ```
 
 5. **Demo Video URL**
@@ -181,17 +181,17 @@ cat analysis/scenario_report.json | jq .
    - Upload PNG/SVG exported from docs/ARCHITECTURE_DIAGRAM.md
    - OR link to GitHub markdown (renders Mermaid automatically)
    ```
-   https://github.com/jtomek/sift_find_evil/blob/main/docs/ARCHITECTURE_DIAGRAM.md
+   https://github.com/Strike48/sift_find_evil/blob/main/docs/ARCHITECTURE_DIAGRAM.md
    ```
 
 7. **Evidence Dataset Documentation**
    ```
-   https://github.com/jtomek/sift_find_evil/blob/main/docs/DATASETS.md
+   https://github.com/Strike48/sift_find_evil/blob/main/docs/DATASETS.md
    ```
 
 8. **Accuracy Report**
    ```
-   https://github.com/jtomek/sift_find_evil/blob/main/docs/ACCURACY_REPORT.md
+   https://github.com/Strike48/sift_find_evil/blob/main/docs/ACCURACY_REPORT.md
    ```
 
 9. **Agent Execution Logs**
@@ -319,7 +319,7 @@ After submitting on Devpost:
 **Team/Individual:** Jonathan Tomek
 **Email:** jonathan.tomek@madx.co
 **GitHub:** https://github.com/jtomek
-**Project Repository:** https://github.com/jtomek/sift_find_evil
+**Project Repository:** https://github.com/Strike48/sift_find_evil
 
 ---
 

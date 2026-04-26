@@ -127,7 +127,7 @@ FIND EVIL! Hackathon 2026
 
 **Outro Card (2 seconds):**
 ```
-github.com/jtomek/sift_find_evil
+github.com/Strike48/sift_find_evil
 MIT License
 ```
 
@@ -355,7 +355,7 @@ tmux select-pane -t 0
    - F1=1.00 on 12 test scenarios (perfect precision/recall)
    - 247 self-correction instances on real evidence
    
-   GitHub: https://github.com/jtomek/sift_find_evil
+   GitHub: https://github.com/Strike48/sift_find_evil
    License: MIT Open Source
    
    Evidence: insider_threat_2022/Narcos-CCleaner.E01 (7.7GB real forensic image)

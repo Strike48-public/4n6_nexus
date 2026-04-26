@@ -27,7 +27,7 @@ Thank you for your interest in contributing to SIFT Find Evil! This document pro
 
 ```bash
 # Clone repository
-git clone https://github.com/jtomek/sift_find_evil.git
+git clone https://github.com/Strike48/sift_find_evil.git
 cd sift_find_evil
 
 # Create virtual environment

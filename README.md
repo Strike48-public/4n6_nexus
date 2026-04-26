@@ -11,6 +11,8 @@ Built for the SANS FIND EVIL! Hackathon with production-grade architecture desig
 
 > **Note:** This is the SANS FIND EVIL! Hackathon submission (April 2026). The production product will be named **4n6nexus** (forensics nexus) after the competition.
 
+**New here?** See **[docs/START_HERE.md](docs/START_HERE.md)** for documentation navigation guide with visual maps and quick paths by role (judges, users, developers, researchers).
+
 ---
 
 ## Detection Accuracy: 12/12 Scenarios @ F1=1.00
@@ -434,7 +436,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component design.
 
 ```bash
 # Clone repository
-git clone https://github.com/jtomek/sift_find_evil.git
+git clone https://github.com/Strike48/sift_find_evil.git
 cd sift_find_evil
 
 # Install dependencies
@@ -914,8 +916,8 @@ Open-source community edition. Commercial SaaS offering coming 2026.
 
 ## Contact
 
-- **GitHub:** https://github.com/jtomek/sift_find_evil
-- **Issues:** https://github.com/jtomek/sift_find_evil/issues
+- **GitHub:** https://github.com/Strike48/sift_find_evil
+- **Issues:** https://github.com/Strike48/sift_find_evil/issues
 - **Author:** Jonathan Tomek (jonathan.tomek@madx.co)
 
 Built with Claude Code - Demonstrating the future of autonomous DFIR.

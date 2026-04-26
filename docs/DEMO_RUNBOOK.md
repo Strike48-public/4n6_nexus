@@ -65,7 +65,7 @@ echo '{"test":"ok"}' | jq .
 
 ```bash
 # 11. Open browser tabs (hidden during demo, ready for Q&A):
-#   - GitHub repo: github.com/jtomek/sift_find_evil
+#   - GitHub repo: github.com/Strike48/sift_find_evil
 #   - ACCURACY_REPORT.md
 #   - PERFORMANCE_BENCHMARK.md
 #   - COMPETITION_COMPARISON.md
@@ -273,7 +273,7 @@ echo "  - Total findings: $(cat /cases/demo_video/findings.json | jq '. | length
 echo "  - Self-correction instances: 247"
 echo "  - Test scenarios: 12/12 passed (F1=1.00)"
 echo "  - Open source: MIT license"
-echo "  - GitHub: github.com/jtomek/sift_find_evil"
+echo "  - GitHub: github.com/Strike48/sift_find_evil"
 ```
 
 **Final message:**
