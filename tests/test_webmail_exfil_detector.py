@@ -250,3 +250,164 @@ def test_naive_and_aware_timestamps_do_not_raise() -> None:
 def test_invalid_window_raises() -> None:
     with pytest.raises(ValueError):
         WebmailExfilDetector(window_minutes=0)
+
+
+def test_outlook_provider_detection() -> None:
+    """Test Outlook provider detection."""
+    detector = WebmailExfilDetector()
+    entries = [
+        _history(
+            "https://outlook.live.com/mail/0/#compose",
+            datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc),
+        ),
+        _history(
+            "https://outlook.office.com/mail/0/#sent",
+            datetime(2025, 3, 15, 10, 31, tzinfo=timezone.utc),
+        ),
+    ]
+    findings = detector.analyze(browser_history=entries)
+    assert len(findings) == 1
+    assert "Outlook" in findings[0].evidence["provider"]
+
+
+def test_yahoo_provider_detection() -> None:
+    """Test Yahoo Mail provider detection."""
+    detector = WebmailExfilDetector()
+    entries = [
+        _history(
+            "https://mail.yahoo.com/d/#compose",
+            datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc),
+        ),
+        _history(
+            "https://mail.yahoo.com/d/#sent",
+            datetime(2025, 3, 15, 10, 31, tzinfo=timezone.utc),
+        ),
+    ]
+    findings = detector.analyze(browser_history=entries)
+    assert len(findings) == 1
+    assert "Yahoo" in findings[0].evidence["provider"]
+
+
+def test_protonmail_provider_detection() -> None:
+    """Test ProtonMail provider detection."""
+    detector = WebmailExfilDetector()
+    entries = [
+        _history(
+            "https://mail.proton.me/u/0/#compose",
+            datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc),
+        ),
+        _history(
+            "https://mail.proton.me/u/0/#sent",
+            datetime(2025, 3, 15, 10, 31, tzinfo=timezone.utc),
+        ),
+    ]
+    findings = detector.analyze(browser_history=entries)
+    assert len(findings) == 1
+    assert "ProtonMail" in findings[0].evidence["provider"]
+
+
+def test_tutanota_provider_detection() -> None:
+    """Test Tutanota provider detection."""
+    detector = WebmailExfilDetector()
+    entries = [
+        _history(
+            "https://mail.tutanota.com/mail/#compose",
+            datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc),
+        ),
+        _history(
+            "https://mail.tutanota.com/mail/#sent",
+            datetime(2025, 3, 15, 10, 31, tzinfo=timezone.utc),
+        ),
+    ]
+    findings = detector.analyze(browser_history=entries)
+    assert len(findings) == 1
+    assert "Tutanota" in findings[0].evidence["provider"]
+
+
+def test_http_corroboration_requires_post_or_connect() -> None:
+    """Test HTTP corroboration only counts POST/CONNECT methods."""
+    detector = WebmailExfilDetector(window_minutes=10)
+    send_ts = datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc)
+    entries = [_history("https://mail.google.com/mail/u/0/#sent", send_ts)]
+
+    # GET request should not trigger corroboration
+    http_get = [
+        HTTPRequest(
+            frame_number=1,
+            timestamp=send_ts,
+            src_ip="192.168.1.100",
+            dst_ip="172.217.16.165",
+            method="GET",
+            host="mail.google.com",
+            uri="/mail/u/0/",
+            user_agent="Mozilla/5.0",
+        ),
+    ]
+    findings_no_corroboration = detector.analyze(
+        browser_history=entries, http_requests=http_get
+    )
+    assert len(findings_no_corroboration) == 1
+    # Base confidence without corroboration
+    base_confidence = findings_no_corroboration[0].confidence
+
+    # POST request should trigger corroboration
+    http_post = [
+        HTTPRequest(
+            frame_number=1,
+            timestamp=send_ts,
+            src_ip="192.168.1.100",
+            dst_ip="172.217.16.165",
+            method="POST",
+            host="mail.google.com",
+            uri="/mail/u/0/",
+            user_agent="Mozilla/5.0",
+        ),
+    ]
+    findings_with_corroboration = detector.analyze(
+        browser_history=entries, http_requests=http_post
+    )
+    assert len(findings_with_corroboration) == 1
+    assert findings_with_corroboration[0].confidence > base_confidence
+
+
+def test_http_corroboration_filters_non_webmail_hosts() -> None:
+    """Test HTTP corroboration filters out non-webmail hosts."""
+    detector = WebmailExfilDetector(window_minutes=10)
+    send_ts = datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc)
+    entries = [_history("https://mail.google.com/mail/u/0/#sent", send_ts)]
+
+    # POST to non-webmail host should not boost confidence
+    http_non_webmail = [
+        HTTPRequest(
+            frame_number=1,
+            timestamp=send_ts,
+            src_ip="192.168.1.100",
+            dst_ip="93.184.216.34",
+            method="POST",
+            host="example.com",
+            uri="/api/upload",
+            user_agent="Mozilla/5.0",
+        ),
+    ]
+    findings = detector.analyze(browser_history=entries, http_requests=http_non_webmail)
+    assert len(findings) == 1
+    # Should not have HTTP corroboration boost
+    assert "http_corroboration_count" not in findings[0].evidence or findings[0].evidence["http_corroboration_count"] == 0
+
+
+def test_unknown_webmail_provider_detection() -> None:
+    """Test detection returns 'unknown webmail provider' for unrecognized domains."""
+    detector = WebmailExfilDetector()
+    entries = [
+        _history(
+            "https://mail.example.com/#compose",
+            datetime(2025, 3, 15, 10, 30, tzinfo=timezone.utc),
+        ),
+        _history(
+            "https://mail.example.com/#sent",
+            datetime(2025, 3, 15, 10, 31, tzinfo=timezone.utc),
+        ),
+    ]
+    findings = detector.analyze(browser_history=entries)
+    assert len(findings) == 1
+    assert findings[0].evidence["provider"] == "unknown webmail provider"
