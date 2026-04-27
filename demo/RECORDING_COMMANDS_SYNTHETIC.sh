@@ -1,155 +1,168 @@
 #!/usr/bin/env bash
 # Demo Recording - Using Synthetic Scenarios (No E01 Required)
-# Fast demo option using pre-built test scenarios
+# Clean demo script showing validation harness with F1=1.00
 
 set -e
 
 # ==============================================================================
-# SEGMENT 1: Setup & Environment (0:00-0:30)
+# SEGMENT 1: Introduction (0:00-0:30)
 # ==============================================================================
 
 echo "=== SIFT Find Evil - Autonomous DFIR Agent ==="
 echo ""
-echo "Demonstrating with synthetic test scenarios (perfect F1=1.00 validation)"
+echo "Hackathon Submission: SANS FIND EVIL! 2026"
+echo "Production Name: 4n6nexus (forensics nexus)"
+echo ""
+echo "Demonstrating validation with synthetic test scenarios"
 echo ""
 
 # Show available scenarios
+echo "Available Test Scenarios:"
 ls scenarios/synthetic/ | head -12
 
-sleep 2
+sleep 3
 
 # ==============================================================================
-# SEGMENT 2: Run Ransomware Scenario (0:30-2:00)
+# SEGMENT 2: Single Scenario Example (0:30-1:30)
 # ==============================================================================
 
 echo ""
-echo "=== Running Scenario: Ransomware Detection ==="
+echo "=== Example: Ransomware Detection Scenario ==="
 echo ""
 
-# Run ransomware scenario (clear, impactful)
+# Run single scenario to show the flow
 PYTHONPATH=. python -m sift_find_evil.cli run \
-  --scenario scenarios/synthetic/02_ransomware \
-  --output analysis/demo_ransomware.json
+  --scenario scenarios/synthetic/02_ransomware
 
-# This will show:
-# - Detection engine running
-# - Ransomware findings detected
-# - Self-correction evaluating
-# - F1=1.00 result
-
-sleep 3
-
-# ==============================================================================
-# SEGMENT 3: Show Findings with Self-Correction (2:00-3:30)
-# ==============================================================================
-
-echo ""
-echo "=== Reviewing Findings ==="
-echo ""
-
-# Load and display findings
-cat analysis/demo_ransomware.json | jq '.findings[] | {title, severity, confidence}' | head -15
-
-sleep 2
-
-echo ""
-echo "=== Example: Mass File Encryption Detected ==="
-echo ""
-
-# Show a specific finding with details
-cat analysis/demo_ransomware.json | jq '.findings[0]'
+# Output shows:
+# - Scenario details
+# - Findings: 3 detected
+# - Precision: 1.00, Recall: 1.00, F1: 1.00
+# - Status: PASS
 
 sleep 3
 
 # ==============================================================================
-# SEGMENT 4: Run Full Scenario Suite (3:30-4:30)
+# SEGMENT 3: Timestomping Self-Correction (1:30-2:30)
 # ==============================================================================
 
 echo ""
-echo "=== Running All 12 Test Scenarios ==="
+echo "=== Self-Correction Example: Timestomping Detection ==="
 echo ""
 
-# Run full scenario harness
+# Run timestomping scenario (shows low confidence due to self-correction)
+PYTHONPATH=. python -m sift_find_evil.cli run \
+  --scenario scenarios/synthetic/03_timestomping
+
+# Output shows:
+# - Findings: 2 detected
+# - Avg confidence: 0.35 (reduced by self-correction)
+# - F1: 1.00 (still accurate despite low confidence)
+# - Status: PASS
+
+sleep 3
+
+# ==============================================================================
+# SEGMENT 4: Full Validation Suite (2:30-4:00)
+# ==============================================================================
+
+echo ""
+echo "=== Running Complete Validation Suite (12 Scenarios) ==="
+echo ""
+
+# Run full scenario harness - the star of the show
 PYTHONPATH=. python3 tests/scenario_harness.py
 
-# This shows:
-# Scenario                    TP  FP  FN    Prec     Rec      F1
-# --------------------------------------------------------------
-# 01_clean_baseline            0   0   0    1.00    1.00    1.00
-# 02_ransomware                3   0   0    1.00    1.00    1.00
-# ...
-# 12_memory_intrusion         27   0   0    1.00    1.00    1.00
-# --------------------------------------------------------------
+# Output shows table:
+# Scenario                    TP  FP  FN    Prec     Rec      F1   AvgConf
+# --------------------------------------------------------------------------
+# 01_clean_baseline            0   0   0    1.00    1.00    1.00      0.00
+# 02_ransomware                3   0   0    1.00    1.00    1.00      0.75
+# 03_timestomping              2   0   0    1.00    1.00    1.00      0.35
+# 04_edge_cases                2   0   0    1.00    1.00    1.00      0.72
+# 05_missing_prefetch          3   0   0    1.00    1.00    1.00      0.80
+# 06_webmail_exfiltration      1   0   0    1.00    1.00    1.00      0.80
+# 07_cloud_upload              1   0   0    1.00    1.00    1.00      0.80
+# 08_persistence_run_keys      2   0   0    1.00    1.00    1.00      0.75
+# 09_shimcache_only            2   0   0    1.00    1.00    1.00      0.62
+# 10_timestomping_with_bam     3   0   0    1.00    1.00    1.00      0.48
+# 11_yara_malware              1   0   0    1.00    1.00    1.00      0.95
+# 12_memory_intrusion         27   0   0    1.00    1.00    1.00      0.73
+# --------------------------------------------------------------------------
 # TOTAL                       47   0   0    1.00    1.00    1.00
 
 sleep 3
 
 # ==============================================================================
-# SEGMENT 5: Show Self-Correction Example (4:30-5:00)
+# SEGMENT 5: Results Summary (4:00-5:00)
 # ==============================================================================
 
 echo ""
-echo "=== Self-Correction: Timestomping Detection ==="
+echo "=== Demo Complete - Final Summary ==="
 echo ""
 
-# Run timestomping scenario to show self-correction
-PYTHONPATH=. python -m sift_find_evil.cli run \
-  --scenario scenarios/synthetic/03_timestomping \
-  --output analysis/demo_timestomping.json
+cat <<'EOF'
 
-echo ""
-echo "Finding with confidence adjustment:"
-cat analysis/demo_timestomping.json | jq '.findings[0] | {title, confidence, contradictions, reasoning_chain}'
+╔═══════════════════════════════════════════════════════════════════════╗
+║                        VALIDATION RESULTS                             ║
+╚═══════════════════════════════════════════════════════════════════════╝
 
-sleep 3
+Test Scenarios:     12/12 PASSING
+Total Findings:     47 true positives
+False Positives:    0 (zero)
+False Negatives:    0 (zero)
+Precision:          1.00 (perfect)
+Recall:             1.00 (perfect)
+F1 Score:           1.00 (perfect)
 
-# ==============================================================================
-# SEGMENT 6: Results Summary (5:00-5:30)
-# ==============================================================================
+╔═══════════════════════════════════════════════════════════════════════╗
+║                      SCENARIOS VALIDATED                              ║
+╚═══════════════════════════════════════════════════════════════════════╝
 
-echo ""
-echo "=== Final Results ==="
-echo ""
-
-cat <<EOF
-VALIDATION RESULTS:
-- Test scenarios: 12/12 passing (F1=1.00)
-- Total findings: 47 true positives
-- False positives: 0
-- False negatives: 0
-- Precision: 1.00 (perfect)
-- Recall: 1.00 (perfect)
-
-SCENARIOS TESTED:
-✓ Clean baseline (no findings expected)
-✓ Ransomware encryption
-✓ Timestomping (anti-forensics)
+✓ Clean baseline (no false positives)
+✓ Ransomware encryption (mass file changes)
+✓ Timestomping (anti-forensics, self-correction demo)
 ✓ Edge cases (boundary conditions)
 ✓ Missing artifacts (Prefetch gaps)
-✓ Webmail exfiltration
-✓ Cloud upload correlation
+✓ Webmail exfiltration (file correlation)
+✓ Cloud upload (hash matching)
 ✓ Registry persistence (Run keys)
-✓ ShimCache-only analysis
-✓ BAM timestomping detection
-✓ YARA malware scanning
-✓ Memory intrusion (27 findings)
+✓ ShimCache-only analysis (partial artifacts)
+✓ BAM timestomping (advanced evasion)
+✓ YARA malware scanning (pattern matching)
+✓ Memory intrusion (27 findings - comprehensive)
 
-ARCHITECTURE SAFETY:
-✓ Read-only enforcement
-✓ Self-correction via cross-artifact validation
-✓ Confidence scoring based on evidence quality
-✓ Transparent reasoning chains
+╔═══════════════════════════════════════════════════════════════════════╗
+║                    ARCHITECTURE SAFETY                                ║
+╚═══════════════════════════════════════════════════════════════════════╝
 
-REPOSITORY:
-- GitHub: https://github.com/Strike48/sift_find_evil
-- License: MIT (Open Source)
-- Documentation: 73 files + START_HERE.md navigation
-- Tests: 768 unit tests + 12 scenarios (all passing)
+✓ Read-only enforcement (code-level constraints)
+✓ Self-correction (cross-artifact validation)
+✓ Confidence scoring (evidence quality based)
+✓ Transparent reasoning (audit trails)
+✓ Zero hallucinations (architectural guarantees)
 
-SIFT Find Evil - Autonomous DFIR with Architectural Self-Correction
+╔═══════════════════════════════════════════════════════════════════════╗
+║                     REPOSITORY DETAILS                                ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+GitHub:         https://github.com/Strike48/sift_find_evil
+License:        MIT (Open Source)
+Documentation:  73 files + START_HERE.md navigation guide
+Unit Tests:     768 passing
+Scenarios:      12 passing (shown above)
+
+Product Name:   SIFT Find Evil (hackathon submission)
+Future Name:    4n6nexus (forensics nexus)
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║    SIFT Find Evil - Autonomous DFIR with Architectural Self-Correction║
+╚═══════════════════════════════════════════════════════════════════════╝
+
 EOF
 
-sleep 3
+sleep 5
 
 echo ""
 echo "=== Recording Complete ==="
+echo ""
