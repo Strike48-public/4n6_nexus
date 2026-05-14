@@ -1,0 +1,185 @@
+================================================================================
+SIFT FIND EVIL - CASE LOADER SCREEN
+================================================================================
+
+New two-screen workflow for professional demo presentation.
+
+================================================================================
+SCREEN 1: CASE LOADER (startup)
+================================================================================
+
+┌─ SIFT FIND EVIL - CASE LOADER ─────────────────────────────────────────────┐
+│                                                                             │
+│ Select Evidence Source:                                                    │
+│                                                                             │
+│ 📁 SYNTHETIC SCENARIOS (Fast, Demo-Ready)                                  │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 🔴 02_ransomware - Mass encryption + persistence                        │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│     F1=1.00 | 3 findings | Runtime: ~2s                                   │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ ⏱️  03_timestomping - Timestamp manipulation                            │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│     F1=1.00 | 4 findings | Runtime: ~1s                                   │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 🧠 12_memory_intrusion - Volatility analysis                            │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│     F1=1.00 | 5 findings | Runtime: ~3s                                   │
+│                                                                             │
+│ 💾 REAL FORENSIC IMAGES (Requires Evidence Files)                          │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 📧 M57-Jean (Corporate Espionage)                                       │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│     Evidence: nps-2008-jean.E01 (4.2 GB)                                  │
+│     Runtime: ~45 minutes | Requires mounting                               │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 💣 CIRCL 2023 (Wiped Disk Recovery)                                     │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│     Evidence: circl-wiped-2023.dd (8 GB)                                  │
+│     Runtime: ~1.5 hours | Advanced carving                                 │
+│                                                                             │
+│ ⚙️  ANALYSIS MODE:                                                          │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 🚀 Quick Triage (Essential detectors only)                              │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 🔬 Full Analysis (All detectors + YARA)                                 │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 🎯 Custom (Select detectors manually)                                   │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+ [↑↓] Navigate  [Enter] Select  [q] Quit
+
+================================================================================
+SCREEN 2: ANALYSIS (after selecting case)
+================================================================================
+
+(Shows the four-panel layout from before - see TUI_DEMO_SCREENSHOT.txt)
+
+New keybinding: Press 'c' to return to case loader
+
+================================================================================
+DEMO WORKFLOW
+================================================================================
+
+**Scenario 1: Quick Demo (Synthetic)**
+
+1. Launch TUI:
+   ```bash
+   python3 demo_tui.py
+   ```
+
+2. Case Loader appears
+   - Navigate with arrow keys
+   - Click "🔴 02_ransomware" button
+
+3. Analysis screen loads instantly (~2s)
+   - Shows 3 findings (mass encryption, timestomping, persistence)
+   - Self-correction counter: "Resolved 3×"
+   - Reasoning: Multi-artifact correlation visible
+
+4. Interact with findings:
+   - Press 'd' to drill down
+   - Press 'a' to approve
+   - Press 'e' to export report
+
+5. Switch scenarios:
+   - Press 'c' to return to case loader
+   - Try "⏱️ 03_timestomping" for different demo
+
+**Scenario 2: Real Evidence Demo (M57-Jean)**
+
+1. Launch TUI
+2. Scroll to "📧 M57-Jean (Corporate Espionage)"
+3. Click button
+4. Notification: "Loading M57-Jean... (requires evidence mount)"
+5. Analysis screen shows:
+   - Case: M57-Jean
+   - Evidence: nps-2008-jean.E01
+   - Status: ● ANALYZING
+
+**Scenario 3: Analysis Mode Selection**
+
+1. Launch TUI
+2. Scroll to "⚙️ ANALYSIS MODE"
+3. Click "🚀 Quick Triage"
+4. Notification: "Mode: Quick Triage selected"
+5. (Future: actually filters detectors)
+
+================================================================================
+VALUE FOR DEMO VIDEO
+================================================================================
+
+**Before (old workflow):**
+- Launch TUI → immediately shows analysis
+- No context about what's being analyzed
+- User doesn't see options
+- Looks like a single-purpose tool
+
+**After (with case loader):**
+- Launch TUI → professional selection screen
+- Clear evidence source options (synthetic vs real)
+- Performance expectations visible (runtime, F1 scores)
+- Demonstrates breadth (21 scenarios available)
+- Analysis mode selection shows flexibility
+- Press 'c' to switch cases mid-demo
+
+**Impact on judges:**
+- Professional presentation
+- Clear differentiation: synthetic (demo) vs real (production)
+- Runtime transparency (2s vs 45min)
+- Mode flexibility (quick vs full analysis)
+- Easy to demo multiple scenarios in 5 minutes
+
+================================================================================
+IMPLEMENTATION NOTES
+================================================================================
+
+**Technical approach:**
+- Screen-based navigation (Textual's push_screen API)
+- CaseLoaderScreen: scrollable vertical list with buttons
+- AnalysisScreen: original four-panel layout
+- State passed via constructor (case_name, evidence_type, mode)
+- Dynamic subtitle updates based on selected case
+
+**Button actions:**
+- synthetic_ransomware → AnalysisScreen("02_ransomware", "synthetic", "quick")
+- real_m57jean → AnalysisScreen("M57-Jean", "real", "full")
+- mode_quick → Notify only (implementation TBD)
+
+**Future enhancements:**
+- Actually wire analysis mode to detector filtering
+- Show progress bar during synthetic scenario loading
+- Add custom detector selection screen (checkboxes)
+- Load real scenario list from scenarios/real/ directory
+- Remember last selected case (persist in ~/.sift/tui_prefs.json)
+
+================================================================================
+DEMO SCRIPT ADDITION (Insert at 0:30-1:00)
+================================================================================
+
+Original script starts at 0:30 with "TUI Walkthrough".
+Insert this section before showing the four-panel layout:
+
+0:30-0:50  Case Loader Screen
+           - "First, we select our evidence source"
+           - "Synthetic scenarios for fast demos"
+           - "Real forensic images for production cases"
+           - "Notice F1=1.00 scores - perfect detection"
+           - "Runtime estimates: 2 seconds vs 45 minutes"
+           - Click "02_ransomware" button
+
+0:50-1:00  Transition
+           - Analysis screen loads instantly
+           - "Now we see autonomous execution in action"
+           - (Continue with original four-panel walkthrough)
+
+================================================================================
