@@ -12,10 +12,11 @@ python3 demo_tui.py
 python3 -m sift_find_evil.tui
 ```
 
-**Professional 3-screen workflow:**
+**Professional 3-4 screen workflow:**
 1. **File Selection** - Browse filesystem for evidence files or synthetic scenarios
 2. **Analysis Configuration** - Choose analysis mode (Quick, Full, Memory, Timeline, Custom)
-3. **Live Analysis** - Real-time detection with four-panel dashboard
+3. **Detector Selection** _(Custom mode only)_ - Choose specific detectors to run
+4. **Live Analysis** - Real-time detection with four-panel dashboard
 
 ## Workflow
 
@@ -54,7 +55,27 @@ python3 -m sift_find_evil.tui
 └────────────────────────────────────────────────────────────┘
 ```
 
-### Screen 3: Live Analysis (Four Panels)
+### Screen 3: Custom Detector Selection (if Custom mode selected)
+```
+┌─ SIFT FIND EVIL - SELECT DETECTORS ───────────────────────┐
+│ Evidence: 02_ransomware                                   │
+│ Mode: Custom                                              │
+│                                                            │
+│ Select detectors to run:                                  │
+│ ☐ NSRL Filter - Filter known-good files                  │
+│ ☑ Prefetch Analysis - Windows prefetch file analysis     │
+│ ☑ Memory Forensics - Volatility analysis                 │
+│ ☑ YARA Scanning - Malware signature detection            │
+│ ☐ Timeline Analysis - Supertimeline generation           │
+│ ☐ File Carving - Recover deleted files                   │
+│ ☐ Registry Analysis - Windows registry examination       │
+│ ☑ Shimcache - Application compatibility cache            │
+│                                                            │
+│ [Start Analysis]  [Back]                                  │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Screen 4: Live Analysis (Four Panels)
 ```
 ┌─ sift-find-evil ──────────────────────────────────────────┐
 │ Case: 02_ransomware    Evidence: 02_ransomware    Mode: QUICK    ● ANALYZING │
@@ -114,6 +135,14 @@ python3 -m sift_find_evil.tui
 |-----|--------|-------------|
 | `↑↓` | Navigate | Scroll through options |
 | `Enter` / `Click` | Select | Choose analysis mode |
+| `q` | Quit | Exit the TUI |
+
+### Custom Detector Selection Screen
+| Key | Action | Description |
+|-----|--------|-------------|
+| `↑↓` | Navigate | Scroll through detectors |
+| `Space` / `Click` | Toggle | Enable/disable detector |
+| `Tab` | Focus | Move between checkboxes and buttons |
 | `q` | Quit | Exit the TUI |
 
 ### Live Analysis Screen

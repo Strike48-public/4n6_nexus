@@ -263,14 +263,151 @@ class AnalysisConfigScreen(Screen):
                 self.app.notify("Please select an analysis mode", severity="warning")
                 return
 
+            # Custom mode goes to detector selection screen
+            if self.selected_mode == "custom":
+                self.app.push_screen(CustomDetectorScreen(
+                    case_name=self.case_name,
+                    evidence_path=self.evidence_path,
+                    evidence_type=self.evidence_type
+                ))
+            else:
+                self.app.push_screen(AnalysisScreen(
+                    case_name=self.case_name,
+                    evidence_path=self.evidence_path,
+                    evidence_type=self.evidence_type,
+                    mode=self.selected_mode
+                ))
+
+        elif button_id == "back-btn":
+            self.app.pop_screen()
+
+
+class CustomDetectorScreen(Screen):
+    """Detector selection screen for custom analysis mode."""
+
+    CSS = """
+    CustomDetectorScreen {
+        align: center middle;
+    }
+
+    #detector-container {
+        width: 90%;
+        max-width: 100;
+        height: 90%;
+        border: solid $primary;
+        padding: 1 2;
+        background: $surface;
+    }
+
+    .screen-title {
+        text-style: bold;
+        color: $accent;
+        text-align: center;
+        padding: 0 0 1 0;
+    }
+
+    .section-title {
+        text-style: bold;
+        color: $text;
+        padding: 0;
+        margin-top: 1;
+    }
+
+    .detector-option {
+        height: auto;
+        margin: 0 0 1 0;
+    }
+
+    .action-buttons {
+        layout: horizontal;
+        height: auto;
+        margin-top: 2;
+    }
+
+    .action-button {
+        width: 1fr;
+        margin: 0 1;
+    }
+
+    .back-button {
+        background: $warning;
+    }
+    """
+
+    def __init__(
+        self,
+        case_name: str,
+        evidence_path: Path,
+        evidence_type: str,
+        **kwargs: Any
+    ):
+        super().__init__(**kwargs)
+        self.case_name = case_name
+        self.evidence_path = evidence_path
+        self.evidence_type = evidence_type
+        self.selected_detectors: set[str] = set()
+
+        # Available detectors with descriptions
+        self.detectors = [
+            ("nsrl", "NSRL Filter", "Filter known-good files using NSRL database"),
+            ("prefetch", "Prefetch Analysis", "Windows prefetch file analysis for execution"),
+            ("memory", "Memory Forensics", "Volatility analysis for memory artifacts"),
+            ("yara", "YARA Scanning", "Malware signature detection with YARA rules"),
+            ("timeline", "Timeline Analysis", "Supertimeline generation and analysis"),
+            ("carving", "File Carving", "Recover deleted files and fragments"),
+            ("registry", "Registry Analysis", "Windows registry hive examination"),
+            ("shimcache", "Shimcache", "Application compatibility cache parsing"),
+        ]
+
+    def compose(self) -> ComposeResult:
+        from textual.widgets import Checkbox
+
+        yield Header(show_clock=False)
+        with VerticalScroll(id="detector-container"):
+            yield Label("SIFT FIND EVIL - SELECT DETECTORS", classes="screen-title")
+            yield Label(f"Evidence: {self.case_name}")
+            yield Label(f"Mode: Custom")
+
+            yield Label("Select detectors to run:", classes="section-title")
+
+            for detector_id, name, description in self.detectors:
+                yield Checkbox(
+                    f"{name} - {description}",
+                    value=False,
+                    id=f"detector_{detector_id}",
+                    classes="detector-option"
+                )
+
+            with Horizontal(classes="action-buttons"):
+                yield Button("Start Analysis", id="start-btn", classes="action-button")
+                yield Button("Back", id="back-btn", classes="action-button back-button")
+
+        yield Footer()
+
+    def on_checkbox_changed(self, event) -> None:
+        """Track selected detectors."""
+        detector_id = event.checkbox.id.replace("detector_", "")
+        if event.value:
+            self.selected_detectors.add(detector_id)
+        else:
+            self.selected_detectors.discard(detector_id)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle navigation."""
+        if event.button.id == "start-btn":
+            if not self.selected_detectors:
+                self.app.notify("Please select at least one detector", severity="warning")
+                return
+
             self.app.push_screen(AnalysisScreen(
                 case_name=self.case_name,
                 evidence_path=self.evidence_path,
                 evidence_type=self.evidence_type,
-                mode=self.selected_mode
+                mode="custom",
+                selected_detectors=list(self.selected_detectors)
             ))
 
-        elif button_id == "back-btn":
+        elif event.button.id == "back-btn":
             self.app.pop_screen()
 
 
@@ -283,6 +420,7 @@ class AnalysisScreen(Screen):
         evidence_path: Path | None = None,
         evidence_type: str = "synthetic",
         mode: str = "quick",
+        selected_detectors: list[str] | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -290,6 +428,7 @@ class AnalysisScreen(Screen):
         self.evidence_path = evidence_path
         self.evidence_type = evidence_type
         self.mode = mode
+        self.selected_detectors = selected_detectors or []
 
     def compose(self) -> ComposeResult:
         """Compose the four-panel analysis layout."""
@@ -303,7 +442,10 @@ class AnalysisScreen(Screen):
     def on_mount(self) -> None:
         """Update title with case info."""
         evidence_name = str(self.evidence_path.name) if self.evidence_path else self.case_name
-        self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_name}    Mode: {self.mode.upper()}    ● ANALYZING"
+        mode_display = self.mode.upper()
+        if self.mode == "custom" and self.selected_detectors:
+            mode_display = f"CUSTOM ({len(self.selected_detectors)} detectors)"
+        self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_name}    Mode: {mode_display}    ● ANALYZING"
 
 
 class DetectorPanel(Static):
