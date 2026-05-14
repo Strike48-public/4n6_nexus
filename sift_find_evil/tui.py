@@ -31,10 +31,11 @@ class CaseLoaderScreen(Screen):
     }
 
     #loader-container {
-        width: 80;
-        height: auto;
+        width: 90%;
+        max-width: 100;
+        height: 90%;
         border: solid $primary;
-        padding: 2;
+        padding: 1 2;
         background: $surface;
     }
 
@@ -42,23 +43,26 @@ class CaseLoaderScreen(Screen):
         text-style: bold;
         color: $accent;
         text-align: center;
-        padding: 1;
+        padding: 0 0 1 0;
     }
 
     .section-title {
         text-style: bold;
         color: $text;
-        padding: 1 0;
+        padding: 0;
+        margin-top: 1;
     }
 
     .case-button {
         width: 100%;
-        margin: 1 0;
+        margin: 0;
+        height: 3;
     }
 
     .case-description {
         color: $text-muted;
         padding: 0 2;
+        margin-bottom: 1;
     }
     """
 
@@ -66,41 +70,38 @@ class CaseLoaderScreen(Screen):
         yield Header(show_clock=False)
         with VerticalScroll(id="loader-container"):
             yield Label("SIFT FIND EVIL - CASE LOADER", classes="loader-title")
-            yield Label("\nSelect Evidence Source:", classes="section-title")
 
             # Synthetic scenarios
-            yield Label("📁 SYNTHETIC SCENARIOS (Fast, Demo-Ready)", classes="section-title")
-            yield Button("🔴 02_ransomware - Mass encryption + persistence",
+            yield Label("📁 SYNTHETIC SCENARIOS (Demo-Ready)", classes="section-title")
+            yield Button("🔴 Ransomware - Mass encryption",
                         id="synthetic_ransomware", classes="case-button")
-            yield Label("  F1=1.00 | 3 findings | Runtime: ~2s", classes="case-description")
+            yield Label("  F1=1.00 | 3 findings | ~2s", classes="case-description")
 
-            yield Button("⏱️  03_timestomping - Timestamp manipulation",
+            yield Button("⏱️  Timestomping - Timestamp manipulation",
                         id="synthetic_timestomp", classes="case-button")
-            yield Label("  F1=1.00 | 4 findings | Runtime: ~1s", classes="case-description")
+            yield Label("  F1=1.00 | 4 findings | ~1s", classes="case-description")
 
-            yield Button("🧠 12_memory_intrusion - Volatility analysis",
+            yield Button("🧠 Memory Intrusion - Volatility analysis",
                         id="synthetic_memory", classes="case-button")
-            yield Label("  F1=1.00 | 5 findings | Runtime: ~3s", classes="case-description")
+            yield Label("  F1=1.00 | 5 findings | ~3s", classes="case-description")
 
             # Real evidence
-            yield Label("\n💾 REAL FORENSIC IMAGES (Requires Evidence Files)", classes="section-title")
-            yield Button("📧 M57-Jean (Corporate Espionage)",
+            yield Label("💾 REAL FORENSIC IMAGES (Requires Mount)", classes="section-title")
+            yield Button("📧 M57-Jean - Corporate espionage",
                         id="real_m57jean", classes="case-button")
-            yield Label("  Evidence: nps-2008-jean.E01 (4.2 GB)", classes="case-description")
-            yield Label("  Runtime: ~45 minutes | Requires mounting", classes="case-description")
+            yield Label("  nps-2008-jean.E01 (4.2 GB) | ~45 min", classes="case-description")
 
-            yield Button("💣 CIRCL 2023 (Wiped Disk Recovery)",
+            yield Button("💣 CIRCL 2023 - Wiped disk recovery",
                         id="real_circl", classes="case-button")
-            yield Label("  Evidence: circl-wiped-2023.dd (8 GB)", classes="case-description")
-            yield Label("  Runtime: ~1.5 hours | Advanced carving", classes="case-description")
+            yield Label("  circl-wiped-2023.dd (8 GB) | ~1.5 hrs", classes="case-description")
 
             # Analysis options
-            yield Label("\n⚙️  ANALYSIS MODE:", classes="section-title")
-            yield Button("🚀 Quick Triage (Essential detectors only)",
+            yield Label("⚙️  ANALYSIS MODE", classes="section-title")
+            yield Button("🚀 Quick Triage",
                         id="mode_quick", classes="case-button")
-            yield Button("🔬 Full Analysis (All detectors + YARA)",
+            yield Button("🔬 Full Analysis",
                         id="mode_full", classes="case-button")
-            yield Button("🎯 Custom (Select detectors manually)",
+            yield Button("🎯 Custom Selection",
                         id="mode_custom", classes="case-button")
 
         yield Footer()
