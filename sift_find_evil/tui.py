@@ -64,6 +64,12 @@ class CaseLoaderScreen(Screen):
         padding: 0 2;
         margin-bottom: 1;
     }
+
+    .quit-button {
+        width: 100%;
+        margin-top: 1;
+        background: $error;
+    }
     """
 
     def compose(self) -> ComposeResult:
@@ -104,13 +110,21 @@ class CaseLoaderScreen(Screen):
             yield Button("🎯 Custom Selection",
                         id="mode_custom", classes="case-button")
 
+            # Quit button
+            yield Button("❌ Exit / Quit",
+                        id="quit_app", classes="quit-button")
+
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle case/mode selection."""
         button_id = event.button.id
 
-        if button_id and button_id.startswith("synthetic_"):
+        if button_id == "quit_app":
+            # Quit the application
+            self.app.exit()
+
+        elif button_id and button_id.startswith("synthetic_"):
             # Load synthetic scenario
             scenario_map = {
                 "synthetic_ransomware": "02_ransomware",
