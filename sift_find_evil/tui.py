@@ -15,22 +15,146 @@ from textual.screen import Screen
 from textual.widgets import (
     Button,
     DataTable,
+    DirectoryTree,
     Footer,
     Header,
+    Input,
     Label,
     Static,
 )
 
 
-class CaseLoaderScreen(Screen):
-    """Initial screen for selecting evidence and analysis type."""
+class FileSelectionScreen(Screen):
+    """File browser for selecting evidence files or synthetic scenarios."""
 
     CSS = """
-    CaseLoaderScreen {
+    FileSelectionScreen {
         align: center middle;
     }
 
-    #loader-container {
+    #file-container {
+        width: 90%;
+        max-width: 120;
+        height: 90%;
+        border: solid $primary;
+        padding: 1 2;
+        background: $surface;
+    }
+
+    .screen-title {
+        text-style: bold;
+        color: $accent;
+        text-align: center;
+        padding: 0 0 1 0;
+    }
+
+    #path-input {
+        margin: 1 0;
+    }
+
+    DirectoryTree {
+        height: 1fr;
+        margin: 1 0;
+    }
+
+    .action-buttons {
+        layout: horizontal;
+        height: auto;
+        margin-top: 1;
+    }
+
+    .action-button {
+        width: 1fr;
+        margin: 0 1;
+    }
+
+    .cancel-button {
+        background: $error;
+    }
+    """
+
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.selected_path: Path | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=False)
+        with VerticalScroll(id="file-container"):
+            yield Label("SIFT FIND EVIL - SELECT EVIDENCE", classes="screen-title")
+            yield Label("Navigate to evidence file or synthetic scenario directory:")
+            yield Input(
+                placeholder="Enter path or use tree below...",
+                id="path-input"
+            )
+            yield DirectoryTree(str(Path.cwd()), id="evidence-tree")
+
+            with Horizontal(classes="action-buttons"):
+                yield Button("Load Evidence", id="load-btn", classes="action-button")
+                yield Button("Cancel", id="cancel-btn", classes="action-button cancel-button")
+
+        yield Footer()
+
+    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
+        """Handle file selection from tree."""
+        self.selected_path = Path(event.path)
+        path_input = self.query_one("#path-input", Input)
+        path_input.value = str(self.selected_path)
+
+    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
+        """Handle directory selection from tree."""
+        self.selected_path = Path(event.path)
+        path_input = self.query_one("#path-input", Input)
+        path_input.value = str(self.selected_path)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle manual path entry."""
+        if event.value:
+            self.selected_path = Path(event.value)
+            self._load_evidence()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button actions."""
+        if event.button.id == "load-btn":
+            self._load_evidence()
+        elif event.button.id == "cancel-btn":
+            self.app.exit()
+
+    def _load_evidence(self) -> None:
+        """Validate and load selected evidence."""
+        if not self.selected_path:
+            self.app.notify("Please select a file or directory", severity="warning")
+            return
+
+        if not self.selected_path.exists():
+            self.app.notify(f"Path not found: {self.selected_path}", severity="error")
+            return
+
+        # Detect evidence type
+        if self.selected_path.is_file():
+            # Evidence file (.E01, .dd, etc.)
+            case_name = self.selected_path.stem
+            evidence_type = "image"
+        else:
+            # Directory (synthetic scenario or mounted image)
+            case_name = self.selected_path.name
+            evidence_type = "directory"
+
+        self.app.push_screen(AnalysisConfigScreen(
+            case_name=case_name,
+            evidence_path=self.selected_path,
+            evidence_type=evidence_type
+        ))
+
+
+class AnalysisConfigScreen(Screen):
+    """Configuration screen for selecting analysis type and options."""
+
+    CSS = """
+    AnalysisConfigScreen {
+        align: center middle;
+    }
+
+    #config-container {
         width: 90%;
         max-width: 100;
         height: 90%;
@@ -39,7 +163,7 @@ class CaseLoaderScreen(Screen):
         background: $surface;
     }
 
-    .loader-title {
+    .screen-title {
         text-style: bold;
         color: $accent;
         text-align: center;
@@ -53,114 +177,101 @@ class CaseLoaderScreen(Screen):
         margin-top: 1;
     }
 
-    .case-button {
+    .config-button {
         width: 100%;
-        margin: 0;
+        margin: 0 0 1 0;
         height: 3;
     }
 
-    .case-description {
-        color: $text-muted;
-        padding: 0 2;
-        margin-bottom: 1;
+    .action-buttons {
+        layout: horizontal;
+        height: auto;
+        margin-top: 2;
     }
 
-    .quit-button {
-        width: 100%;
-        margin-top: 1;
-        background: $error;
+    .action-button {
+        width: 1fr;
+        margin: 0 1;
+    }
+
+    .back-button {
+        background: $warning;
     }
     """
 
+    def __init__(
+        self,
+        case_name: str,
+        evidence_path: Path,
+        evidence_type: str,
+        **kwargs: Any
+    ):
+        super().__init__(**kwargs)
+        self.case_name = case_name
+        self.evidence_path = evidence_path
+        self.evidence_type = evidence_type
+        self.selected_mode: str | None = None
+
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
-        with VerticalScroll(id="loader-container"):
-            yield Label("SIFT FIND EVIL - CASE LOADER", classes="loader-title")
+        with VerticalScroll(id="config-container"):
+            yield Label("SIFT FIND EVIL - ANALYSIS CONFIGURATION", classes="screen-title")
+            yield Label(f"Evidence: {self.case_name}")
+            yield Label(f"Path: {self.evidence_path}")
 
-            # Synthetic scenarios
-            yield Label("📁 SYNTHETIC SCENARIOS (Demo-Ready)", classes="section-title")
-            yield Button("🔴 Ransomware - Mass encryption",
-                        id="synthetic_ransomware", classes="case-button")
-            yield Label("  F1=1.00 | 3 findings | ~2s", classes="case-description")
+            yield Label("Select Analysis Mode:", classes="section-title")
 
-            yield Button("⏱️  Timestomping - Timestamp manipulation",
-                        id="synthetic_timestomp", classes="case-button")
-            yield Label("  F1=1.00 | 4 findings | ~1s", classes="case-description")
+            yield Button("Quick Triage - Essential artifacts only",
+                        id="mode_quick", classes="config-button")
+            yield Button("Full Analysis - All detectors + YARA",
+                        id="mode_full", classes="config-button")
+            yield Button("Memory Analysis - Volatility + baselining",
+                        id="mode_memory", classes="config-button")
+            yield Button("Timeline - Supertimeline + analysis",
+                        id="mode_timeline", classes="config-button")
+            yield Button("Custom - Select detectors manually",
+                        id="mode_custom", classes="config-button")
 
-            yield Button("🧠 Memory Intrusion - Volatility analysis",
-                        id="synthetic_memory", classes="case-button")
-            yield Label("  F1=1.00 | 5 findings | ~3s", classes="case-description")
-
-            # Real evidence
-            yield Label("💾 REAL FORENSIC IMAGES (Requires Mount)", classes="section-title")
-            yield Button("📧 M57-Jean - Corporate espionage",
-                        id="real_m57jean", classes="case-button")
-            yield Label("  nps-2008-jean.E01 (4.2 GB) | ~45 min", classes="case-description")
-
-            yield Button("💣 CIRCL 2023 - Wiped disk recovery",
-                        id="real_circl", classes="case-button")
-            yield Label("  circl-wiped-2023.dd (8 GB) | ~1.5 hrs", classes="case-description")
-
-            # Analysis options
-            yield Label("⚙️  ANALYSIS MODE", classes="section-title")
-            yield Button("🚀 Quick Triage",
-                        id="mode_quick", classes="case-button")
-            yield Button("🔬 Full Analysis",
-                        id="mode_full", classes="case-button")
-            yield Button("🎯 Custom Selection",
-                        id="mode_custom", classes="case-button")
-
-            # Quit button
-            yield Button("❌ Exit / Quit",
-                        id="quit_app", classes="quit-button")
+            with Horizontal(classes="action-buttons"):
+                yield Button("Start Analysis", id="start-btn", classes="action-button")
+                yield Button("Back", id="back-btn", classes="action-button back-button")
 
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle case/mode selection."""
+        """Handle mode selection and navigation."""
         button_id = event.button.id
 
-        if button_id == "quit_app":
-            # Quit the application
-            self.app.exit()
-
-        elif button_id and button_id.startswith("synthetic_"):
-            # Load synthetic scenario
-            scenario_map = {
-                "synthetic_ransomware": "02_ransomware",
-                "synthetic_timestomp": "03_timestomping",
-                "synthetic_memory": "12_memory_intrusion",
-            }
-            scenario = scenario_map.get(button_id, "02_ransomware")
-            self.app.push_screen(AnalysisScreen(
-                case_name=scenario,
-                evidence_type="synthetic",
-                mode="quick"
-            ))
-
-        elif button_id and button_id.startswith("real_"):
-            # Load real evidence
-            case_map = {
-                "real_m57jean": "M57-Jean",
-                "real_circl": "CIRCL-2023",
-            }
-            case_name = case_map.get(button_id, "M57-Jean")
-            self.app.notify(f"Loading {case_name}... (requires evidence mount)")
-            self.app.push_screen(AnalysisScreen(
-                case_name=case_name,
-                evidence_type="real",
-                mode="full"
-            ))
-
-        elif button_id and button_id.startswith("mode_"):
-            # Just notify for now (mode selection would be implemented later)
+        if button_id and button_id.startswith("mode_"):
             mode_map = {
-                "mode_quick": "Quick Triage",
-                "mode_full": "Full Analysis",
-                "mode_custom": "Custom",
+                "mode_quick": "quick",
+                "mode_full": "full",
+                "mode_memory": "memory",
+                "mode_timeline": "timeline",
+                "mode_custom": "custom",
             }
-            mode = mode_map.get(button_id, "Quick")
-            self.app.notify(f"Mode: {mode} selected")
+            self.selected_mode = mode_map.get(button_id)
+            # Highlight selected button visually
+            for btn in self.query(Button):
+                if btn.id == button_id:
+                    btn.variant = "success"
+                elif btn.id and btn.id.startswith("mode_"):
+                    btn.variant = "default"
+
+        elif button_id == "start-btn":
+            if not self.selected_mode:
+                self.app.notify("Please select an analysis mode", severity="warning")
+                return
+
+            self.app.push_screen(AnalysisScreen(
+                case_name=self.case_name,
+                evidence_path=self.evidence_path,
+                evidence_type=self.evidence_type,
+                mode=self.selected_mode
+            ))
+
+        elif button_id == "back-btn":
+            self.app.pop_screen()
 
 
 class AnalysisScreen(Screen):
@@ -169,12 +280,14 @@ class AnalysisScreen(Screen):
     def __init__(
         self,
         case_name: str = "Demo",
+        evidence_path: Path | None = None,
         evidence_type: str = "synthetic",
         mode: str = "quick",
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self.case_name = case_name
+        self.evidence_path = evidence_path
         self.evidence_type = evidence_type
         self.mode = mode
 
@@ -189,8 +302,8 @@ class AnalysisScreen(Screen):
 
     def on_mount(self) -> None:
         """Update title with case info."""
-        evidence_file = "nps-2008-jean.E01" if self.case_name == "M57-Jean" else f"{self.case_name}.dd"
-        self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_file}    ● ANALYZING"
+        evidence_name = str(self.evidence_path.name) if self.evidence_path else self.case_name
+        self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_name}    Mode: {self.mode.upper()}    ● ANALYZING"
 
 
 class DetectorPanel(Static):
@@ -336,13 +449,13 @@ class SIFTDemoApp(App):
         ("r", "reject", "Reject"),
         ("d", "drill", "Drill Down"),
         ("e", "export", "Export"),
-        ("c", "cases", "Case Loader"),
+        ("b", "back", "Back"),
         ("q", "quit", "Quit"),
     ]
 
     def on_mount(self) -> None:
-        """Show case loader on startup."""
-        self.push_screen(CaseLoaderScreen())
+        """Show file selection on startup."""
+        self.push_screen(FileSelectionScreen())
 
     def action_approve(self) -> None:
         """Approve selected finding."""
@@ -360,16 +473,19 @@ class SIFTDemoApp(App):
         """Export findings to report."""
         self.notify("📄 Exporting report...")
 
-    def action_cases(self) -> None:
-        """Return to case loader."""
-        self.push_screen(CaseLoaderScreen())
+    def action_back(self) -> None:
+        """Go back to previous screen."""
+        if len(self.screen_stack) > 1:
+            self.pop_screen()
+        else:
+            self.notify("Already at first screen")
 
 
 def main():
     """Run the SIFT Find Evil TUI demo."""
     app = SIFTDemoApp()
     app.title = "sift-find-evil"
-    app.sub_title = "Case: M57-Jean    Evidence: nps-2008-jean.E01    ● ANALYZING"
+    app.sub_title = "Professional DFIR Analysis Tool"
     app.run()
 
 

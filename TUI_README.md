@@ -1,6 +1,6 @@
 # SIFT Find Evil TUI Demo
 
-Terminal User Interface for hackathon demo showcasing autonomous detection, self-correction, and forensic analysis workflows.
+Professional Terminal User Interface for digital forensics and incident response. Showcases autonomous detection, self-correction, and forensic analysis workflows.
 
 ## Quick Start
 
@@ -12,18 +12,52 @@ python3 demo_tui.py
 python3 -m sift_find_evil.tui
 ```
 
-**On startup**, you'll see the Case Loader screen where you can:
-- Select a synthetic scenario (fast, demo-ready)
-- Choose a real forensic image (.E01 files, requires mounting)
-- Pick analysis mode (Quick Triage, Full Analysis, Custom)
+**Professional 3-screen workflow:**
+1. **File Selection** - Browse filesystem for evidence files or synthetic scenarios
+2. **Analysis Configuration** - Choose analysis mode (Quick, Full, Memory, Timeline, Custom)
+3. **Live Analysis** - Real-time detection with four-panel dashboard
 
-## Layout
+## Workflow
 
-Four-panel design demonstrating key capabilities:
+### Screen 1: File Selection
+```
+┌─ SIFT FIND EVIL - SELECT EVIDENCE ────────────────────────┐
+│ Navigate to evidence file or synthetic scenario directory │
+│ ┌──────────────────────────────────────────────────────┐  │
+│ │ /home/user/evidence/cases/                           │  │
+│ └──────────────────────────────────────────────────────┘  │
+│ 📁 scenarios/                                             │
+│   📁 synthetic/                                           │
+│     📁 02_ransomware/                                     │
+│     📁 03_timestomping/                                   │
+│   📁 real/                                                │
+│     📄 nps-2008-jean.E01                                  │
+│                                                            │
+│ [Load Evidence]  [Cancel]                                 │
+└────────────────────────────────────────────────────────────┘
+```
 
+### Screen 2: Analysis Configuration
+```
+┌─ SIFT FIND EVIL - ANALYSIS CONFIGURATION ─────────────────┐
+│ Evidence: 02_ransomware                                   │
+│ Path: /home/user/scenarios/synthetic/02_ransomware       │
+│                                                            │
+│ Select Analysis Mode:                                     │
+│ [Quick Triage - Essential artifacts only        ]         │
+│ [Full Analysis - All detectors + YARA           ]         │
+│ [Memory Analysis - Volatility + baselining      ]         │
+│ [Timeline - Supertimeline + analysis            ]         │
+│ [Custom - Select detectors manually             ]         │
+│                                                            │
+│ [Start Analysis]  [Back]                                  │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Screen 3: Live Analysis (Four Panels)
 ```
 ┌─ sift-find-evil ──────────────────────────────────────────┐
-│ Case: M57-Jean    Evidence: nps-2008-jean.E01    ● ANALYZING │
+│ Case: 02_ransomware    Evidence: 02_ransomware    Mode: QUICK    ● ANALYZING │
 ├───────────────┬───────────────────────────────────────────┤
 │ DETECTORS     │ FINDINGS                                  │
 │ ✓ NSRL filter │ ▸ CRIT  Ransomware: mass .encrypted       │
@@ -37,7 +71,7 @@ Four-panel design demonstrating key capabilities:
 │   Resolved 3× │ MFT $FILE_NAME shows 2019-02-06 (22 days)│
 │               │ → Timestomping detected. SI can be modified│
 └───────────────┴───────────────────────────────────────────┘
- [a]pprove  [r]eject  [d]rill down  [e]xport  [q]uit
+ [a]pprove  [r]eject  [d]rill down  [e]xport  [b]ack  [q]uit
 ```
 
 ### Panel Descriptions
@@ -67,21 +101,29 @@ Four-panel design demonstrating key capabilities:
 
 ## Keybindings
 
-### Case Loader Screen
+### File Selection Screen
+| Key | Action | Description |
+|-----|--------|-------------|
+| `↑↓` | Navigate | Browse directory tree |
+| `Enter` | Select | Choose file/directory |
+| `Tab` | Focus | Switch between tree and input |
+| `q` | Quit | Exit the TUI |
+
+### Analysis Configuration Screen
 | Key | Action | Description |
 |-----|--------|-------------|
 | `↑↓` | Navigate | Scroll through options |
-| `Enter` / `Click` | Select | Choose scenario or mode |
+| `Enter` / `Click` | Select | Choose analysis mode |
 | `q` | Quit | Exit the TUI |
 
-### Analysis Screen
+### Live Analysis Screen
 | Key | Action | Description |
 |-----|--------|-------------|
 | `a` | Approve | Approve selected finding |
 | `r` | Reject | Reject selected finding |
 | `d` | Drill Down | Show detailed evidence |
 | `e` | Export | Export findings to report |
-| `c` | Cases | Return to case loader |
+| `b` | Back | Return to configuration |
 | `q` | Quit | Exit the TUI |
 | `↑↓` | Navigate | Move through findings table |
 
@@ -95,19 +137,44 @@ The TUI reads from existing analysis artifacts:
 
 ## For the Demo Video
 
-**Recording tips:**
-1. Launch TUI in a clean terminal (80x24 or larger)
-2. Use OBS Studio to capture screen
-3. Voiceover can be added post-recording
-4. Navigate findings with arrow keys to show interactivity
-5. Press `d` to "drill down" and show notifications
-6. Press `e` to "export" and show workflow completion
+**Professional demo flow (5 minutes):**
 
-**Wow moments to capture:**
-- Self-correction counter incrementing
-- Findings table populating with detections
-- Reasoning pane showing multi-artifact correlation
-- Detector progress bars advancing
+**0:00-0:30 Opening**
+- "This is SIFT Find Evil, a professional DFIR analysis tool"
+- Launch TUI, show file selection screen
+
+**0:30-1:00 Evidence Selection**
+- Navigate directory tree to `scenarios/synthetic/02_ransomware/`
+- Click "Load Evidence" button
+- Show configuration screen appears automatically
+
+**1:00-1:30 Analysis Configuration**
+- Highlight different analysis modes (Quick, Full, Memory, Timeline)
+- Select "Quick Triage" mode
+- Click "Start Analysis"
+
+**1:30-3:30 Live Analysis**
+- Show four-panel dashboard
+- Detectors panel: Show progression (○ → ● → ✓)
+- Findings panel: Navigate with arrow keys, show severity levels
+- Self-correction panel: Point out contradiction resolution counter
+- Reasoning panel: Explain multi-artifact correlation
+
+**3:30-4:30 Interaction**
+- Press 'd' to drill down on a finding
+- Press 'a' to approve a detection
+- Press 'e' to export report (notification appears)
+
+**4:30-5:00 Closing**
+- Press 'b' to return to config (show it works)
+- Press 'q' to exit cleanly
+- "Autonomous detection with built-in self-correction"
+
+**Recording tips:**
+- Terminal size: 120x40 or larger for comfortable viewing
+- OBS Studio for screen capture
+- No voiceover needed - UI is self-explanatory
+- Focus on showing the professional workflow, not test metadata
 
 ## Architecture
 
