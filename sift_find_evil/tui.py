@@ -10,14 +10,172 @@ from pathlib import Path
 from typing import Any
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.screen import Screen
 from textual.widgets import (
+    Button,
     DataTable,
     Footer,
     Header,
     Label,
     Static,
 )
+
+
+class CaseLoaderScreen(Screen):
+    """Initial screen for selecting evidence and analysis type."""
+
+    CSS = """
+    CaseLoaderScreen {
+        align: center middle;
+    }
+
+    #loader-container {
+        width: 80;
+        height: auto;
+        border: solid $primary;
+        padding: 2;
+        background: $surface;
+    }
+
+    .loader-title {
+        text-style: bold;
+        color: $accent;
+        text-align: center;
+        padding: 1;
+    }
+
+    .section-title {
+        text-style: bold;
+        color: $text;
+        padding: 1 0;
+    }
+
+    .case-button {
+        width: 100%;
+        margin: 1 0;
+    }
+
+    .case-description {
+        color: $text-muted;
+        padding: 0 2;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=False)
+        with VerticalScroll(id="loader-container"):
+            yield Label("SIFT FIND EVIL - CASE LOADER", classes="loader-title")
+            yield Label("\nSelect Evidence Source:", classes="section-title")
+
+            # Synthetic scenarios
+            yield Label("📁 SYNTHETIC SCENARIOS (Fast, Demo-Ready)", classes="section-title")
+            yield Button("🔴 02_ransomware - Mass encryption + persistence",
+                        id="synthetic_ransomware", classes="case-button")
+            yield Label("  F1=1.00 | 3 findings | Runtime: ~2s", classes="case-description")
+
+            yield Button("⏱️  03_timestomping - Timestamp manipulation",
+                        id="synthetic_timestomp", classes="case-button")
+            yield Label("  F1=1.00 | 4 findings | Runtime: ~1s", classes="case-description")
+
+            yield Button("🧠 12_memory_intrusion - Volatility analysis",
+                        id="synthetic_memory", classes="case-button")
+            yield Label("  F1=1.00 | 5 findings | Runtime: ~3s", classes="case-description")
+
+            # Real evidence
+            yield Label("\n💾 REAL FORENSIC IMAGES (Requires Evidence Files)", classes="section-title")
+            yield Button("📧 M57-Jean (Corporate Espionage)",
+                        id="real_m57jean", classes="case-button")
+            yield Label("  Evidence: nps-2008-jean.E01 (4.2 GB)", classes="case-description")
+            yield Label("  Runtime: ~45 minutes | Requires mounting", classes="case-description")
+
+            yield Button("💣 CIRCL 2023 (Wiped Disk Recovery)",
+                        id="real_circl", classes="case-button")
+            yield Label("  Evidence: circl-wiped-2023.dd (8 GB)", classes="case-description")
+            yield Label("  Runtime: ~1.5 hours | Advanced carving", classes="case-description")
+
+            # Analysis options
+            yield Label("\n⚙️  ANALYSIS MODE:", classes="section-title")
+            yield Button("🚀 Quick Triage (Essential detectors only)",
+                        id="mode_quick", classes="case-button")
+            yield Button("🔬 Full Analysis (All detectors + YARA)",
+                        id="mode_full", classes="case-button")
+            yield Button("🎯 Custom (Select detectors manually)",
+                        id="mode_custom", classes="case-button")
+
+        yield Footer()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle case/mode selection."""
+        button_id = event.button.id
+
+        if button_id and button_id.startswith("synthetic_"):
+            # Load synthetic scenario
+            scenario_map = {
+                "synthetic_ransomware": "02_ransomware",
+                "synthetic_timestomp": "03_timestomping",
+                "synthetic_memory": "12_memory_intrusion",
+            }
+            scenario = scenario_map.get(button_id, "02_ransomware")
+            self.app.push_screen(AnalysisScreen(
+                case_name=scenario,
+                evidence_type="synthetic",
+                mode="quick"
+            ))
+
+        elif button_id and button_id.startswith("real_"):
+            # Load real evidence
+            case_map = {
+                "real_m57jean": "M57-Jean",
+                "real_circl": "CIRCL-2023",
+            }
+            case_name = case_map.get(button_id, "M57-Jean")
+            self.app.notify(f"Loading {case_name}... (requires evidence mount)")
+            self.app.push_screen(AnalysisScreen(
+                case_name=case_name,
+                evidence_type="real",
+                mode="full"
+            ))
+
+        elif button_id and button_id.startswith("mode_"):
+            # Just notify for now (mode selection would be implemented later)
+            mode_map = {
+                "mode_quick": "Quick Triage",
+                "mode_full": "Full Analysis",
+                "mode_custom": "Custom",
+            }
+            mode = mode_map.get(button_id, "Quick")
+            self.app.notify(f"Mode: {mode} selected")
+
+
+class AnalysisScreen(Screen):
+    """Main analysis screen with four-panel layout."""
+
+    def __init__(
+        self,
+        case_name: str = "Demo",
+        evidence_type: str = "synthetic",
+        mode: str = "quick",
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.case_name = case_name
+        self.evidence_type = evidence_type
+        self.mode = mode
+
+    def compose(self) -> ComposeResult:
+        """Compose the four-panel analysis layout."""
+        yield Header(show_clock=True)
+        yield Container(DetectorPanel(), id="detector-panel")
+        yield Container(FindingsPanel(), id="findings-panel")
+        yield Container(SelfCorrectionPanel(), id="self-correction-panel")
+        yield Container(ReasoningPanel(), id="reasoning-panel")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        """Update title with case info."""
+        evidence_file = "nps-2008-jean.E01" if self.case_name == "M57-Jean" else f"{self.case_name}.dd"
+        self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_file}    ● ANALYZING"
 
 
 class DetectorPanel(Static):
@@ -106,7 +264,7 @@ class SIFTDemoApp(App):
     """Textual app for SIFT Find Evil hackathon demo."""
 
     CSS = """
-    Screen {
+    AnalysisScreen {
         layout: grid;
         grid-size: 2 2;
         grid-rows: 1fr 1fr;
@@ -163,17 +321,13 @@ class SIFTDemoApp(App):
         ("r", "reject", "Reject"),
         ("d", "drill", "Drill Down"),
         ("e", "export", "Export"),
+        ("c", "cases", "Case Loader"),
         ("q", "quit", "Quit"),
     ]
 
-    def compose(self) -> ComposeResult:
-        """Compose the four-panel layout."""
-        yield Header(show_clock=True)
-        yield Container(DetectorPanel(), id="detector-panel")
-        yield Container(FindingsPanel(), id="findings-panel")
-        yield Container(SelfCorrectionPanel(), id="self-correction-panel")
-        yield Container(ReasoningPanel(), id="reasoning-panel")
-        yield Footer()
+    def on_mount(self) -> None:
+        """Show case loader on startup."""
+        self.push_screen(CaseLoaderScreen())
 
     def action_approve(self) -> None:
         """Approve selected finding."""
@@ -190,6 +344,10 @@ class SIFTDemoApp(App):
     def action_export(self) -> None:
         """Export findings to report."""
         self.notify("📄 Exporting report...")
+
+    def action_cases(self) -> None:
+        """Return to case loader."""
+        self.push_screen(CaseLoaderScreen())
 
 
 def main():

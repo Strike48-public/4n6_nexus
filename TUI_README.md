@@ -12,6 +12,11 @@ python3 demo_tui.py
 python3 -m sift_find_evil.tui
 ```
 
+**On startup**, you'll see the Case Loader screen where you can:
+- Select a synthetic scenario (fast, demo-ready)
+- Choose a real forensic image (.E01 files, requires mounting)
+- Pick analysis mode (Quick Triage, Full Analysis, Custom)
+
 ## Layout
 
 Four-panel design demonstrating key capabilities:
@@ -62,12 +67,21 @@ Four-panel design demonstrating key capabilities:
 
 ## Keybindings
 
+### Case Loader Screen
+| Key | Action | Description |
+|-----|--------|-------------|
+| `↑↓` | Navigate | Scroll through options |
+| `Enter` / `Click` | Select | Choose scenario or mode |
+| `q` | Quit | Exit the TUI |
+
+### Analysis Screen
 | Key | Action | Description |
 |-----|--------|-------------|
 | `a` | Approve | Approve selected finding |
 | `r` | Reject | Reject selected finding |
 | `d` | Drill Down | Show detailed evidence |
 | `e` | Export | Export findings to report |
+| `c` | Cases | Return to case loader |
 | `q` | Quit | Exit the TUI |
 | `↑↓` | Navigate | Move through findings table |
 
