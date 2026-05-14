@@ -89,8 +89,8 @@ class FileSelectionScreen(Screen):
             yield DirectoryTree(str(Path.cwd()), id="evidence-tree")
 
             with Horizontal(classes="action-buttons"):
-                yield Button("Load Evidence", id="load-btn", classes="action-button")
                 yield Button("Cancel", id="cancel-btn", classes="action-button cancel-button")
+                yield Button("Load Evidence", id="load-btn", classes="action-button")
 
         yield Footer()
 
@@ -233,8 +233,8 @@ class AnalysisConfigScreen(Screen):
                         id="mode_custom", classes="config-button")
 
             with Horizontal(classes="action-buttons"):
-                yield Button("Start Analysis", id="start-btn", classes="action-button")
                 yield Button("Back", id="back-btn", classes="action-button back-button")
+                yield Button("Start Analysis", id="start-btn", classes="action-button")
 
         yield Footer()
 
@@ -379,8 +379,8 @@ class CustomDetectorScreen(Screen):
                 )
 
             with Horizontal(classes="action-buttons"):
-                yield Button("Start Analysis", id="start-btn", classes="action-button")
                 yield Button("Back", id="back-btn", classes="action-button back-button")
+                yield Button("Start Analysis", id="start-btn", classes="action-button")
 
         yield Footer()
 
