@@ -740,12 +740,12 @@ class DetectorPanel(Static):
 
         # Populate with sample detectors
         detectors = [
-            ("NSRL filter", "✓"),
-            ("Prefetch", "✓"),
-            ("Memory", "●"),
-            ("YARA scan", "●"),
-            ("Timeline", "○"),
-            ("Carving", "○"),
+            ("NSRL filter", "[DONE]"),
+            ("Prefetch", "[DONE]"),
+            ("Memory", "[RUN]"),
+            ("YARA scan", "[RUN]"),
+            ("Timeline", "[WAIT]"),
+            ("Carving", "[WAIT]"),
         ]
         for name, status in detectors:
             table.add_row(name, status)
@@ -786,8 +786,8 @@ class SelfCorrectionPanel(Static):
 
     def compose(self) -> ComposeResult:
         yield Label("SELF-CORRECT", classes="panel-title")
-        yield Label("⚠ CONTRADICT", classes="status-label")
-        yield Label("  Resolved 3×", classes="status-detail")
+        yield Label("[!] CONTRADICT", classes="status-label")
+        yield Label("  Resolved 3x", classes="status-detail")
 
     def on_mount(self) -> None:
         # Future: tail audit JSONL and highlight contradictions
@@ -802,7 +802,7 @@ class ReasoningPanel(Static):
         yield Static(
             "MFT $STANDARD_INFORMATION shows 2019-01-15\n"
             "MFT $FILE_NAME shows 2019-02-06 (22-day delta)\n"
-            "→ Timestomping detected. SI can be modified,\n"
+            "-> Timestomping detected. SI can be modified,\n"
             "  FN is more reliable. Reduced confidence.",
             id="reasoning-text",
         )
