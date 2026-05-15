@@ -23,6 +23,8 @@ from textual.widgets import (
     Static,
 )
 
+from .tui import CommandPalette, TEXTUAL_CSS
+
 
 # Bookmarks file location
 BOOKMARKS_FILE = Path.home() / ".sift" / "bookmarks.json"
@@ -90,7 +92,7 @@ def detect_mounts() -> list[dict]:
 class FileSelectionScreen(Screen):
     """File browser for selecting evidence files or synthetic scenarios."""
 
-    CSS = """
+    CSS = TEXTUAL_CSS + """
     FileSelectionScreen {
         align: center middle;
     }
@@ -247,6 +249,13 @@ class FileSelectionScreen(Screen):
 
     def on_key(self, event) -> None:
         """Handle keyboard shortcuts."""
+        # Command palette with '/'
+        if event.key == "slash":
+            self._show_command_palette()
+            event.prevent_default()
+            event.stop()
+            return
+
         # Delete bookmark when 'd' is pressed and a bookmark button has focus
         if event.key == "d":
             focused = self.app.focused
@@ -262,6 +271,46 @@ class FileSelectionScreen(Screen):
                         self._rebuild_quick_access()
                         event.prevent_default()
                         event.stop()
+
+    def _show_command_palette(self) -> None:
+        """Show command palette modal."""
+        def handle_command(command):
+            if command:
+                self._execute_command(command.id)
+
+        self.app.push_screen(CommandPalette(), handle_command)
+
+    def _execute_command(self, command_id: str) -> None:
+        """Execute a command by ID.
+
+        Args:
+            command_id: Command identifier
+        """
+        if command_id == "help":
+            self.app.action_help()
+        elif command_id == "refresh":
+            self._refresh_drives()
+        elif command_id == "bookmark":
+            self._bookmark_current()
+        elif command_id == "quit":
+            self.app.exit()
+        elif command_id == "yara":
+            self.app.notify("YARA scan: Not yet implemented")
+        elif command_id == "timeline":
+            self.app.notify("Timeline view: Not yet implemented")
+        elif command_id == "memory":
+            self.app.notify("Memory analysis: Not yet implemented")
+        elif command_id == "export":
+            self.app.notify("Export: Not yet implemented")
+        elif command_id == "filter":
+            self.app.notify("Filter: Not yet implemented")
+        elif command_id == "analyze":
+            if self.selected_path:
+                self._load_evidence()
+            else:
+                self.app.notify("Select evidence first", severity="warning")
+        else:
+            self.app.notify(f"Unknown command: {command_id}", severity="error")
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         """Handle file selection from tree."""
@@ -1071,6 +1120,7 @@ class SIFTDemoApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("?", "help", "Help"),
+        ("/", "command_palette", "Commands"),
         ("d", "delete_bookmark", "Delete Bookmark"),
     ]
 
@@ -1084,6 +1134,10 @@ class SIFTDemoApp(App):
 
     def action_delete_bookmark(self) -> None:
         """Delete bookmark (handled by FileSelectionScreen.on_key)."""
+        pass
+
+    def action_command_palette(self) -> None:
+        """Open command palette (handled by FileSelectionScreen.on_key)."""
         pass
 
 

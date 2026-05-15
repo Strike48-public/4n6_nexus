@@ -6,7 +6,7 @@ Usage:
     python3 demo_tui.py
 """
 
-from sift_find_evil.tui import main
+from sift_find_evil.tui_app import main
 
 if __name__ == "__main__":
     main()
