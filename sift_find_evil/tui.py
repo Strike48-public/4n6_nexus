@@ -209,6 +209,9 @@ class FileSelectionScreen(Screen):
             case_name = self.selected_path.name
             evidence_type = "directory"
 
+        # Show loading notification
+        self.app.notify(f"Loading: {case_name}")
+
         self.app.push_screen(AnalysisConfigScreen(
             case_name=case_name,
             evidence_path=self.selected_path,
@@ -484,6 +487,14 @@ class CustomDetectorScreen(Screen):
 class AnalysisScreen(Screen):
     """Main analysis screen with four-panel layout."""
 
+    BINDINGS = [
+        ("a", "approve", "Approve"),
+        ("r", "reject", "Reject"),
+        ("d", "drill", "Drill Down"),
+        ("e", "export", "Export"),
+        ("b", "back", "Back"),
+    ]
+
     def __init__(
         self,
         case_name: str = "Demo",
@@ -515,7 +526,27 @@ class AnalysisScreen(Screen):
         mode_display = self.mode.upper()
         if self.mode == "custom" and self.selected_detectors:
             mode_display = f"CUSTOM ({len(self.selected_detectors)} detectors)"
-        self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_name}    Mode: {mode_display}    ● ANALYZING"
+        self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_name}    Mode: {mode_display}    [ANALYZING]"
+
+    def action_approve(self) -> None:
+        """Approve selected finding."""
+        self.app.notify("Finding approved")
+
+    def action_reject(self) -> None:
+        """Reject selected finding."""
+        self.app.notify("Finding rejected")
+
+    def action_drill(self) -> None:
+        """Drill down into selected finding."""
+        self.app.notify("Drilling down...")
+
+    def action_export(self) -> None:
+        """Export findings to report."""
+        self.app.notify("Exporting report...")
+
+    def action_back(self) -> None:
+        """Go back to previous screen."""
+        self.app.pop_screen()
 
 
 class DetectorPanel(Static):
@@ -657,40 +688,12 @@ class SIFTDemoApp(App):
     """
 
     BINDINGS = [
-        ("a", "approve", "Approve"),
-        ("r", "reject", "Reject"),
-        ("d", "drill", "Drill Down"),
-        ("e", "export", "Export"),
-        ("b", "back", "Back"),
         ("q", "quit", "Quit"),
     ]
 
     def on_mount(self) -> None:
         """Show file selection on startup."""
         self.push_screen(FileSelectionScreen())
-
-    def action_approve(self) -> None:
-        """Approve selected finding."""
-        self.notify("✓ Finding approved")
-
-    def action_reject(self) -> None:
-        """Reject selected finding."""
-        self.notify("✗ Finding rejected")
-
-    def action_drill(self) -> None:
-        """Drill down into selected finding."""
-        self.notify("🔍 Drilling down...")
-
-    def action_export(self) -> None:
-        """Export findings to report."""
-        self.notify("📄 Exporting report...")
-
-    def action_back(self) -> None:
-        """Go back to previous screen."""
-        if len(self.screen_stack) > 1:
-            self.pop_screen()
-        else:
-            self.notify("Already at first screen")
 
 
 def main():
