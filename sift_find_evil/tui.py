@@ -193,6 +193,10 @@ class FileSelectionScreen(Screen):
         self.current_tree_path = Path.cwd()
         self.bookmarks = load_bookmarks()
         self.mounts = detect_mounts()
+        self._mount_id_counter = 0  # Counter for unique mount button IDs
+        self._bookmark_id_counter = 0  # Counter for unique bookmark button IDs
+        self._mount_id_to_index: dict[str, int] = {}  # Map button ID to mount index
+        self._bookmark_id_to_index: dict[str, int] = {}  # Map button ID to bookmark index
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -202,26 +206,11 @@ class FileSelectionScreen(Screen):
             # Quick Access section
             yield Label("QUICK ACCESS", classes="section-header")
             yield Label("Click a drive to navigate, or use manual navigation below", classes="help-text")
-            with Container(classes="quick-access", id="quick-access-container"):
+            with Container(classes="quick-access"):
                 yield Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button")
-
-                # Detected mounts
-                if self.mounts:
-                    yield Label(f"Detected Drives ({len(self.mounts)}):")
-                    for i, mount in enumerate(self.mounts):
-                        mount_label = f"{mount['name']}\n  {mount['path']}"
-                        # Use index instead of path for button ID (paths contain slashes)
-                        yield Button(mount_label, id=f"mount_{i}", classes="mount-button")
-                else:
-                    yield Label("No drives detected", classes="no-items")
-                    yield Label("Try: Plug in USB drive and click 'Refresh Drives'", classes="help-text")
-
-                # Bookmarks
-                if self.bookmarks:
-                    yield Label(f"Bookmarks ({len(self.bookmarks)}) - Hold Ctrl+Click to delete:")
-                    for i, bookmark in enumerate(self.bookmarks):
-                        bm_label = f"{bookmark['name']}\n  {bookmark['path']}"
-                        yield Button(bm_label, id=f"bookmark_{i}", classes="bookmark-button")
+            # Container will be populated by on_mount() calling _rebuild_quick_access()
+            with Container(id="quick-access-container"):
+                pass
 
             # Current selection indicator
             if self.selected_path:
@@ -242,6 +231,10 @@ class FileSelectionScreen(Screen):
                 yield Button("Load Evidence", id="load-btn", classes="action-button")
 
         yield Footer()
+
+    def on_mount(self) -> None:
+        """Populate Quick Access after screen is mounted."""
+        self._rebuild_quick_access()
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         """Handle file selection from tree."""
@@ -279,34 +272,45 @@ class FileSelectionScreen(Screen):
 
         # Mount buttons
         if button_id.startswith("mount_"):
-            mount_idx = int(button_id.replace("mount_", ""))
-            if 0 <= mount_idx < len(self.mounts):
-                mount_path = Path(self.mounts[mount_idx]["path"])
-                self._navigate_to(mount_path)
+            # Get index from mapping dictionary
+            if button_id in self._mount_id_to_index:
+                mount_idx = self._mount_id_to_index[button_id]
+                if 0 <= mount_idx < len(self.mounts):
+                    mount_path = Path(self.mounts[mount_idx]["path"])
+                    self.app.notify(f"Navigating to: {mount_path}")
+                    self._navigate_to(mount_path)
+                else:
+                    self.app.notify(f"Invalid mount index: {mount_idx} (have {len(self.mounts)} mounts)", severity="error")
+            else:
+                self.app.notify(f"Button {button_id} not found in mount mapping", severity="error")
 
         # Bookmark buttons
         elif button_id.startswith("bookmark_"):
-            bookmark_idx = int(button_id.replace("bookmark_", ""))
-            if 0 <= bookmark_idx < len(self.bookmarks):
-                # Check for Ctrl modifier (delete bookmark)
-                if event.ctrl:
-                    bookmark_name = self.bookmarks[bookmark_idx]["name"]
-                    del self.bookmarks[bookmark_idx]
-                    save_bookmarks(self.bookmarks)
-                    self.app.notify(f"Deleted bookmark: {bookmark_name}")
-                    self._rebuild_quick_access()
-                else:
-                    # Normal click - navigate to bookmark
-                    bookmark_path = Path(self.bookmarks[bookmark_idx]["path"])
-                    # Validate bookmark path still exists
-                    if bookmark_path.exists():
-                        self._navigate_to(bookmark_path)
+            # Get index from mapping dictionary
+            if button_id in self._bookmark_id_to_index:
+                bookmark_idx = self._bookmark_id_to_index[button_id]
+                if 0 <= bookmark_idx < len(self.bookmarks):
+                    # Check for Ctrl modifier (delete bookmark)
+                    if event.ctrl:
+                        bookmark_name = self.bookmarks[bookmark_idx]["name"]
+                        del self.bookmarks[bookmark_idx]
+                        save_bookmarks(self.bookmarks)
+                        self.app.notify(f"Deleted bookmark: {bookmark_name}")
+                        self._rebuild_quick_access()
                     else:
-                        self.app.notify(
-                            f"Bookmark path no longer exists: {bookmark_path}\nTip: Delete this bookmark (Ctrl+Click) and create a new one",
-                            severity="warning",
-                            timeout=5
-                        )
+                        # Normal click - navigate to bookmark
+                        bookmark_path = Path(self.bookmarks[bookmark_idx]["path"])
+                        # Validate bookmark path still exists
+                        if bookmark_path.exists():
+                            self._navigate_to(bookmark_path)
+                        else:
+                            self.app.notify(
+                                f"Bookmark path no longer exists: {bookmark_path}\nTip: Delete this bookmark (Ctrl+Click) and create a new one",
+                                severity="warning",
+                                timeout=5
+                            )
+            else:
+                self.app.notify(f"Button {button_id} not found in bookmark mapping", severity="error")
 
         # Action buttons
         elif button_id == "refresh-drives-btn":
@@ -418,19 +422,25 @@ class FileSelectionScreen(Screen):
         """Rebuild the Quick Access container with updated mounts and bookmarks."""
         container = self.query_one("#quick-access-container")
 
-        # Remove all children
-        container.remove_children()
+        # Clear the mapping dictionaries
+        self._mount_id_to_index.clear()
+        self._bookmark_id_to_index.clear()
 
-        # Add refresh button
-        container.mount(Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button"))
+        # Explicitly remove all widgets to avoid ID collisions
+        for widget in list(container.query("*")):
+            widget.remove()
 
-        # Add mounts
+        # Add mounts (refresh button is outside this container so it doesn't get rebuilt)
         if self.mounts:
             container.mount(Label(f"Detected Drives ({len(self.mounts)}):"))
             for i, mount in enumerate(self.mounts):
                 mount_label = f"{mount['name']}\n  {mount['path']}"
-                # Use index instead of path for button ID (paths contain slashes)
-                container.mount(Button(mount_label, id=f"mount_{i}", classes="mount-button"))
+                # Use unique ID with counter to avoid collisions during rebuild
+                mount_id = f"mount_{self._mount_id_counter}"
+                self._mount_id_counter += 1
+                self._mount_id_to_index[mount_id] = i  # Store mapping
+                button = Button(mount_label, id=mount_id, classes="mount-button")
+                container.mount(button)
         else:
             container.mount(Label("No drives detected in /media or /mnt", classes="no-items"))
 
@@ -439,7 +449,12 @@ class FileSelectionScreen(Screen):
             container.mount(Label(f"Bookmarks ({len(self.bookmarks)}):"))
             for i, bookmark in enumerate(self.bookmarks):
                 bm_label = f"{bookmark['name']}\n  {bookmark['path']}"
-                container.mount(Button(bm_label, id=f"bookmark_{i}", classes="bookmark-button"))
+                # Use unique ID with counter
+                bookmark_id = f"bookmark_{self._bookmark_id_counter}"
+                self._bookmark_id_counter += 1
+                self._bookmark_id_to_index[bookmark_id] = i  # Store mapping
+                button = Button(bm_label, id=bookmark_id, classes="bookmark-button")
+                container.mount(button)
 
     def _load_evidence(self) -> None:
         """Validate and load selected evidence."""
