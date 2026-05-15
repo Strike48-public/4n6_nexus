@@ -1071,6 +1071,7 @@ class SIFTDemoApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("?", "help", "Help"),
+        ("d", "delete_bookmark", "Delete Bookmark"),
     ]
 
     def on_mount(self) -> None:
@@ -1080,6 +1081,10 @@ class SIFTDemoApp(App):
     def action_help(self) -> None:
         """Show help screen."""
         self.push_screen(HelpScreen())
+
+    def action_delete_bookmark(self) -> None:
+        """Delete bookmark (handled by FileSelectionScreen.on_key)."""
+        pass
 
 
 def main():
