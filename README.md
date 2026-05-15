@@ -56,7 +56,7 @@ See [ACCURACY_REPORT.md](docs/ACCURACY_REPORT.md) for detailed methodology and p
 
 ### Self-Correction Example
 
-**Scenario:** MFT shows `malware.exe` modified at 14:40, but Prefetch shows execution at 14:25 (15 minutes AFTER modification — causality violation).
+**Scenario:** MFT shows `malware.exe` modified at 14:40, but Prefetch shows execution at 14:25 (15 minutes BEFORE modification — causality violation).
 
 **Without self-correction:** Report both timestamps, leave conflict unresolved, confuse examiner.
 
