@@ -51,28 +51,40 @@ def detect_mounts() -> list[dict]:
     # Scan /media/*
     media_path = Path("/media")
     if media_path.exists():
-        for user_dir in media_path.iterdir():
-            if user_dir.is_dir():
-                for mount in user_dir.iterdir():
-                    if mount.is_dir():
-                        mounts.append({
-                            "name": f"{mount.name} ({user_dir.name})",
-                            "path": str(mount),
-                            "type": "media"
-                        })
+        try:
+            for user_dir in media_path.iterdir():
+                if user_dir.is_dir():
+                    try:
+                        for mount in user_dir.iterdir():
+                            if mount.is_dir():
+                                mounts.append({
+                                    "name": f"{mount.name} ({user_dir.name})",
+                                    "path": str(mount),
+                                    "type": "media"
+                                })
+                    except PermissionError:
+                        # Skip directories we can't read
+                        continue
+        except PermissionError:
+            # Can't read /media
+            pass
 
     # Scan /mnt/*
     mnt_path = Path("/mnt")
     if mnt_path.exists():
-        for mount in mnt_path.iterdir():
-            if mount.is_dir() and not mount.name.startswith('.'):
-                mounts.append({
-                    "name": mount.name,
-                    "path": str(mount),
-                    "type": "mnt"
-                })
+        try:
+            for mount in mnt_path.iterdir():
+                if mount.is_dir() and not mount.name.startswith('.'):
+                    mounts.append({
+                        "name": mount.name,
+                        "path": str(mount),
+                        "type": "mnt"
+                    })
+        except PermissionError:
+            # Can't read /mnt
+            pass
 
-    return mounts
+    return sorted(mounts, key=lambda m: m['name'].lower())
 
 
 class FileSelectionScreen(Screen):
@@ -135,6 +147,19 @@ class FileSelectionScreen(Screen):
         padding: 1;
     }
 
+    .help-text {
+        color: $text-muted;
+        font-style: italic;
+        padding: 0 0 1 0;
+    }
+
+    .current-selection {
+        background: $accent-darken-1;
+        color: $text;
+        padding: 0 1;
+        margin: 1 0;
+    }
+
     DirectoryTree {
         height: 20;
         margin: 1 0;
@@ -176,6 +201,7 @@ class FileSelectionScreen(Screen):
 
             # Quick Access section
             yield Label("QUICK ACCESS", classes="section-header")
+            yield Label("Click a drive to navigate, or use manual navigation below", classes="help-text")
             with Container(classes="quick-access", id="quick-access-container"):
                 yield Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button")
 
@@ -186,17 +212,23 @@ class FileSelectionScreen(Screen):
                         mount_label = f"{mount['name']}\n  {mount['path']}"
                         yield Button(mount_label, id=f"mount_{mount['path']}", classes="mount-button")
                 else:
-                    yield Label("No drives detected in /media or /mnt", classes="no-items")
+                    yield Label("No drives detected", classes="no-items")
+                    yield Label("Try: Plug in USB drive and click 'Refresh Drives'", classes="help-text")
 
                 # Bookmarks
                 if self.bookmarks:
-                    yield Label(f"Bookmarks ({len(self.bookmarks)}):")
+                    yield Label(f"Bookmarks ({len(self.bookmarks)}) - Hold Ctrl+Click to delete:")
                     for i, bookmark in enumerate(self.bookmarks):
                         bm_label = f"{bookmark['name']}\n  {bookmark['path']}"
                         yield Button(bm_label, id=f"bookmark_{i}", classes="bookmark-button")
 
+            # Current selection indicator
+            if self.selected_path:
+                yield Label(f"Selected: {self.selected_path}", classes="current-selection")
+
             # Manual navigation
             yield Label("MANUAL NAVIGATION", classes="section-header")
+            yield Label("Type path or browse tree, then click 'Load Evidence'", classes="help-text")
             yield Input(
                 placeholder="Enter path and press Enter...",
                 id="path-input"
@@ -253,8 +285,25 @@ class FileSelectionScreen(Screen):
         elif button_id.startswith("bookmark_"):
             bookmark_idx = int(button_id.replace("bookmark_", ""))
             if 0 <= bookmark_idx < len(self.bookmarks):
-                bookmark_path = Path(self.bookmarks[bookmark_idx]["path"])
-                self._navigate_to(bookmark_path)
+                # Check for Ctrl modifier (delete bookmark)
+                if event.ctrl:
+                    bookmark_name = self.bookmarks[bookmark_idx]["name"]
+                    del self.bookmarks[bookmark_idx]
+                    save_bookmarks(self.bookmarks)
+                    self.app.notify(f"Deleted bookmark: {bookmark_name}")
+                    self._rebuild_quick_access()
+                else:
+                    # Normal click - navigate to bookmark
+                    bookmark_path = Path(self.bookmarks[bookmark_idx]["path"])
+                    # Validate bookmark path still exists
+                    if bookmark_path.exists():
+                        self._navigate_to(bookmark_path)
+                    else:
+                        self.app.notify(
+                            f"Bookmark path no longer exists: {bookmark_path}\nTip: Delete this bookmark (Ctrl+Click) and create a new one",
+                            severity="warning",
+                            timeout=5
+                        )
 
         # Action buttons
         elif button_id == "refresh-drives-btn":
@@ -269,11 +318,30 @@ class FileSelectionScreen(Screen):
     def _navigate_to(self, path: Path) -> None:
         """Navigate the directory tree to a specific path."""
         if not path.exists():
-            self.app.notify(f"Path not found: {path}", severity="error")
+            self.app.notify(
+                f"Path not found: {path}\nTip: Drive may have been unmounted",
+                severity="error",
+                timeout=5
+            )
             return
 
         if not path.is_dir():
-            self.app.notify(f"Not a directory: {path}", severity="error")
+            self.app.notify(
+                f"Not a directory: {path}\nTip: Use 'Load Evidence' to load files",
+                severity="error",
+                timeout=5
+            )
+            return
+
+        try:
+            # Test if we can read the directory
+            list(path.iterdir())
+        except PermissionError:
+            self.app.notify(
+                f"Permission denied: {path}\nTip: Try running with sudo or check permissions",
+                severity="error",
+                timeout=5
+            )
             return
 
         # Update the tree
@@ -288,6 +356,9 @@ class FileSelectionScreen(Screen):
         # Update selected path
         self.selected_path = path
         self.current_tree_path = path
+
+        # Refresh to show selection
+        self.refresh()
 
     def _bookmark_current(self) -> None:
         """Bookmark the currently selected path."""
@@ -735,20 +806,20 @@ class DetectorPanel(Static):
 
     def on_mount(self) -> None:
         table = self.query_one("#detector-table", DataTable)
-        table.add_columns("Detector", "Status")
+        table.add_columns("Detector", "Status", "Progress")
         table.cursor_type = "none"
 
-        # Populate with sample detectors
+        # Populate with sample detectors showing progress
         detectors = [
-            ("NSRL filter", "[DONE]"),
-            ("Prefetch", "[DONE]"),
-            ("Memory", "[RUN]"),
-            ("YARA scan", "[RUN]"),
-            ("Timeline", "[WAIT]"),
-            ("Carving", "[WAIT]"),
+            ("NSRL filter", "[DONE]", "100%"),
+            ("Prefetch", "[DONE]", "100%"),
+            ("Memory", "[RUN]", "67%"),
+            ("YARA scan", "[RUN]", "45%"),
+            ("Timeline", "[WAIT]", "0%"),
+            ("Carving", "[WAIT]", "0%"),
         ]
-        for name, status in detectors:
-            table.add_row(name, status)
+        for name, status, progress in detectors:
+            table.add_row(name, status, progress)
 
 
 class FindingsPanel(Static):
@@ -760,25 +831,39 @@ class FindingsPanel(Static):
 
     def on_mount(self) -> None:
         table = self.query_one("#findings-table", DataTable)
-        table.add_columns("Sev", "Finding")
+        table.add_columns("Sev", "Finding", "Details")
         table.cursor_type = "row"
 
         # Load findings from demo JSON
         findings_path = Path("demo/findings_sample.json")
         if findings_path.exists():
-            findings = json.loads(findings_path.read_text())
-            for finding in findings:
-                severity = finding.get("severity", "medium").upper()[:4]
-                title = finding.get("title", "Unknown")[:50]
-                table.add_row(severity, title)
+            try:
+                findings = json.loads(findings_path.read_text())
+                for finding in findings:
+                    severity = finding.get("severity", "medium").upper()[:4]
+                    title = finding.get("title", "Unknown")
+                    # Truncate long titles
+                    if len(title) > 40:
+                        title = title[:37] + "..."
+                    details = finding.get("description", "")[:30]
+                    table.add_row(severity, title, details)
+            except (json.JSONDecodeError, KeyError) as e:
+                table.add_row("ERR", f"Failed to load findings: {e}", "")
         else:
             # Fallback to ransomware demo
             findings_path = Path("analysis/demo_ransomware.json")
             if findings_path.exists():
-                data = json.loads(findings_path.read_text())
-                for exe in data.get("detected_executables", []):
-                    severity = "CRIT" if "ransom" in exe else "HIGH"
-                    table.add_row(severity, f"{exe}: mass encryption")
+                try:
+                    data = json.loads(findings_path.read_text())
+                    for exe in data.get("detected_executables", []):
+                        severity = "CRIT" if "ransom" in exe else "HIGH"
+                        finding = exe[:40] + "..." if len(exe) > 40 else exe
+                        table.add_row(severity, finding, "Mass encryption")
+                except (json.JSONDecodeError, KeyError):
+                    table.add_row("INFO", "No findings loaded", "")
+            else:
+                # No data available
+                table.add_row("INFO", "No findings available", "Run analysis to generate findings")
 
 
 class SelfCorrectionPanel(Static):
@@ -806,6 +891,72 @@ class ReasoningPanel(Static):
             "  FN is more reliable. Reduced confidence.",
             id="reasoning-text",
         )
+
+
+class HelpScreen(Screen):
+    """Help screen showing keybindings and usage instructions."""
+
+    CSS = """
+    HelpScreen {
+        align: center middle;
+    }
+
+    #help-container {
+        width: 80%;
+        max-width: 100;
+        height: 80%;
+        border: solid $primary;
+        padding: 2;
+        background: $surface;
+    }
+
+    .help-title {
+        text-style: bold;
+        color: $accent;
+        text-align: center;
+        padding: 0 0 1 0;
+    }
+
+    .help-section {
+        text-style: bold;
+        color: $text;
+        padding: 1 0 0 0;
+    }
+
+    .help-item {
+        padding: 0 0 0 2;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=False)
+        with VerticalScroll(id="help-container"):
+            yield Label("SIFT FIND EVIL - HELP", classes="help-title")
+
+            yield Label("FILE SELECTION", classes="help-section")
+            yield Label("- Click detected drives to navigate instantly", classes="help-item")
+            yield Label("- Ctrl+Click bookmarks to delete them", classes="help-item")
+            yield Label("- Type path and press Enter for manual navigation", classes="help-item")
+            yield Label("- Click 'Bookmark Current' to save frequently used paths", classes="help-item")
+
+            yield Label("ANALYSIS SCREEN", classes="help-section")
+            yield Label("a - Approve selected finding", classes="help-item")
+            yield Label("r - Reject selected finding", classes="help-item")
+            yield Label("d - Drill down for more details", classes="help-item")
+            yield Label("e - Export findings to report", classes="help-item")
+            yield Label("b - Go back to previous screen", classes="help-item")
+
+            yield Label("GLOBAL KEYBINDINGS", classes="help-section")
+            yield Label("q - Quit application", classes="help-item")
+            yield Label("? - Show this help screen", classes="help-item")
+
+            yield Label("\nPress any key to close this help screen", classes="help-item")
+
+        yield Footer()
+
+    def on_key(self, event) -> None:
+        """Close help on any key press."""
+        self.app.pop_screen()
 
 
 class SIFTDemoApp(App):
@@ -866,11 +1017,16 @@ class SIFTDemoApp(App):
 
     BINDINGS = [
         ("q", "quit", "Quit"),
+        ("?", "help", "Help"),
     ]
 
     def on_mount(self) -> None:
         """Show file selection on startup."""
         self.push_screen(FileSelectionScreen())
+
+    def action_help(self) -> None:
+        """Show help screen."""
+        self.push_screen(HelpScreen())
 
 
 def main():
