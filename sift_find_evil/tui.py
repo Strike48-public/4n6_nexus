@@ -128,6 +128,10 @@ class FileSelectionScreen(Screen):
         padding: 1;
     }
 
+    #quick-access-container {
+        height: auto;
+    }
+
     .mount-button {
         width: 100%;
         height: 3;
@@ -206,11 +210,9 @@ class FileSelectionScreen(Screen):
             # Quick Access section
             yield Label("QUICK ACCESS", classes="section-header")
             yield Label("Click a drive to navigate, or use manual navigation below", classes="help-text")
-            with Container(classes="quick-access"):
-                yield Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button")
             # Container will be populated by on_mount() calling _rebuild_quick_access()
-            with Container(id="quick-access-container"):
-                pass
+            with Container(classes="quick-access", id="quick-access-container"):
+                yield Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button")
 
             # Current selection indicator
             if self.selected_path:
@@ -426,9 +428,10 @@ class FileSelectionScreen(Screen):
         self._mount_id_to_index.clear()
         self._bookmark_id_to_index.clear()
 
-        # Explicitly remove all widgets to avoid ID collisions
+        # Remove all widgets EXCEPT the refresh button
         for widget in list(container.query("*")):
-            widget.remove()
+            if widget.id != "refresh-drives-btn":
+                widget.remove()
 
         # Add mounts (refresh button is outside this container so it doesn't get rebuilt)
         if self.mounts:
