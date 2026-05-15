@@ -24,6 +24,57 @@ from textual.widgets import (
 )
 
 
+# Bookmarks file location
+BOOKMARKS_FILE = Path.home() / ".sift" / "bookmarks.json"
+
+
+def load_bookmarks() -> list[dict]:
+    """Load saved bookmarks from disk."""
+    if not BOOKMARKS_FILE.exists():
+        return []
+    try:
+        return json.loads(BOOKMARKS_FILE.read_text())
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_bookmarks(bookmarks: list[dict]) -> None:
+    """Save bookmarks to disk."""
+    BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    BOOKMARKS_FILE.write_text(json.dumps(bookmarks, indent=2))
+
+
+def detect_mounts() -> list[dict]:
+    """Auto-detect mounted drives in /media and /mnt."""
+    mounts = []
+
+    # Scan /media/*
+    media_path = Path("/media")
+    if media_path.exists():
+        for user_dir in media_path.iterdir():
+            if user_dir.is_dir():
+                for mount in user_dir.iterdir():
+                    if mount.is_dir():
+                        mounts.append({
+                            "name": f"{mount.name} ({user_dir.name})",
+                            "path": str(mount),
+                            "type": "media"
+                        })
+
+    # Scan /mnt/*
+    mnt_path = Path("/mnt")
+    if mnt_path.exists():
+        for mount in mnt_path.iterdir():
+            if mount.is_dir() and not mount.name.startswith('.'):
+                mounts.append({
+                    "name": mount.name,
+                    "path": str(mount),
+                    "type": "mnt"
+                })
+
+    return mounts
+
+
 class FileSelectionScreen(Screen):
     """File browser for selecting evidence files or synthetic scenarios."""
 
@@ -52,20 +103,40 @@ class FileSelectionScreen(Screen):
         margin: 1 0;
     }
 
-    .quick-nav {
-        layout: horizontal;
-        height: auto;
-        margin: 1 0;
+    .section-header {
+        text-style: bold;
+        color: $accent;
+        margin: 1 0 0 0;
     }
 
-    .quick-nav-button {
-        width: 1fr;
+    .quick-access {
+        height: auto;
+        margin: 0 0 1 0;
+        border: solid $primary-lighten-1;
+        padding: 1;
+    }
+
+    .mount-button {
+        width: 100%;
         height: 3;
-        margin: 0 1;
+        margin: 0 0 1 0;
+    }
+
+    .bookmark-button {
+        width: 100%;
+        height: 3;
+        margin: 0 0 1 0;
+        background: $success-darken-1;
+    }
+
+    .no-items {
+        color: $text-muted;
+        text-align: center;
+        padding: 1;
     }
 
     DirectoryTree {
-        height: 1fr;
+        height: 20;
         margin: 1 0;
     }
 
@@ -89,28 +160,44 @@ class FileSelectionScreen(Screen):
         super().__init__(**kwargs)
         self.selected_path: Path | None = None
         self.current_tree_path = Path.cwd()
+        self.bookmarks = load_bookmarks()
+        self.mounts = detect_mounts()
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
         with VerticalScroll(id="file-container"):
             yield Label("SIFT FIND EVIL - SELECT EVIDENCE", classes="screen-title")
-            yield Label("Navigate to evidence file or synthetic scenario directory:")
+
+            # Quick Access section
+            yield Label("QUICK ACCESS", classes="section-header")
+            with Container(classes="quick-access"):
+                # Detected mounts
+                if self.mounts:
+                    yield Label(f"Detected Drives ({len(self.mounts)}):")
+                    for mount in self.mounts:
+                        mount_label = f"{mount['name']}\n  {mount['path']}"
+                        yield Button(mount_label, id=f"mount_{mount['path']}", classes="mount-button")
+                else:
+                    yield Label("No drives detected in /media or /mnt", classes="no-items")
+
+                # Bookmarks
+                if self.bookmarks:
+                    yield Label(f"Bookmarks ({len(self.bookmarks)}):")
+                    for i, bookmark in enumerate(self.bookmarks):
+                        bm_label = f"{bookmark['name']}\n  {bookmark['path']}"
+                        yield Button(bm_label, id=f"bookmark_{i}", classes="bookmark-button")
+
+            # Manual navigation
+            yield Label("MANUAL NAVIGATION", classes="section-header")
             yield Input(
-                placeholder="Enter path or use tree below...",
+                placeholder="Enter path and press Enter...",
                 id="path-input"
             )
-
-            # Quick navigation buttons
-            with Horizontal(classes="quick-nav"):
-                yield Button("Home", id="nav-home", classes="quick-nav-button")
-                yield Button("/mnt", id="nav-mnt", classes="quick-nav-button")
-                yield Button("/media", id="nav-media", classes="quick-nav-button")
-                yield Button("Scenarios", id="nav-scenarios", classes="quick-nav-button")
-
             yield DirectoryTree(str(self.current_tree_path), id="evidence-tree")
 
             with Horizontal(classes="action-buttons"):
                 yield Button("Cancel", id="cancel-btn", classes="action-button cancel-button")
+                yield Button("Bookmark Current", id="bookmark-current-btn", classes="action-button")
                 yield Button("Load Evidence", id="load-btn", classes="action-button")
 
         yield Footer()
@@ -146,23 +233,26 @@ class FileSelectionScreen(Screen):
         """Handle button actions."""
         button_id = event.button.id
 
-        # Quick navigation buttons
-        if button_id == "nav-home":
-            self._navigate_to(Path.home())
-        elif button_id == "nav-mnt":
-            self._navigate_to(Path("/mnt"))
-        elif button_id == "nav-media":
-            self._navigate_to(Path("/media"))
-        elif button_id == "nav-scenarios":
-            scenarios_path = Path.cwd() / "scenarios" / "synthetic"
-            if scenarios_path.exists():
-                self._navigate_to(scenarios_path)
-            else:
-                self.app.notify("Scenarios directory not found", severity="warning")
+        if not button_id:
+            return
+
+        # Mount buttons
+        if button_id.startswith("mount_"):
+            mount_path = Path(button_id.replace("mount_", ""))
+            self._navigate_to(mount_path)
+
+        # Bookmark buttons
+        elif button_id.startswith("bookmark_"):
+            bookmark_idx = int(button_id.replace("bookmark_", ""))
+            if 0 <= bookmark_idx < len(self.bookmarks):
+                bookmark_path = Path(self.bookmarks[bookmark_idx]["path"])
+                self._navigate_to(bookmark_path)
 
         # Action buttons
         elif button_id == "load-btn":
             self._load_evidence()
+        elif button_id == "bookmark-current-btn":
+            self._bookmark_current()
         elif button_id == "cancel-btn":
             self.app.exit()
 
@@ -188,6 +278,36 @@ class FileSelectionScreen(Screen):
         # Update selected path
         self.selected_path = path
         self.current_tree_path = path
+
+    def _bookmark_current(self) -> None:
+        """Bookmark the currently selected path."""
+        if not self.selected_path:
+            self.app.notify("No path selected to bookmark", severity="warning")
+            return
+
+        # Check if already bookmarked
+        path_str = str(self.selected_path)
+        for bookmark in self.bookmarks:
+            if bookmark["path"] == path_str:
+                self.app.notify("Path already bookmarked", severity="warning")
+                return
+
+        # Prompt for bookmark name (use path name as default)
+        bookmark_name = self.selected_path.name or "Root"
+
+        # Add bookmark
+        self.bookmarks.append({
+            "name": bookmark_name,
+            "path": path_str
+        })
+
+        # Save to disk
+        save_bookmarks(self.bookmarks)
+
+        self.app.notify(f"Bookmarked: {bookmark_name}")
+
+        # Refresh the screen to show new bookmark
+        self.refresh()
 
     def _load_evidence(self) -> None:
         """Validate and load selected evidence."""
