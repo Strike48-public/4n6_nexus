@@ -245,6 +245,24 @@ class FileSelectionScreen(Screen):
         """Populate Quick Access after screen is mounted."""
         self._rebuild_quick_access()
 
+    def on_key(self, event) -> None:
+        """Handle keyboard shortcuts."""
+        # Delete bookmark when 'd' is pressed and a bookmark button has focus
+        if event.key == "d":
+            focused = self.app.focused
+            if focused and hasattr(focused, "id") and focused.id and focused.id.startswith("bookmark_"):
+                button_id = focused.id
+                if button_id in self._bookmark_id_to_index:
+                    bookmark_idx = self._bookmark_id_to_index[button_id]
+                    if 0 <= bookmark_idx < len(self.bookmarks):
+                        bookmark_name = self.bookmarks[bookmark_idx]["name"]
+                        del self.bookmarks[bookmark_idx]
+                        save_bookmarks(self.bookmarks)
+                        self.app.notify(f"Deleted bookmark: {bookmark_name}")
+                        self._rebuild_quick_access()
+                        event.prevent_default()
+                        event.stop()
+
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         """Handle file selection from tree."""
         self.selected_path = Path(event.path)
@@ -393,7 +411,7 @@ class FileSelectionScreen(Screen):
         # Save to disk
         save_bookmarks(self.bookmarks)
 
-        self.app.notify(f"Bookmarked: {bookmark_name}")
+        self.app.notify(f"Bookmarked: {bookmark_name} (focus & press 'd' to delete)", timeout=3)
 
         # Refresh the screen to show new bookmark
         self._rebuild_quick_access()
