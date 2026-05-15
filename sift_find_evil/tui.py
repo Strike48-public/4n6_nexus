@@ -143,21 +143,17 @@ class FileSelectionScreen(Screen):
 
     .mount-button {
         width: 100%;
-        height: 1;
+        height: 3;
         margin: 0 0 1 0;
-        min-height: 1;
-        text-align: left;
-        content-align: left middle;
+        min-height: 3;
     }
 
     .bookmark-button {
         width: 100%;
-        height: 1;
+        height: 3;
         margin: 0 0 1 0;
-        min-height: 1;
+        min-height: 3;
         background: $success-darken-1;
-        text-align: left;
-        content-align: left middle;
     }
 
     .no-items {
@@ -461,8 +457,8 @@ class FileSelectionScreen(Screen):
         # Populate left column - Mounts (no label header)
         if self.mounts:
             for i, mount in enumerate(self.mounts):
-                # Single-line label: just the name (path shows in notification on click)
-                mount_label = mount['name']
+                # Two-line label: name on first line, path on second
+                mount_label = f"{mount['name']}\n{mount['path']}"
                 mount_id = f"mount_{self._mount_id_counter}"
                 self._mount_id_counter += 1
                 self._mount_id_to_index[mount_id] = i
@@ -474,8 +470,8 @@ class FileSelectionScreen(Screen):
         # Populate right column - Bookmarks (no label header)
         if self.bookmarks:
             for i, bookmark in enumerate(self.bookmarks):
-                # Single-line label: just the name (path shows in notification on click)
-                bm_label = bookmark['name']
+                # Two-line label: name on first line, path on second
+                bm_label = f"{bookmark['name']}\n{bookmark['path']}"
                 bookmark_id = f"bookmark_{self._bookmark_id_counter}"
                 self._bookmark_id_counter += 1
                 self._bookmark_id_to_index[bookmark_id] = i
