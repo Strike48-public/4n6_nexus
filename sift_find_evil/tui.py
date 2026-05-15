@@ -52,6 +52,18 @@ class FileSelectionScreen(Screen):
         margin: 1 0;
     }
 
+    .quick-nav {
+        layout: horizontal;
+        height: auto;
+        margin: 1 0;
+    }
+
+    .quick-nav-button {
+        width: 1fr;
+        height: 3;
+        margin: 0 1;
+    }
+
     DirectoryTree {
         height: 1fr;
         margin: 1 0;
@@ -76,6 +88,7 @@ class FileSelectionScreen(Screen):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self.selected_path: Path | None = None
+        self.current_tree_path = Path.cwd()
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -86,7 +99,15 @@ class FileSelectionScreen(Screen):
                 placeholder="Enter path or use tree below...",
                 id="path-input"
             )
-            yield DirectoryTree(str(Path.cwd()), id="evidence-tree")
+
+            # Quick navigation buttons
+            with Horizontal(classes="quick-nav"):
+                yield Button("Home", id="nav-home", classes="quick-nav-button")
+                yield Button("/mnt", id="nav-mnt", classes="quick-nav-button")
+                yield Button("/media", id="nav-media", classes="quick-nav-button")
+                yield Button("Scenarios", id="nav-scenarios", classes="quick-nav-button")
+
+            yield DirectoryTree(str(self.current_tree_path), id="evidence-tree")
 
             with Horizontal(classes="action-buttons"):
                 yield Button("Cancel", id="cancel-btn", classes="action-button cancel-button")
@@ -109,15 +130,64 @@ class FileSelectionScreen(Screen):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle manual path entry."""
         if event.value:
-            self.selected_path = Path(event.value)
-            self._load_evidence()
+            path = Path(event.value).expanduser()
+            if path.exists():
+                if path.is_dir():
+                    # Navigate tree to this directory
+                    self._navigate_to(path)
+                else:
+                    # Select this file
+                    self.selected_path = path
+                    self._load_evidence()
+            else:
+                self.app.notify(f"Path not found: {path}", severity="error")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button actions."""
-        if event.button.id == "load-btn":
+        button_id = event.button.id
+
+        # Quick navigation buttons
+        if button_id == "nav-home":
+            self._navigate_to(Path.home())
+        elif button_id == "nav-mnt":
+            self._navigate_to(Path("/mnt"))
+        elif button_id == "nav-media":
+            self._navigate_to(Path("/media"))
+        elif button_id == "nav-scenarios":
+            scenarios_path = Path.cwd() / "scenarios" / "synthetic"
+            if scenarios_path.exists():
+                self._navigate_to(scenarios_path)
+            else:
+                self.app.notify("Scenarios directory not found", severity="warning")
+
+        # Action buttons
+        elif button_id == "load-btn":
             self._load_evidence()
-        elif event.button.id == "cancel-btn":
+        elif button_id == "cancel-btn":
             self.app.exit()
+
+    def _navigate_to(self, path: Path) -> None:
+        """Navigate the directory tree to a specific path."""
+        if not path.exists():
+            self.app.notify(f"Path not found: {path}", severity="error")
+            return
+
+        if not path.is_dir():
+            self.app.notify(f"Not a directory: {path}", severity="error")
+            return
+
+        # Update the tree
+        tree = self.query_one("#evidence-tree", DirectoryTree)
+        tree.path = str(path)
+        tree.reload()
+
+        # Update path input
+        path_input = self.query_one("#path-input", Input)
+        path_input.value = str(path)
+
+        # Update selected path
+        self.selected_path = path
+        self.current_tree_path = path
 
     def _load_evidence(self) -> None:
         """Validate and load selected evidence."""
