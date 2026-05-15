@@ -134,18 +134,25 @@ class FileSelectionScreen(Screen):
         height: auto;
     }
 
+    .quick-access-columns {
+        layout: grid;
+        grid-size: 2 1;
+        grid-gutter: 1;
+        height: auto;
+    }
+
     .mount-button {
         width: 100%;
-        height: 1;
-        margin: 0 0 0 0;
-        min-height: 1;
+        height: 3;
+        margin: 0 0 1 0;
+        min-height: 3;
     }
 
     .bookmark-button {
         width: 100%;
-        height: 1;
-        margin: 0 0 0 0;
-        min-height: 1;
+        height: 3;
+        margin: 0 0 1 0;
+        min-height: 3;
         background: $success-darken-1;
     }
 
@@ -426,6 +433,8 @@ class FileSelectionScreen(Screen):
 
     def _rebuild_quick_access(self) -> None:
         """Rebuild the Quick Access container with updated mounts and bookmarks."""
+        from textual.containers import Vertical, Horizontal
+
         container = self.query_one("#quick-access-container")
 
         # Clear the mapping dictionaries
@@ -437,33 +446,45 @@ class FileSelectionScreen(Screen):
             if widget.id != "refresh-drives-btn":
                 widget.remove()
 
-        # Add mounts (refresh button is outside this container so it doesn't get rebuilt)
+        # Create two-column layout container and mount it first
+        columns = Horizontal(classes="quick-access-columns")
+        container.mount(columns)
+
+        # Create and mount left column
+        left_col = Vertical()
+        columns.mount(left_col)
+
+        # Create and mount right column
+        right_col = Vertical()
+        columns.mount(right_col)
+
+        # Populate left column - Mounts
         if self.mounts:
-            container.mount(Label(f"Detected Drives ({len(self.mounts)}):"))
+            left_col.mount(Label(f"Detected Drives ({len(self.mounts)}):"))
             for i, mount in enumerate(self.mounts):
-                # Compact label: just name (path will show in notification on click)
-                mount_label = mount['name']
-                # Use unique ID with counter to avoid collisions during rebuild
+                # Two-line label: name on first line, path on second
+                mount_label = f"{mount['name']}\n{mount['path']}"
                 mount_id = f"mount_{self._mount_id_counter}"
                 self._mount_id_counter += 1
-                self._mount_id_to_index[mount_id] = i  # Store mapping
+                self._mount_id_to_index[mount_id] = i
                 button = Button(mount_label, id=mount_id, classes="mount-button")
-                container.mount(button)
+                left_col.mount(button)
         else:
-            container.mount(Label("No drives detected in /media or /mnt", classes="no-items"))
+            left_col.mount(Label("No drives detected in /media or /mnt", classes="no-items"))
 
-        # Add bookmarks
+        # Populate right column - Bookmarks
         if self.bookmarks:
-            container.mount(Label(f"Bookmarks ({len(self.bookmarks)}):"))
+            right_col.mount(Label(f"Bookmarks ({len(self.bookmarks)}):"))
             for i, bookmark in enumerate(self.bookmarks):
-                # Compact label: just name
-                bm_label = bookmark['name']
-                # Use unique ID with counter
+                # Two-line label: name on first line, path on second
+                bm_label = f"{bookmark['name']}\n{bookmark['path']}"
                 bookmark_id = f"bookmark_{self._bookmark_id_counter}"
                 self._bookmark_id_counter += 1
-                self._bookmark_id_to_index[bookmark_id] = i  # Store mapping
+                self._bookmark_id_to_index[bookmark_id] = i
                 button = Button(bm_label, id=bookmark_id, classes="bookmark-button")
-                container.mount(button)
+                right_col.mount(button)
+        else:
+            right_col.mount(Label("(No bookmarks)", classes="no-items"))
 
     def _load_evidence(self) -> None:
         """Validate and load selected evidence."""
