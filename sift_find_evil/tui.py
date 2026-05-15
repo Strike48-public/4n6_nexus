@@ -123,7 +123,7 @@ class FileSelectionScreen(Screen):
 
     .quick-access {
         height: auto;
-        max-height: 30;
+        max-height: 20;
         overflow-y: auto;
         margin: 0 0 1 0;
         border: solid $primary-lighten-1;
@@ -143,16 +143,16 @@ class FileSelectionScreen(Screen):
 
     .mount-button {
         width: 100%;
-        height: 3;
-        margin: 0 0 1 0;
-        min-height: 3;
+        height: 2;
+        margin: 0;
+        min-height: 2;
     }
 
     .bookmark-button {
         width: 100%;
-        height: 3;
-        margin: 0 0 1 0;
-        min-height: 3;
+        height: 2;
+        margin: 0;
+        min-height: 2;
         background: $success-darken-1;
     }
 
@@ -176,7 +176,7 @@ class FileSelectionScreen(Screen):
     }
 
     DirectoryTree {
-        height: 12;
+        height: 8;
         margin: 1 0;
     }
 
@@ -218,9 +218,7 @@ class FileSelectionScreen(Screen):
         with VerticalScroll(id="file-container"):
             yield Label("SIFT FIND EVIL - SELECT EVIDENCE", classes="screen-title")
 
-            # Quick Access section
-            yield Label("QUICK ACCESS", classes="section-header")
-            yield Label("Click a drive to navigate, or use manual navigation below", classes="help-text")
+            # Quick Access section (no header, more compact)
             # Container will be populated by on_mount() calling _rebuild_quick_access()
             with Container(classes="quick-access", id="quick-access-container"):
                 yield Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button")
@@ -229,9 +227,7 @@ class FileSelectionScreen(Screen):
             if self.selected_path:
                 yield Label(f"Selected: {self.selected_path}", classes="current-selection")
 
-            # Manual navigation
-            yield Label("MANUAL NAVIGATION", classes="section-header")
-            yield Label("Type path or browse tree, then click 'Load Evidence'", classes="help-text")
+            # Manual navigation (no header, more compact)
             yield Input(
                 placeholder="Enter path and press Enter...",
                 id="path-input"
@@ -458,9 +454,8 @@ class FileSelectionScreen(Screen):
         right_col = Vertical()
         columns.mount(right_col)
 
-        # Populate left column - Mounts
+        # Populate left column - Mounts (no label header)
         if self.mounts:
-            left_col.mount(Label(f"Detected Drives ({len(self.mounts)}):"))
             for i, mount in enumerate(self.mounts):
                 # Two-line label: name on first line, path on second
                 mount_label = f"{mount['name']}\n{mount['path']}"
@@ -470,11 +465,10 @@ class FileSelectionScreen(Screen):
                 button = Button(mount_label, id=mount_id, classes="mount-button")
                 left_col.mount(button)
         else:
-            left_col.mount(Label("No drives detected in /media or /mnt", classes="no-items"))
+            left_col.mount(Label("No drives", classes="no-items"))
 
-        # Populate right column - Bookmarks
+        # Populate right column - Bookmarks (no label header)
         if self.bookmarks:
-            right_col.mount(Label(f"Bookmarks ({len(self.bookmarks)}):"))
             for i, bookmark in enumerate(self.bookmarks):
                 # Two-line label: name on first line, path on second
                 bm_label = f"{bookmark['name']}\n{bookmark['path']}"
@@ -484,7 +478,7 @@ class FileSelectionScreen(Screen):
                 button = Button(bm_label, id=bookmark_id, classes="bookmark-button")
                 right_col.mount(button)
         else:
-            right_col.mount(Label("(No bookmarks)", classes="no-items"))
+            right_col.mount(Label("No bookmarks", classes="no-items"))
 
     def _load_evidence(self) -> None:
         """Validate and load selected evidence."""
