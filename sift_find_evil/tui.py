@@ -154,6 +154,12 @@ class FileSelectionScreen(Screen):
     .cancel-button {
         background: $error;
     }
+
+    .refresh-button {
+        width: 100%;
+        margin: 0 0 1 0;
+        background: $accent;
+    }
     """
 
     def __init__(self, **kwargs: Any):
@@ -170,7 +176,9 @@ class FileSelectionScreen(Screen):
 
             # Quick Access section
             yield Label("QUICK ACCESS", classes="section-header")
-            with Container(classes="quick-access"):
+            with Container(classes="quick-access", id="quick-access-container"):
+                yield Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button")
+
                 # Detected mounts
                 if self.mounts:
                     yield Label(f"Detected Drives ({len(self.mounts)}):")
@@ -249,6 +257,8 @@ class FileSelectionScreen(Screen):
                 self._navigate_to(bookmark_path)
 
         # Action buttons
+        elif button_id == "refresh-drives-btn":
+            self._refresh_drives()
         elif button_id == "load-btn":
             self._load_evidence()
         elif button_id == "bookmark-current-btn":
@@ -307,7 +317,54 @@ class FileSelectionScreen(Screen):
         self.app.notify(f"Bookmarked: {bookmark_name}")
 
         # Refresh the screen to show new bookmark
-        self.refresh()
+        self._rebuild_quick_access()
+
+    def _refresh_drives(self) -> None:
+        """Re-scan for mounted drives and rebuild Quick Access section."""
+        # Re-detect mounts
+        old_count = len(self.mounts)
+        self.mounts = detect_mounts()
+        new_count = len(self.mounts)
+
+        # Reload bookmarks in case they changed
+        self.bookmarks = load_bookmarks()
+
+        # Rebuild the Quick Access section
+        self._rebuild_quick_access()
+
+        # Notify user
+        if new_count > old_count:
+            self.app.notify(f"Found {new_count - old_count} new drive(s)")
+        elif new_count < old_count:
+            self.app.notify(f"{old_count - new_count} drive(s) unmounted")
+        else:
+            self.app.notify(f"Refreshed: {new_count} drive(s) detected")
+
+    def _rebuild_quick_access(self) -> None:
+        """Rebuild the Quick Access container with updated mounts and bookmarks."""
+        container = self.query_one("#quick-access-container")
+
+        # Remove all children
+        container.remove_children()
+
+        # Add refresh button
+        container.mount(Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button"))
+
+        # Add mounts
+        if self.mounts:
+            container.mount(Label(f"Detected Drives ({len(self.mounts)}):"))
+            for mount in self.mounts:
+                mount_label = f"{mount['name']}\n  {mount['path']}"
+                container.mount(Button(mount_label, id=f"mount_{mount['path']}", classes="mount-button"))
+        else:
+            container.mount(Label("No drives detected in /media or /mnt", classes="no-items"))
+
+        # Add bookmarks
+        if self.bookmarks:
+            container.mount(Label(f"Bookmarks ({len(self.bookmarks)}):"))
+            for i, bookmark in enumerate(self.bookmarks):
+                bm_label = f"{bookmark['name']}\n  {bookmark['path']}"
+                container.mount(Button(bm_label, id=f"bookmark_{i}", classes="bookmark-button"))
 
     def _load_evidence(self) -> None:
         """Validate and load selected evidence."""
