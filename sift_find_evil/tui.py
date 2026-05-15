@@ -108,21 +108,23 @@ class FileSelectionScreen(Screen):
         text-style: bold;
         color: $accent;
         text-align: center;
-        padding: 0 0 1 0;
+        padding: 0;
     }
 
     #path-input {
-        margin: 1 0;
+        margin: 0;
     }
 
     .section-header {
         text-style: bold;
         color: $accent;
-        margin: 1 0 0 0;
+        margin: 0;
     }
 
     .quick-access {
         height: auto;
+        max-height: 30;
+        overflow-y: auto;
         margin: 0 0 1 0;
         border: solid $primary-lighten-1;
         padding: 1;
@@ -134,14 +136,16 @@ class FileSelectionScreen(Screen):
 
     .mount-button {
         width: 100%;
-        height: 3;
-        margin: 0 0 1 0;
+        height: 1;
+        margin: 0 0 0 0;
+        min-height: 1;
     }
 
     .bookmark-button {
         width: 100%;
-        height: 3;
-        margin: 0 0 1 0;
+        height: 1;
+        margin: 0 0 0 0;
+        min-height: 1;
         background: $success-darken-1;
     }
 
@@ -154,7 +158,7 @@ class FileSelectionScreen(Screen):
     .help-text {
         color: $text-muted;
         text-style: italic;
-        padding: 0 0 1 0;
+        padding: 0;
     }
 
     .current-selection {
@@ -165,7 +169,7 @@ class FileSelectionScreen(Screen):
     }
 
     DirectoryTree {
-        height: 20;
+        height: 12;
         margin: 1 0;
     }
 
@@ -437,7 +441,8 @@ class FileSelectionScreen(Screen):
         if self.mounts:
             container.mount(Label(f"Detected Drives ({len(self.mounts)}):"))
             for i, mount in enumerate(self.mounts):
-                mount_label = f"{mount['name']}\n  {mount['path']}"
+                # Compact label: just name (path will show in notification on click)
+                mount_label = mount['name']
                 # Use unique ID with counter to avoid collisions during rebuild
                 mount_id = f"mount_{self._mount_id_counter}"
                 self._mount_id_counter += 1
@@ -451,7 +456,8 @@ class FileSelectionScreen(Screen):
         if self.bookmarks:
             container.mount(Label(f"Bookmarks ({len(self.bookmarks)}):"))
             for i, bookmark in enumerate(self.bookmarks):
-                bm_label = f"{bookmark['name']}\n  {bookmark['path']}"
+                # Compact label: just name
+                bm_label = bookmark['name']
                 # Use unique ID with counter
                 bookmark_id = f"bookmark_{self._bookmark_id_counter}"
                 self._bookmark_id_counter += 1
