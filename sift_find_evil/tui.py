@@ -127,7 +127,7 @@ class FileSelectionScreen(Screen):
         overflow-y: auto;
         margin: 0 0 1 0;
         border: solid $primary-lighten-1;
-        padding: 1;
+        padding: 0 1;
     }
 
     #quick-access-container {
@@ -136,22 +136,22 @@ class FileSelectionScreen(Screen):
 
     .quick-access-columns {
         layout: grid;
-        grid-size: 2 1;
-        grid-gutter: 1;
+        grid-size: 4 1;
+        grid-gutter: 0 1;
         height: auto;
     }
 
     .mount-button {
         width: 100%;
         height: 3;
-        margin: 0 0 1 0;
+        margin: 0;
         min-height: 3;
     }
 
     .bookmark-button {
         width: 100%;
         height: 3;
-        margin: 0 0 1 0;
+        margin: 0;
         min-height: 3;
         background: $success-darken-1;
     }
@@ -442,43 +442,43 @@ class FileSelectionScreen(Screen):
             if widget.id != "refresh-drives-btn":
                 widget.remove()
 
-        # Create two-column layout container and mount it first
+        # Create multi-column layout container
         columns = Horizontal(classes="quick-access-columns")
         container.mount(columns)
 
-        # Create and mount left column
-        left_col = Vertical()
-        columns.mount(left_col)
+        # Determine number of columns needed (3 for mounts, +1 for bookmarks if they exist)
+        num_cols = 3 if not self.bookmarks else 4
 
-        # Create and mount right column
-        right_col = Vertical()
-        columns.mount(right_col)
+        # Create columns
+        cols = []
+        for _ in range(num_cols):
+            col = Vertical()
+            columns.mount(col)
+            cols.append(col)
 
-        # Populate left column - Mounts (no label header)
+        # Populate mount columns (distribute across first 3 columns)
         if self.mounts:
             for i, mount in enumerate(self.mounts):
-                # Two-line label: name on first line, path on second
+                col_idx = i % 3  # Distribute across first 3 columns
                 mount_label = f"{mount['name']}\n{mount['path']}"
                 mount_id = f"mount_{self._mount_id_counter}"
                 self._mount_id_counter += 1
                 self._mount_id_to_index[mount_id] = i
                 button = Button(mount_label, id=mount_id, classes="mount-button")
-                left_col.mount(button)
+                cols[col_idx].mount(button)
         else:
-            left_col.mount(Label("No drives", classes="no-items"))
+            cols[0].mount(Label("No drives", classes="no-items"))
 
-        # Populate right column - Bookmarks (no label header)
+        # Populate bookmark column (rightmost column, only if bookmarks exist)
         if self.bookmarks:
+            bookmark_col = cols[-1]  # Last column
             for i, bookmark in enumerate(self.bookmarks):
-                # Two-line label: name on first line, path on second
                 bm_label = f"{bookmark['name']}\n{bookmark['path']}"
                 bookmark_id = f"bookmark_{self._bookmark_id_counter}"
                 self._bookmark_id_counter += 1
                 self._bookmark_id_to_index[bookmark_id] = i
                 button = Button(bm_label, id=bookmark_id, classes="bookmark-button")
-                right_col.mount(button)
-        else:
-            right_col.mount(Label("No bookmarks", classes="no-items"))
+                bookmark_col.mount(button)
 
     def _load_evidence(self) -> None:
         """Validate and load selected evidence."""
