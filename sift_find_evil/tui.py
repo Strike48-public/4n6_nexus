@@ -299,25 +299,17 @@ class FileSelectionScreen(Screen):
             if button_id in self._bookmark_id_to_index:
                 bookmark_idx = self._bookmark_id_to_index[button_id]
                 if 0 <= bookmark_idx < len(self.bookmarks):
-                    # Check for Ctrl modifier (delete bookmark)
-                    if event.ctrl:
-                        bookmark_name = self.bookmarks[bookmark_idx]["name"]
-                        del self.bookmarks[bookmark_idx]
-                        save_bookmarks(self.bookmarks)
-                        self.app.notify(f"Deleted bookmark: {bookmark_name}")
-                        self._rebuild_quick_access()
+                    # Navigate to bookmark
+                    bookmark_path = Path(self.bookmarks[bookmark_idx]["path"])
+                    # Validate bookmark path still exists
+                    if bookmark_path.exists():
+                        self._navigate_to(bookmark_path)
                     else:
-                        # Normal click - navigate to bookmark
-                        bookmark_path = Path(self.bookmarks[bookmark_idx]["path"])
-                        # Validate bookmark path still exists
-                        if bookmark_path.exists():
-                            self._navigate_to(bookmark_path)
-                        else:
-                            self.app.notify(
-                                f"Bookmark path no longer exists: {bookmark_path}\nTip: Delete this bookmark (Ctrl+Click) and create a new one",
-                                severity="warning",
-                                timeout=5
-                            )
+                        self.app.notify(
+                            f"Bookmark path no longer exists: {bookmark_path}",
+                            severity="warning",
+                            timeout=5
+                        )
             else:
                 self.app.notify(f"Button {button_id} not found in bookmark mapping", severity="error")
 
