@@ -149,7 +149,7 @@ class FileSelectionScreen(Screen):
 
     .help-text {
         color: $text-muted;
-        font-style: italic;
+        text-style: italic;
         padding: 0 0 1 0;
     }
 
@@ -208,9 +208,10 @@ class FileSelectionScreen(Screen):
                 # Detected mounts
                 if self.mounts:
                     yield Label(f"Detected Drives ({len(self.mounts)}):")
-                    for mount in self.mounts:
+                    for i, mount in enumerate(self.mounts):
                         mount_label = f"{mount['name']}\n  {mount['path']}"
-                        yield Button(mount_label, id=f"mount_{mount['path']}", classes="mount-button")
+                        # Use index instead of path for button ID (paths contain slashes)
+                        yield Button(mount_label, id=f"mount_{i}", classes="mount-button")
                 else:
                     yield Label("No drives detected", classes="no-items")
                     yield Label("Try: Plug in USB drive and click 'Refresh Drives'", classes="help-text")
@@ -278,8 +279,10 @@ class FileSelectionScreen(Screen):
 
         # Mount buttons
         if button_id.startswith("mount_"):
-            mount_path = Path(button_id.replace("mount_", ""))
-            self._navigate_to(mount_path)
+            mount_idx = int(button_id.replace("mount_", ""))
+            if 0 <= mount_idx < len(self.mounts):
+                mount_path = Path(self.mounts[mount_idx]["path"])
+                self._navigate_to(mount_path)
 
         # Bookmark buttons
         elif button_id.startswith("bookmark_"):
@@ -424,9 +427,10 @@ class FileSelectionScreen(Screen):
         # Add mounts
         if self.mounts:
             container.mount(Label(f"Detected Drives ({len(self.mounts)}):"))
-            for mount in self.mounts:
+            for i, mount in enumerate(self.mounts):
                 mount_label = f"{mount['name']}\n  {mount['path']}"
-                container.mount(Button(mount_label, id=f"mount_{mount['path']}", classes="mount-button"))
+                # Use index instead of path for button ID (paths contain slashes)
+                container.mount(Button(mount_label, id=f"mount_{i}", classes="mount-button"))
         else:
             container.mount(Label("No drives detected in /media or /mnt", classes="no-items"))
 
