@@ -207,9 +207,23 @@ class AnalysisRunner:
             # Look for prefetch CSV files
             prefetch_files = list(self.evidence_path.rglob("prefetch.csv"))
             if not prefetch_files:
-                self.progress_tracker.log_activity(
-                    "Skipping prefetch analysis: no prefetch.csv found"
-                )
+                # Check if this is a raw Windows filesystem
+                windows_indicators = [
+                    self.evidence_path / "Windows",
+                    self.evidence_path / "Program Files",
+                    self.evidence_path / "Users",
+                ]
+                if any(p.exists() for p in windows_indicators):
+                    self.progress_tracker.log_activity(
+                        "⚠ Real Windows filesystem detected - CSV artifacts not found"
+                    )
+                    self.progress_tracker.log_activity(
+                        "TIP: Use PECmd to parse prefetch files first"
+                    )
+                else:
+                    self.progress_tracker.log_activity(
+                        "Skipping prefetch analysis: no prefetch.csv found"
+                    )
                 return
 
             from .parsers.prefetch_parser import PrefetchParser
@@ -413,6 +427,26 @@ class AnalysisRunner:
 
             # Collect all files to scan (avoiding duplicates from overlapping patterns)
             files = [f for f in self.evidence_path.rglob("*") if f.is_file()]
+
+            # Check if this is a real Windows filesystem (would take too long to scan)
+            windows_indicators = [
+                self.evidence_path / "Windows",
+                self.evidence_path / "Program Files",
+                self.evidence_path / "Users",
+            ]
+            is_windows_fs = any(p.exists() for p in windows_indicators)
+
+            if is_windows_fs:
+                self.progress_tracker.log_activity(
+                    f"⚠ Real Windows filesystem detected ({len(files)} files)"
+                )
+                self.progress_tracker.log_activity(
+                    "YARA scan would take hours - skipping for demo"
+                )
+                self.progress_tracker.log_activity(
+                    "TIP: Use synthetic scenarios in scenarios/synthetic/ for demos"
+                )
+                return
 
             self.progress_tracker.start_phase("yara", items_total=len(files))
 
