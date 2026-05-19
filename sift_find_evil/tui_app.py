@@ -7,7 +7,7 @@ and forensic analysis workflows for hackathon demo.
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
@@ -23,10 +23,16 @@ from textual.widgets import (
     Static,
 )
 
-from .progress_tracker import ProgressTracker, FindingSeverity, PhaseStatus, Finding, Contradiction
+from .progress_tracker import (
+    ProgressTracker,
+    FindingSeverity,
+    PhaseStatus,
+    Contradiction,
+)
 from .resource_monitor import ResourceMonitor
 from .analysis_runner import AnalysisRunner
 from .tui import CommandPalette, TEXTUAL_CSS
+from .e01_mounter import E01Mounter, E01Image, MountedImage
 
 
 # Bookmarks file location
@@ -62,11 +68,13 @@ def detect_mounts() -> list[dict]:
                     try:
                         for mount in user_dir.iterdir():
                             if mount.is_dir():
-                                mounts.append({
-                                    "name": f"{mount.name} ({user_dir.name})",
-                                    "path": str(mount),
-                                    "type": "media"
-                                })
+                                mounts.append(
+                                    {
+                                        "name": f"{mount.name} ({user_dir.name})",
+                                        "path": str(mount),
+                                        "type": "media",
+                                    }
+                                )
                     except PermissionError:
                         # Skip directories we can't read
                         continue
@@ -79,23 +87,23 @@ def detect_mounts() -> list[dict]:
     if mnt_path.exists():
         try:
             for mount in mnt_path.iterdir():
-                if mount.is_dir() and not mount.name.startswith('.'):
-                    mounts.append({
-                        "name": mount.name,
-                        "path": str(mount),
-                        "type": "mnt"
-                    })
+                if mount.is_dir() and not mount.name.startswith("."):
+                    mounts.append(
+                        {"name": mount.name, "path": str(mount), "type": "mnt"}
+                    )
         except PermissionError:
             # Can't read /mnt
             pass
 
-    return sorted(mounts, key=lambda m: m['name'].lower())
+    return sorted(mounts, key=lambda m: m["name"].lower())
 
 
 class FileSelectionScreen(Screen):
     """File browser for selecting evidence files or synthetic scenarios."""
 
-    CSS = TEXTUAL_CSS + """
+    CSS = (
+        TEXTUAL_CSS
+        + """
     FileSelectionScreen {
         align: center middle;
     }
@@ -213,6 +221,7 @@ class FileSelectionScreen(Screen):
         background: $accent;
     }
     """
+    )
 
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
@@ -223,7 +232,9 @@ class FileSelectionScreen(Screen):
         self._mount_id_counter = 0  # Counter for unique mount button IDs
         self._bookmark_id_counter = 0  # Counter for unique bookmark button IDs
         self._mount_id_to_index: dict[str, int] = {}  # Map button ID to mount index
-        self._bookmark_id_to_index: dict[str, int] = {}  # Map button ID to bookmark index
+        self._bookmark_id_to_index: dict[
+            str, int
+        ] = {}  # Map button ID to bookmark index
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -233,22 +244,29 @@ class FileSelectionScreen(Screen):
             # Quick Access section (no header, more compact)
             # Container will be populated by on_mount() calling _rebuild_quick_access()
             with Container(classes="quick-access", id="quick-access-container"):
-                yield Button("Refresh Drives", id="refresh-drives-btn", classes="refresh-button")
+                yield Button(
+                    "Refresh Drives", id="refresh-drives-btn", classes="refresh-button"
+                )
 
             # Current selection indicator
             if self.selected_path:
-                yield Label(f"Selected: {self.selected_path}", classes="current-selection")
+                yield Label(
+                    f"Selected: {self.selected_path}", classes="current-selection"
+                )
 
             # Manual navigation (no header, more compact)
-            yield Input(
-                placeholder="Enter path and press Enter...",
-                id="path-input"
-            )
+            yield Input(placeholder="Enter path and press Enter...", id="path-input")
             yield DirectoryTree(str(self.current_tree_path), id="evidence-tree")
 
             with Horizontal(classes="action-buttons"):
-                yield Button("Cancel", id="cancel-btn", classes="action-button cancel-button")
-                yield Button("Bookmark Current", id="bookmark-current-btn", classes="action-button")
+                yield Button(
+                    "Cancel", id="cancel-btn", classes="action-button cancel-button"
+                )
+                yield Button(
+                    "Bookmark Current",
+                    id="bookmark-current-btn",
+                    classes="action-button",
+                )
                 yield Button("Load Evidence", id="load-btn", classes="action-button")
 
         yield Footer()
@@ -269,7 +287,12 @@ class FileSelectionScreen(Screen):
         # Delete bookmark when 'd' is pressed and a bookmark button has focus
         if event.key == "d":
             focused = self.app.focused
-            if focused and hasattr(focused, "id") and focused.id and focused.id.startswith("bookmark_"):
+            if (
+                focused
+                and hasattr(focused, "id")
+                and focused.id
+                and focused.id.startswith("bookmark_")
+            ):
                 button_id = focused.id
                 if button_id in self._bookmark_id_to_index:
                     bookmark_idx = self._bookmark_id_to_index[button_id]
@@ -284,6 +307,7 @@ class FileSelectionScreen(Screen):
 
     def _show_command_palette(self) -> None:
         """Show command palette modal."""
+
         def handle_command(command):
             if command:
                 self._execute_command(command.id)
@@ -322,14 +346,18 @@ class FileSelectionScreen(Screen):
         else:
             self.app.notify(f"Unknown command: {command_id}", severity="error")
 
-    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
+    def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ) -> None:
         """Handle file selection from tree."""
         self.selected_path = Path(event.path)
         path_input = self.query_one("#path-input", Input)
         path_input.value = str(self.selected_path)
         self._update_bookmark_button()
 
-    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
+    def on_directory_tree_directory_selected(
+        self, event: DirectoryTree.DirectorySelected
+    ) -> None:
         """Handle directory selection from tree."""
         self.selected_path = Path(event.path)
         path_input = self.query_one("#path-input", Input)
@@ -368,9 +396,14 @@ class FileSelectionScreen(Screen):
                     self.app.notify(f"Navigating to: {mount_path}")
                     self._navigate_to(mount_path)
                 else:
-                    self.app.notify(f"Invalid mount index: {mount_idx} (have {len(self.mounts)} mounts)", severity="error")
+                    self.app.notify(
+                        f"Invalid mount index: {mount_idx} (have {len(self.mounts)} mounts)",
+                        severity="error",
+                    )
             else:
-                self.app.notify(f"Button {button_id} not found in mount mapping", severity="error")
+                self.app.notify(
+                    f"Button {button_id} not found in mount mapping", severity="error"
+                )
 
         # Bookmark buttons
         elif button_id.startswith("bookmark_"):
@@ -387,10 +420,13 @@ class FileSelectionScreen(Screen):
                         self.app.notify(
                             f"Bookmark path no longer exists: {bookmark_path}",
                             severity="warning",
-                            timeout=5
+                            timeout=5,
                         )
             else:
-                self.app.notify(f"Button {button_id} not found in bookmark mapping", severity="error")
+                self.app.notify(
+                    f"Button {button_id} not found in bookmark mapping",
+                    severity="error",
+                )
 
         # Action buttons
         elif button_id == "refresh-drives-btn":
@@ -408,7 +444,7 @@ class FileSelectionScreen(Screen):
             self.app.notify(
                 f"Path not found: {path}\nTip: Drive may have been unmounted",
                 severity="error",
-                timeout=5
+                timeout=5,
             )
             return
 
@@ -416,7 +452,7 @@ class FileSelectionScreen(Screen):
             self.app.notify(
                 f"Not a directory: {path}\nTip: Use 'Load Evidence' to load files",
                 severity="error",
-                timeout=5
+                timeout=5,
             )
             return
 
@@ -427,7 +463,7 @@ class FileSelectionScreen(Screen):
             self.app.notify(
                 f"Permission denied: {path}\nTip: Try running with sudo or check permissions",
                 severity="error",
-                timeout=5
+                timeout=5,
             )
             return
 
@@ -503,10 +539,7 @@ class FileSelectionScreen(Screen):
         # Not bookmarked - add it
         bookmark_name = self.selected_path.name or "Root"
 
-        self.bookmarks.append({
-            "name": bookmark_name,
-            "path": path_str
-        })
+        self.bookmarks.append({"name": bookmark_name, "path": path_str})
 
         # Save to disk
         save_bookmarks(self.bookmarks)
@@ -606,19 +639,218 @@ class FileSelectionScreen(Screen):
             # Evidence file (.E01, .dd, etc.)
             case_name = self.selected_path.stem
             evidence_type = "image"
+            evidence_path = self.selected_path
         else:
-            # Directory (synthetic scenario or mounted image)
+            # Directory - check for E01 images
             case_name = self.selected_path.name
             evidence_type = "directory"
+            evidence_path = self.selected_path
 
-        # Show loading notification
+            # Detect E01 images in directory
+            e01_images = E01Mounter.detect_e01_images(self.selected_path)
+            if e01_images:
+                # Show E01 mounting screen
+                self.app.push_screen(
+                    E01MountScreen(
+                        case_name=case_name,
+                        evidence_path=self.selected_path,
+                        e01_images=e01_images,
+                    )
+                )
+                return
+
+        # No E01 images, proceed to analysis config
         self.app.notify(f"Loading: {case_name}")
+        self.app.push_screen(
+            AnalysisConfigScreen(
+                case_name=case_name,
+                evidence_path=evidence_path,
+                evidence_type=evidence_type,
+            )
+        )
 
-        self.app.push_screen(AnalysisConfigScreen(
-            case_name=case_name,
-            evidence_path=self.selected_path,
-            evidence_type=evidence_type
-        ))
+
+class E01MountScreen(Screen):
+    """Screen for detecting and mounting E01 forensic images."""
+
+    CSS = (
+        TEXTUAL_CSS
+        + """
+    E01MountScreen {
+        align: center middle;
+    }
+
+    #mount-container {
+        width: 90%;
+        max-width: 120;
+        height: 90%;
+        border: solid $primary;
+        padding: 1 2;
+        background: $surface;
+    }
+
+    .screen-title {
+        text-style: bold;
+        color: $accent;
+        text-align: center;
+        padding: 0 0 1 0;
+    }
+
+    .section-title {
+        text-style: bold;
+        color: $text;
+        padding: 0;
+        margin-top: 1;
+    }
+
+    .e01-button {
+        width: 100%;
+        margin: 0 0 1 0;
+        height: 5;
+    }
+
+    .disk-button {
+        background: $success;
+    }
+
+    .memory-button {
+        background: $warning;
+    }
+
+    .action-buttons {
+        layout: horizontal;
+        height: auto;
+        margin-top: 2;
+    }
+
+    .action-button {
+        width: 1fr;
+        margin: 0 1;
+    }
+
+    .skip-button {
+        background: $warning;
+    }
+    """
+    )
+
+    def __init__(
+        self,
+        case_name: str,
+        evidence_path: Path,
+        e01_images: list[E01Image],
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.case_name = case_name
+        self.evidence_path = evidence_path
+        self.e01_images = e01_images
+        self.selected_image: E01Image | None = None
+        self.mounted_image: MountedImage | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=False)
+        with VerticalScroll(id="mount-container"):
+            yield Label("E01 FORENSIC IMAGES DETECTED", classes="screen-title")
+            yield Label(f"Case: {self.case_name}")
+            yield Label(f"Path: {self.evidence_path}")
+
+            yield Label(
+                f"\nFound {len(self.e01_images)} E01 image(s):", classes="section-title"
+            )
+
+            # Show E01 images as buttons
+            for img in self.e01_images:
+                button_class = (
+                    "disk-button" if img.image_type == "disk" else "memory-button"
+                )
+                button_label = (
+                    f"{img.name}\n{img.size_gb:.2f} GB ({img.image_type.upper()})"
+                )
+                yield Button(
+                    button_label,
+                    id=f"mount_{img.name}",
+                    classes=f"e01-button {button_class}",
+                )
+
+            with Horizontal(classes="action-buttons"):
+                yield Button(
+                    "Skip (Use Raw Files)",
+                    id="skip-btn",
+                    classes="action-button skip-button",
+                )
+                yield Button("Back", id="back-btn", classes="action-button")
+
+        yield Footer()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button actions."""
+        button_id = event.button.id
+
+        if not button_id:
+            return
+
+        if button_id.startswith("mount_"):
+            # Extract image name
+            img_name = button_id.replace("mount_", "")
+            # Find the image
+            for img in self.e01_images:
+                if img.name == img_name:
+                    self._mount_image(img)
+                    break
+
+        elif button_id == "skip-btn":
+            # Skip mounting, go directly to analysis with raw path
+            self.app.push_screen(
+                AnalysisConfigScreen(
+                    case_name=self.case_name,
+                    evidence_path=self.evidence_path,
+                    evidence_type="directory",
+                )
+            )
+
+        elif button_id == "back-btn":
+            self.app.pop_screen()
+
+    def _mount_image(self, image: E01Image) -> None:
+        """Mount an E01 image and proceed to analysis."""
+        self.app.notify(
+            f"Mounting {image.name}... (this may take a moment)", timeout=10
+        )
+
+        # Mount the image
+        success, message, mounted = E01Mounter.mount_e01(image)
+
+        if success and mounted:
+            self.app.notify(f"✓ {message}", severity="information", timeout=5)
+            self.mounted_image = mounted
+
+            # Determine evidence path
+            if mounted.fs_mount_point:
+                # Filesystem mounted successfully
+                evidence_path = mounted.fs_mount_point
+                evidence_type = "directory"
+            elif mounted.raw_device:
+                # Only raw device available
+                evidence_path = mounted.raw_device
+                evidence_type = "image"
+            else:
+                self.app.notify(
+                    "Mount succeeded but no access point found", severity="error"
+                )
+                return
+
+            # Proceed to analysis config
+            self.app.push_screen(
+                AnalysisConfigScreen(
+                    case_name=self.case_name,
+                    evidence_path=evidence_path,
+                    evidence_type=evidence_type,
+                    mounted_image=mounted,  # Pass mounted image for cleanup
+                )
+            )
+        else:
+            self.app.notify(f"✗ Mount failed: {message}", severity="error", timeout=10)
 
 
 class AnalysisConfigScreen(Screen):
@@ -679,33 +911,52 @@ class AnalysisConfigScreen(Screen):
         case_name: str,
         evidence_path: Path,
         evidence_type: str,
-        **kwargs: Any
+        mounted_image: MountedImage | None = None,
+        **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self.case_name = case_name
         self.evidence_path = evidence_path
         self.evidence_type = evidence_type
+        self.mounted_image = mounted_image
         self.selected_mode: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
         with VerticalScroll(id="config-container"):
-            yield Label("SIFT FIND EVIL - ANALYSIS CONFIGURATION", classes="screen-title")
+            yield Label(
+                "SIFT FIND EVIL - ANALYSIS CONFIGURATION", classes="screen-title"
+            )
             yield Label(f"Evidence: {self.case_name}")
             yield Label(f"Path: {self.evidence_path}")
 
             yield Label("Select Analysis Mode:", classes="section-title")
 
-            yield Button("Quick Triage - Essential artifacts only",
-                        id="mode_quick", classes="config-button")
-            yield Button("Full Analysis - All detectors + YARA",
-                        id="mode_full", classes="config-button")
-            yield Button("Memory Analysis - Volatility + baselining",
-                        id="mode_memory", classes="config-button")
-            yield Button("Timeline - Supertimeline + analysis",
-                        id="mode_timeline", classes="config-button")
-            yield Button("Custom - Select detectors manually",
-                        id="mode_custom", classes="config-button")
+            yield Button(
+                "Quick Triage - Essential artifacts only",
+                id="mode_quick",
+                classes="config-button",
+            )
+            yield Button(
+                "Full Analysis - All detectors + YARA",
+                id="mode_full",
+                classes="config-button",
+            )
+            yield Button(
+                "Memory Analysis - Volatility + baselining",
+                id="mode_memory",
+                classes="config-button",
+            )
+            yield Button(
+                "Timeline - Supertimeline + analysis",
+                id="mode_timeline",
+                classes="config-button",
+            )
+            yield Button(
+                "Custom - Select detectors manually",
+                id="mode_custom",
+                classes="config-button",
+            )
 
             with Horizontal(classes="action-buttons"):
                 yield Button("Back", id="back-btn", classes="action-button back-button")
@@ -740,18 +991,23 @@ class AnalysisConfigScreen(Screen):
 
             # Custom mode goes to detector selection screen
             if self.selected_mode == "custom":
-                self.app.push_screen(CustomDetectorScreen(
-                    case_name=self.case_name,
-                    evidence_path=self.evidence_path,
-                    evidence_type=self.evidence_type
-                ))
+                self.app.push_screen(
+                    CustomDetectorScreen(
+                        case_name=self.case_name,
+                        evidence_path=self.evidence_path,
+                        evidence_type=self.evidence_type,
+                    )
+                )
             else:
-                self.app.push_screen(AnalysisScreen(
-                    case_name=self.case_name,
-                    evidence_path=self.evidence_path,
-                    evidence_type=self.evidence_type,
-                    mode=self.selected_mode
-                ))
+                self.app.push_screen(
+                    AnalysisScreen(
+                        case_name=self.case_name,
+                        evidence_path=self.evidence_path,
+                        evidence_type=self.evidence_type,
+                        mode=self.selected_mode,
+                        mounted_image=self.mounted_image,
+                    )
+                )
 
         elif button_id == "back-btn":
             self.app.pop_screen()
@@ -814,18 +1070,24 @@ class CustomDetectorScreen(Screen):
         case_name: str,
         evidence_path: Path,
         evidence_type: str,
-        **kwargs: Any
+        mounted_image: Optional[MountedImage] = None,
+        **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self.case_name = case_name
         self.evidence_path = evidence_path
+        self.mounted_image = mounted_image
         self.evidence_type = evidence_type
         self.selected_detectors: set[str] = set()
 
         # Available detectors with descriptions
         self.detectors = [
             ("nsrl", "NSRL Filter", "Filter known-good files using NSRL database"),
-            ("prefetch", "Prefetch Analysis", "Windows prefetch file analysis for execution"),
+            (
+                "prefetch",
+                "Prefetch Analysis",
+                "Windows prefetch file analysis for execution",
+            ),
             ("memory", "Memory Forensics", "Volatility analysis for memory artifacts"),
             ("yara", "YARA Scanning", "Malware signature detection with YARA rules"),
             ("timeline", "Timeline Analysis", "Supertimeline generation and analysis"),
@@ -850,7 +1112,7 @@ class CustomDetectorScreen(Screen):
                     f"{name} - {description}",
                     value=False,
                     id=f"detector_{detector_id}",
-                    classes="detector-option"
+                    classes="detector-option",
                 )
 
             with Horizontal(classes="action-buttons"):
@@ -871,16 +1133,21 @@ class CustomDetectorScreen(Screen):
         """Handle navigation."""
         if event.button.id == "start-btn":
             if not self.selected_detectors:
-                self.app.notify("Please select at least one detector", severity="warning")
+                self.app.notify(
+                    "Please select at least one detector", severity="warning"
+                )
                 return
 
-            self.app.push_screen(AnalysisScreen(
-                case_name=self.case_name,
-                evidence_path=self.evidence_path,
-                evidence_type=self.evidence_type,
-                mode="custom",
-                selected_detectors=list(self.selected_detectors)
-            ))
+            self.app.push_screen(
+                AnalysisScreen(
+                    case_name=self.case_name,
+                    evidence_path=self.evidence_path,
+                    evidence_type=self.evidence_type,
+                    mode="custom",
+                    selected_detectors=list(self.selected_detectors),
+                    mounted_image=self.mounted_image,
+                )
+            )
 
         elif event.button.id == "back-btn":
             self.app.pop_screen()
@@ -905,6 +1172,7 @@ class AnalysisScreen(Screen):
         evidence_type: str = "synthetic",
         mode: str = "quick",
         selected_detectors: list[str] | None = None,
+        mounted_image: Optional[MountedImage] = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -913,6 +1181,7 @@ class AnalysisScreen(Screen):
         self.evidence_type = evidence_type
         self.mode = mode
         self.selected_detectors = selected_detectors or []
+        self.mounted_image = mounted_image
         self.progress_collapsed = False
 
         # Initialize progress tracking
@@ -928,15 +1197,21 @@ class AnalysisScreen(Screen):
         yield Header(show_clock=True)
         yield Container(DetectorPanel(self.progress_tracker), id="detector-panel")
         yield Container(FindingsPanel(self.progress_tracker), id="findings-panel")
-        yield Container(SelfCorrectionPanel(self.progress_tracker), id="self-correction-panel")
+        yield Container(
+            SelfCorrectionPanel(self.progress_tracker), id="self-correction-panel"
+        )
         yield Container(ReasoningPanel(self.progress_tracker), id="reasoning-panel")
-        yield Container(SystemResourcesPanel(self.progress_tracker), id="system-resources-panel")
+        yield Container(
+            SystemResourcesPanel(self.progress_tracker), id="system-resources-panel"
+        )
         yield ProgressPanel(self.progress_tracker, id="progress-panel")
         yield Footer()
 
     def on_mount(self) -> None:
         """Update title with case info and start resource monitoring."""
-        evidence_name = str(self.evidence_path.name) if self.evidence_path else self.case_name
+        evidence_name = (
+            str(self.evidence_path.name) if self.evidence_path else self.case_name
+        )
         mode_display = self.mode.upper()
         if self.mode == "custom" and self.selected_detectors:
             mode_display = f"CUSTOM ({len(self.selected_detectors)} detectors)"
@@ -951,7 +1226,9 @@ class AnalysisScreen(Screen):
         self.progress_tracker.on_contradiction_added(self._on_contradiction_added)
 
         # Start resource monitoring
-        self.run_worker(self._monitor_resources(), exclusive=False, name="resource_monitor")
+        self.run_worker(
+            self._monitor_resources(), exclusive=False, name="resource_monitor"
+        )
 
         # Start real analysis
         self.run_worker(self._run_real_analysis(), exclusive=True, name="analysis")
@@ -988,12 +1265,16 @@ class AnalysisScreen(Screen):
         progress = self.query_one("#progress-panel", ProgressPanel)
         progress.refresh()
         # Update detector panel
-        detector_panel = self.query_one("#detector-panel", Container).query_one(DetectorPanel)
+        detector_panel = self.query_one("#detector-panel", Container).query_one(
+            DetectorPanel
+        )
         detector_panel.update_detector_status()
 
     def _on_resources_updated(self) -> None:
         """Handle resource update from tracker."""
-        resources = self.query_one("#system-resources-panel", Container).query_one(SystemResourcesPanel)
+        resources = self.query_one("#system-resources-panel", Container).query_one(
+            SystemResourcesPanel
+        )
         resources.update_resources()
 
     def _on_phase_changed(self, phase) -> None:
@@ -1001,7 +1282,9 @@ class AnalysisScreen(Screen):
         progress = self.query_one("#progress-panel", ProgressPanel)
         progress.refresh()
         # Update detector panel
-        detector_panel = self.query_one("#detector-panel", Container).query_one(DetectorPanel)
+        detector_panel = self.query_one("#detector-panel", Container).query_one(
+            DetectorPanel
+        )
         detector_panel.update_detector_status()
 
     def _on_activity_added(self, activity) -> None:
@@ -1012,18 +1295,26 @@ class AnalysisScreen(Screen):
     def _on_finding_added(self, severity) -> None:
         """Handle new finding from tracker."""
         # Update findings panel
-        findings_panel = self.query_one("#findings-panel", Container).query_one(FindingsPanel)
+        findings_panel = self.query_one("#findings-panel", Container).query_one(
+            FindingsPanel
+        )
         findings_panel.update_findings()
 
     def _on_contradiction_added(self, contradiction: Contradiction) -> None:
         """Handle contradiction event from tracker."""
         # Update self-correction panel
-        self_correct_panel = self.query_one("#self-correction-panel", Container).query_one(SelfCorrectionPanel)
+        self_correct_panel = self.query_one(
+            "#self-correction-panel", Container
+        ).query_one(SelfCorrectionPanel)
         self_correct_panel.add_contradiction(contradiction.description)
 
         # Update reasoning panel with resolution
-        reasoning_panel = self.query_one("#reasoning-panel", Container).query_one(ReasoningPanel)
-        reasoning_panel.update_reasoning(f"Contradiction: {contradiction.description}\n\nResolution: {contradiction.resolution}")
+        reasoning_panel = self.query_one("#reasoning-panel", Container).query_one(
+            ReasoningPanel
+        )
+        reasoning_panel.update_reasoning(
+            f"Contradiction: {contradiction.description}\n\nResolution: {contradiction.resolution}"
+        )
 
     # Worker methods
     async def _monitor_resources(self) -> None:
@@ -1043,33 +1334,41 @@ class AnalysisScreen(Screen):
     def _register_phases_for_mode(self) -> None:
         """Register analysis phases based on selected mode."""
         if self.mode == "quick":
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("prefetch", "Prefetch"),
-                ("yara", "YARA"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("prefetch", "Prefetch"),
+                    ("yara", "YARA"),
+                    ("report", "Report"),
+                ]
+            )
         elif self.mode == "memory":
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("memory", "Memory"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("memory", "Memory"),
+                    ("report", "Report"),
+                ]
+            )
         elif self.mode == "timeline":
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("timestamps", "Timestamps"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("timestamps", "Timestamps"),
+                    ("report", "Report"),
+                ]
+            )
         else:  # full or custom
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("timestamps", "Timestamps"),
-                ("yara", "YARA"),
-                ("memory", "Memory"),
-                ("persist", "Persist"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("timestamps", "Timestamps"),
+                    ("yara", "YARA"),
+                    ("memory", "Memory"),
+                    ("persist", "Persist"),
+                    ("report", "Report"),
+                ]
+            )
 
     async def _run_real_analysis(self) -> None:
         """Run real forensic analysis with progress tracking."""
@@ -1088,6 +1387,18 @@ class AnalysisScreen(Screen):
         except Exception as e:
             self.app.notify(f"Analysis failed: {str(e)}", severity="error")
             raise
+        finally:
+            # Cleanup mounted image if present
+            if self.mounted_image:
+                try:
+                    commands = self.mounted_image.cleanup()
+                    self.progress_tracker.log_activity(
+                        f"Cleaned up E01 mount: {len(commands)} commands executed"
+                    )
+                except Exception as cleanup_error:
+                    self.app.notify(
+                        f"Cleanup warning: {str(cleanup_error)}", severity="warning"
+                    )
 
 
 class DetectorPanel(Static):
@@ -1192,8 +1503,14 @@ class SelfCorrectionPanel(Static):
 
     def compose(self) -> ComposeResult:
         yield Label("SELF-CORRECT", classes="panel-title")
-        yield Label("[!] No contradictions yet", classes="status-label", id="contradiction-status")
-        yield Label("  Monitoring...", classes="status-detail", id="contradiction-detail")
+        yield Label(
+            "[!] No contradictions yet",
+            classes="status-label",
+            id="contradiction-status",
+        )
+        yield Label(
+            "  Monitoring...", classes="status-detail", id="contradiction-detail"
+        )
 
     def on_mount(self) -> None:
         # Future: tail audit JSONL and highlight contradictions
@@ -1265,7 +1582,9 @@ class SystemResourcesPanel(Static):
         # Update RAM
         try:
             ram_label = self.query_one("#sys-ram", Label)
-            ram_label.update(f"RAM:  {resources.ram_used_gb:.1f}/{resources.ram_total_gb:.0f}GB")
+            ram_label.update(
+                f"RAM:  {resources.ram_used_gb:.1f}/{resources.ram_total_gb:.0f}GB"
+            )
         except Exception:
             pass
 
@@ -1306,8 +1625,14 @@ class ProgressPanel(Static):
         yield Label("Investigation Progress", classes="progress-title")
 
         # Current phase
-        phase_name = self.progress_tracker.current_phase.display_name if self.progress_tracker.current_phase else "Idle"
-        yield Label(f"Current Phase: {phase_name}", classes="progress-phase", id="prog-phase")
+        phase_name = (
+            self.progress_tracker.current_phase.display_name
+            if self.progress_tracker.current_phase
+            else "Idle"
+        )
+        yield Label(
+            f"Current Phase: {phase_name}", classes="progress-phase", id="prog-phase"
+        )
 
         # Progress bar and metrics
         pct = 0
@@ -1351,7 +1676,10 @@ class ProgressPanel(Static):
         activities = self.progress_tracker.activities[:3]  # Show last 3
         if activities:
             for activity in activities:
-                yield Label(f"• {activity.formatted_time} - {activity.message}", classes="progress-activity-item")
+                yield Label(
+                    f"• {activity.formatted_time} - {activity.message}",
+                    classes="progress-activity-item",
+                )
         else:
             yield Label("  No activity yet", classes="progress-activity-item")
 
@@ -1363,10 +1691,26 @@ class ProgressPanel(Static):
     def _render_collapsed(self) -> ComposeResult:
         """Render collapsed progress panel."""
         # Compact single-line summary
-        phase_name = self.progress_tracker.current_phase.display_name if self.progress_tracker.current_phase else "Idle"
-        pct = int(self.progress_tracker.current_phase.progress_pct) if self.progress_tracker.current_phase else 0
-        current = self.progress_tracker.current_phase.items_processed if self.progress_tracker.current_phase else 0
-        total = self.progress_tracker.current_phase.items_total if self.progress_tracker.current_phase else 0
+        phase_name = (
+            self.progress_tracker.current_phase.display_name
+            if self.progress_tracker.current_phase
+            else "Idle"
+        )
+        pct = (
+            int(self.progress_tracker.current_phase.progress_pct)
+            if self.progress_tracker.current_phase
+            else 0
+        )
+        current = (
+            self.progress_tracker.current_phase.items_processed
+            if self.progress_tracker.current_phase
+            else 0
+        )
+        total = (
+            self.progress_tracker.current_phase.items_total
+            if self.progress_tracker.current_phase
+            else 0
+        )
         elapsed = self.progress_tracker.elapsed_time
         eta = self.progress_tracker.estimated_time_remaining or "--:--:--"
         findings = self.progress_tracker.findings_by_severity
@@ -1440,24 +1784,35 @@ class HelpScreen(Screen):
             yield Label("SIFT FIND EVIL - HELP", classes="help-title")
 
             yield Label("FILE SELECTION", classes="help-section")
-            yield Label("- Click detected drives to navigate instantly", classes="help-item")
+            yield Label(
+                "- Click detected drives to navigate instantly", classes="help-item"
+            )
             yield Label("- Ctrl+Click bookmarks to delete them", classes="help-item")
-            yield Label("- Type path and press Enter for manual navigation", classes="help-item")
-            yield Label("- Click 'Bookmark Current' to save frequently used paths", classes="help-item")
+            yield Label(
+                "- Type path and press Enter for manual navigation", classes="help-item"
+            )
+            yield Label(
+                "- Click 'Bookmark Current' to save frequently used paths",
+                classes="help-item",
+            )
 
             yield Label("ANALYSIS SCREEN", classes="help-section")
             yield Label("a - Approve selected finding", classes="help-item")
             yield Label("r - Reject selected finding", classes="help-item")
             yield Label("d - Drill down for more details", classes="help-item")
             yield Label("e - Export findings to report", classes="help-item")
-            yield Label("p - Toggle progress panel (collapse/expand)", classes="help-item")
+            yield Label(
+                "p - Toggle progress panel (collapse/expand)", classes="help-item"
+            )
             yield Label("b - Go back to previous screen", classes="help-item")
 
             yield Label("GLOBAL KEYBINDINGS", classes="help-section")
             yield Label("q - Quit application", classes="help-item")
             yield Label("? - Show this help screen", classes="help-item")
 
-            yield Label("\nPress any key to close this help screen", classes="help-item")
+            yield Label(
+                "\nPress any key to close this help screen", classes="help-item"
+            )
 
         yield Footer()
 
