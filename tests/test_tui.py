@@ -7,7 +7,7 @@ Tests interactive functionality including button clicks, navigation, and screen 
 import pytest
 from pathlib import Path
 from textual.pilot import Pilot
-from sift_find_evil.tui import SIFTDemoApp, FileSelectionScreen
+from sift_find_evil.tui_app import SIFTDemoApp, FileSelectionScreen
 
 
 class TestFileSelectionScreen:

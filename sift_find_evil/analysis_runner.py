@@ -146,36 +146,180 @@ class AnalysisRunner:
 
     async def _phase_prefetch_analysis(self) -> None:
         """Analyze Windows prefetch files."""
-        self.progress_tracker.start_phase("prefetch", items_total=50)
+        if not self.evidence_path or not self.evidence_path.exists():
+            self.progress_tracker.log_activity(
+                "Skipping prefetch analysis: no evidence path"
+            )
+            return
 
-        for i in range(50):
-            await asyncio.sleep(0.05)
-            self.progress_tracker.increment_progress()
-
-            # Simulate finding detection
-            if i == 25:
-                self.progress_tracker.add_finding(
-                    FindingSeverity.HIGH, "Suspicious execution: cmd.exe"
+        try:
+            # Look for prefetch CSV files
+            prefetch_files = list(self.evidence_path.rglob("prefetch.csv"))
+            if not prefetch_files:
+                self.progress_tracker.log_activity(
+                    "Skipping prefetch analysis: no prefetch.csv found"
                 )
+                return
 
-        self.progress_tracker.complete_phase()
+            from .parsers.prefetch_parser import PrefetchParser
+
+            parser = PrefetchParser()
+
+            self.progress_tracker.start_phase("prefetch", items_total=len(prefetch_files))
+
+            for prefetch_file in prefetch_files:
+                # Check for cancellation
+                if self.progress_tracker.is_canceled:
+                    self.progress_tracker.log_activity(
+                        "Prefetch analysis canceled by user"
+                    )
+                    break
+
+                try:
+                    # Parse prefetch CSV
+                    entries = parser.parse_csv(prefetch_file)
+                    self.progress_tracker.log_activity(
+                        f"Parsed {len(entries)} prefetch entries"
+                    )
+
+                    # Simple heuristic: flag suspicious executables
+                    suspicious_names = [
+                        "cmd.exe",
+                        "powershell.exe",
+                        "wscript.exe",
+                        "cscript.exe",
+                        "mshta.exe",
+                        "rundll32.exe",
+                        "regsvr32.exe",
+                        "certutil.exe",
+                        "bitsadmin.exe",
+                    ]
+
+                    for entry in entries:
+                        exe_name = entry.executable.lower()
+                        if any(sus in exe_name for sus in suspicious_names):
+                            self.progress_tracker.add_finding(
+                                FindingSeverity.MEDIUM,
+                                f"Suspicious execution: {entry.executable}",
+                                f"Run count: {entry.run_count}",
+                            )
+
+                except (FileNotFoundError, ValueError, KeyError) as e:
+                    self.progress_tracker.log_activity(
+                        f"Prefetch parse error on {prefetch_file.name}: {e}"
+                    )
+                finally:
+                    self.progress_tracker.increment_progress()
+                    await asyncio.sleep(0.001)
+
+            self.progress_tracker.complete_phase()
+
+        except Exception as e:
+            self.progress_tracker.log_activity(f"Prefetch analysis phase error: {e}")
+            self.progress_tracker.complete_phase()
 
     async def _phase_timestamp_analysis(self) -> None:
-        """Analyze file timestamps for anomalies."""
-        self.progress_tracker.start_phase("timestamps", items_total=100)
+        """Analyze file timestamps for anomalies using SelfCorrectionEngine."""
+        if not self.evidence_path or not self.evidence_path.exists():
+            self.progress_tracker.log_activity(
+                "Skipping timestamp analysis: no evidence path"
+            )
+            return
 
-        for i in range(100):
-            await asyncio.sleep(0.05)
-            self.progress_tracker.increment_progress()
+        try:
+            # Look for required fixtures: MFT, prefetch, evtx
+            mft_files = list(self.evidence_path.rglob("mft.csv"))
+            prefetch_files = list(self.evidence_path.rglob("prefetch.csv"))
+            evtx_files = list(self.evidence_path.rglob("evtx.csv"))
 
-            # Simulate timestomping detection
-            if i == 45:
-                self.progress_tracker.add_finding(
-                    FindingSeverity.HIGH,
-                    "Timestomping detected: suspicious.exe (SI/FN mismatch)",
+            if not mft_files or not prefetch_files or not evtx_files:
+                self.progress_tracker.log_activity(
+                    "Skipping timestamp analysis: missing MFT/prefetch/evtx fixtures"
                 )
+                return
 
-        self.progress_tracker.complete_phase()
+            from .parsers.mft_parser import MFTParser
+            from .parsers.prefetch_parser import PrefetchParser
+            from .parsers.evtx_parser import EvtxParser
+            from .self_correction.engine import SelfCorrectionEngine
+
+            self.progress_tracker.start_phase(
+                "timestamps", items_total=len(mft_files) + len(prefetch_files) + len(evtx_files)
+            )
+
+            # Parse artifacts
+            mft_parser = MFTParser()
+            prefetch_parser = PrefetchParser()
+            evtx_parser = EvtxParser()
+
+            for mft_file, prefetch_file, evtx_file in zip(mft_files, prefetch_files, evtx_files):
+                # Check for cancellation
+                if self.progress_tracker.is_canceled:
+                    self.progress_tracker.log_activity(
+                        "Timestamp analysis canceled by user"
+                    )
+                    break
+
+                try:
+                    # Parse each artifact
+                    self.progress_tracker.log_activity("Parsing MFT records...")
+                    mft_records = mft_parser.parse_csv(mft_file)
+                    self.progress_tracker.increment_progress()
+                    await asyncio.sleep(0.001)
+
+                    self.progress_tracker.log_activity("Parsing prefetch files...")
+                    prefetch_records = prefetch_parser.parse_csv(prefetch_file)
+                    self.progress_tracker.increment_progress()
+                    await asyncio.sleep(0.001)
+
+                    self.progress_tracker.log_activity("Parsing event logs...")
+                    evtx_records = evtx_parser.parse_csv(evtx_file)
+                    self.progress_tracker.increment_progress()
+                    await asyncio.sleep(0.001)
+
+                    # Run self-correction engine (detects timestomping + contradictions)
+                    self.progress_tracker.log_activity(
+                        "Running self-correction engine..."
+                    )
+                    engine = SelfCorrectionEngine()
+
+                    # Also get raw contradictions for self-correction panel
+                    from .self_correction.contradiction_detector import ContradictionDetector
+                    detector = ContradictionDetector()
+                    contradictions = detector.detect_all(mft_records, prefetch_records, evtx_records)
+
+                    # Track contradictions
+                    for contradiction in contradictions:
+                        self.progress_tracker.add_contradiction(
+                            description=f"{contradiction.contradiction_type.value}: {contradiction.executable}",
+                            resolution=contradiction.resolution if contradiction.resolution else "Unresolved"
+                        )
+
+                    # Run full analysis
+                    findings = engine.analyze(mft_records, prefetch_records, evtx_records)
+
+                    # Map findings to progress tracker
+                    for finding in findings:
+                        severity = self._map_finding_severity(finding.severity)
+                        self.progress_tracker.add_finding(
+                            severity, finding.title, finding.description
+                        )
+                        self.progress_tracker.log_activity(
+                            f"Timestamp: {finding.title}"
+                        )
+
+                except (FileNotFoundError, ValueError, KeyError) as e:
+                    self.progress_tracker.log_activity(
+                        f"Timestamp analysis error: {e}"
+                    )
+
+            self.progress_tracker.complete_phase()
+
+        except Exception as e:
+            self.progress_tracker.log_activity(
+                f"Timestamp analysis phase error: {e}"
+            )
+            self.progress_tracker.complete_phase()
 
     async def _phase_yara_scan(self) -> None:
         """Scan files with YARA rules."""

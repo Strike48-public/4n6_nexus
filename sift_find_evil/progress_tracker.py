@@ -76,6 +76,35 @@ class Activity:
 
 
 @dataclass
+class Finding:
+    """Represents a detected finding."""
+
+    severity: FindingSeverity
+    title: str
+    details: str = ""
+    timestamp: float = 0.0
+
+    def __post_init__(self):
+        """Set timestamp if not provided."""
+        if self.timestamp == 0.0:
+            self.timestamp = time.time()
+
+
+@dataclass
+class Contradiction:
+    """Represents a contradiction event detected and resolved."""
+
+    description: str
+    resolution: str
+    timestamp: float = 0.0
+
+    def __post_init__(self):
+        """Set timestamp if not provided."""
+        if self.timestamp == 0.0:
+            self.timestamp = time.time()
+
+
+@dataclass
 class SystemResources:
     """Current system resource usage."""
 
@@ -118,6 +147,8 @@ class ProgressTracker:
         self.findings_by_severity: dict[FindingSeverity, int] = {
             severity: 0 for severity in FindingSeverity
         }
+        self.findings: list[Finding] = []  # Store actual findings, not just counts
+        self.contradictions: list[Contradiction] = []  # Store contradiction events
         self.activities: list[Activity] = []
         self.system_resources = SystemResources()
         self.start_time = time.time()
@@ -130,6 +161,7 @@ class ProgressTracker:
         self._on_activity_added: list[Callable] = []
         self._on_phase_changed: list[Callable] = []
         self._on_resources_updated: list[Callable] = []
+        self._on_contradiction_added: list[Callable] = []
 
     def register_phases(self, phases: list[tuple[str, str]]) -> None:
         """Register investigation phases.
@@ -189,16 +221,31 @@ class ProgressTracker:
             self._notify_phase_changed(self.current_phase)
             self.current_phase = None
 
-    def add_finding(self, severity: FindingSeverity, message: str) -> None:
+    def add_finding(self, severity: FindingSeverity, message: str, details: str = "") -> None:
         """Record a new finding.
 
         Args:
             severity: Finding severity level
             message: Finding description
+            details: Additional finding details
         """
+        finding = Finding(severity=severity, title=message, details=details)
+        self.findings.append(finding)
         self.findings_by_severity[severity] += 1
         self.log_activity(f"{severity.value}: {message}")
         self._notify_finding_added(severity)
+
+    def add_contradiction(self, description: str, resolution: str) -> None:
+        """Record a contradiction event.
+
+        Args:
+            description: Description of the contradiction
+            resolution: How the contradiction was resolved
+        """
+        contradiction = Contradiction(description=description, resolution=resolution)
+        self.contradictions.append(contradiction)
+        self.log_activity(f"Contradiction resolved: {description}")
+        self._notify_contradiction_added(contradiction)
 
     def log_activity(self, message: str) -> None:
         """Log an activity event.
@@ -297,6 +344,10 @@ class ProgressTracker:
         """Register callback for resource updates."""
         self._on_resources_updated.append(callback)
 
+    def on_contradiction_added(self, callback: Callable) -> None:
+        """Register callback for contradiction events."""
+        self._on_contradiction_added.append(callback)
+
     # Notification methods
     def _notify_progress_update(self) -> None:
         """Notify all progress update callbacks."""
@@ -322,3 +373,8 @@ class ProgressTracker:
         """Notify all resource update callbacks."""
         for callback in self._on_resources_updated:
             callback()
+
+    def _notify_contradiction_added(self, contradiction: Contradiction) -> None:
+        """Notify all contradiction added callbacks."""
+        for callback in self._on_contradiction_added:
+            callback(contradiction)

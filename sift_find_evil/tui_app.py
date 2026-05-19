@@ -23,7 +23,7 @@ from textual.widgets import (
     Static,
 )
 
-from .progress_tracker import ProgressTracker, FindingSeverity, PhaseStatus
+from .progress_tracker import ProgressTracker, FindingSeverity, PhaseStatus, Finding, Contradiction
 from .resource_monitor import ResourceMonitor
 from .analysis_runner import AnalysisRunner
 from .tui import CommandPalette, TEXTUAL_CSS
@@ -926,10 +926,10 @@ class AnalysisScreen(Screen):
     def compose(self) -> ComposeResult:
         """Compose the four-panel analysis layout with bottom panels."""
         yield Header(show_clock=True)
-        yield Container(DetectorPanel(), id="detector-panel")
-        yield Container(FindingsPanel(), id="findings-panel")
-        yield Container(SelfCorrectionPanel(), id="self-correction-panel")
-        yield Container(ReasoningPanel(), id="reasoning-panel")
+        yield Container(DetectorPanel(self.progress_tracker), id="detector-panel")
+        yield Container(FindingsPanel(self.progress_tracker), id="findings-panel")
+        yield Container(SelfCorrectionPanel(self.progress_tracker), id="self-correction-panel")
+        yield Container(ReasoningPanel(self.progress_tracker), id="reasoning-panel")
         yield Container(SystemResourcesPanel(self.progress_tracker), id="system-resources-panel")
         yield ProgressPanel(self.progress_tracker, id="progress-panel")
         yield Footer()
@@ -947,6 +947,8 @@ class AnalysisScreen(Screen):
         self.progress_tracker.on_resources_updated(self._on_resources_updated)
         self.progress_tracker.on_phase_changed(self._on_phase_changed)
         self.progress_tracker.on_activity_added(self._on_activity_added)
+        self.progress_tracker.on_finding_added(self._on_finding_added)
+        self.progress_tracker.on_contradiction_added(self._on_contradiction_added)
 
         # Start resource monitoring
         self.run_worker(self._monitor_resources(), exclusive=False, name="resource_monitor")
@@ -984,6 +986,9 @@ class AnalysisScreen(Screen):
         """Handle progress update from tracker."""
         progress = self.query_one("#progress-panel", ProgressPanel)
         progress.refresh()
+        # Update detector panel
+        detector_panel = self.query_one("#detector-panel", Container).query_one(DetectorPanel)
+        detector_panel.update_detector_status()
 
     def _on_resources_updated(self) -> None:
         """Handle resource update from tracker."""
@@ -994,11 +999,30 @@ class AnalysisScreen(Screen):
         """Handle phase change from tracker."""
         progress = self.query_one("#progress-panel", ProgressPanel)
         progress.refresh()
+        # Update detector panel
+        detector_panel = self.query_one("#detector-panel", Container).query_one(DetectorPanel)
+        detector_panel.update_detector_status()
 
     def _on_activity_added(self, activity) -> None:
         """Handle new activity from tracker."""
         progress = self.query_one("#progress-panel", ProgressPanel)
         progress.refresh()
+
+    def _on_finding_added(self, severity) -> None:
+        """Handle new finding from tracker."""
+        # Update findings panel
+        findings_panel = self.query_one("#findings-panel", Container).query_one(FindingsPanel)
+        findings_panel.update_findings()
+
+    def _on_contradiction_added(self, contradiction: Contradiction) -> None:
+        """Handle contradiction event from tracker."""
+        # Update self-correction panel
+        self_correct_panel = self.query_one("#self-correction-panel", Container).query_one(SelfCorrectionPanel)
+        self_correct_panel.add_contradiction(contradiction.description)
+
+        # Update reasoning panel with resolution
+        reasoning_panel = self.query_one("#reasoning-panel", Container).query_one(ReasoningPanel)
+        reasoning_panel.update_reasoning(f"Contradiction: {contradiction.description}\n\nResolution: {contradiction.resolution}")
 
     # Worker methods
     async def _monitor_resources(self) -> None:
@@ -1068,6 +1092,10 @@ class AnalysisScreen(Screen):
 class DetectorPanel(Static):
     """Left panel showing detector execution progress."""
 
+    def __init__(self, progress_tracker: ProgressTracker, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.progress_tracker = progress_tracker
+
     def compose(self) -> ComposeResult:
         yield Label("DETECTORS", classes="panel-title")
         yield DataTable(id="detector-table")
@@ -1076,22 +1104,41 @@ class DetectorPanel(Static):
         table = self.query_one("#detector-table", DataTable)
         table.add_columns("Detector", "Status", "Progress")
         table.cursor_type = "none"
+        self.update_detector_status()
 
-        # Populate with sample detectors showing progress
-        detectors = [
-            ("NSRL filter", "[DONE]", "100%"),
-            ("Prefetch", "[DONE]", "100%"),
-            ("Memory", "[RUN]", "67%"),
-            ("YARA scan", "[RUN]", "45%"),
-            ("Timeline", "[WAIT]", "0%"),
-            ("Carving", "[WAIT]", "0%"),
-        ]
-        for name, status, progress in detectors:
-            table.add_row(name, status, progress)
+    def update_detector_status(self) -> None:
+        """Update detector status from progress tracker."""
+        table = self.query_one("#detector-table", DataTable)
+        table.clear()
+
+        if not self.progress_tracker.phases:
+            table.add_row("No detectors", "[IDLE]", "0%")
+            return
+
+        for phase in self.progress_tracker.phases:
+            # Map phase status to display status
+            if phase.status == PhaseStatus.COMPLETE:
+                status = "[DONE]"
+                progress = "100%"
+            elif phase.status == PhaseStatus.ACTIVE:
+                status = "[RUN]"
+                progress = f"{int(phase.progress_pct)}%"
+            elif phase.status == PhaseStatus.ERROR:
+                status = "[ERR]"
+                progress = "0%"
+            else:  # PENDING
+                status = "[WAIT]"
+                progress = "0%"
+
+            table.add_row(phase.display_name, status, progress)
 
 
 class FindingsPanel(Static):
     """Top-right panel showing prioritized findings."""
+
+    def __init__(self, progress_tracker: ProgressTracker, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.progress_tracker = progress_tracker
 
     def compose(self) -> ComposeResult:
         yield Label("FINDINGS", classes="panel-title")
@@ -1101,64 +1148,89 @@ class FindingsPanel(Static):
         table = self.query_one("#findings-table", DataTable)
         table.add_columns("Sev", "Finding", "Details")
         table.cursor_type = "row"
+        self.update_findings()
 
-        # Load findings from demo JSON
-        findings_path = Path("demo/findings_sample.json")
-        if findings_path.exists():
-            try:
-                findings = json.loads(findings_path.read_text())
-                for finding in findings:
-                    severity = finding.get("severity", "medium").upper()[:4]
-                    title = finding.get("title", "Unknown")
-                    # Truncate long titles
-                    if len(title) > 40:
-                        title = title[:37] + "..."
-                    details = finding.get("description", "")[:30]
-                    table.add_row(severity, title, details)
-            except (json.JSONDecodeError, KeyError) as e:
-                table.add_row("ERR", f"Failed to load findings: {e}", "")
-        else:
-            # Fallback to ransomware demo
-            findings_path = Path("analysis/demo_ransomware.json")
-            if findings_path.exists():
-                try:
-                    data = json.loads(findings_path.read_text())
-                    for exe in data.get("detected_executables", []):
-                        severity = "CRIT" if "ransom" in exe else "HIGH"
-                        finding = exe[:40] + "..." if len(exe) > 40 else exe
-                        table.add_row(severity, finding, "Mass encryption")
-                except (json.JSONDecodeError, KeyError):
-                    table.add_row("INFO", "No findings loaded", "")
-            else:
-                # No data available
-                table.add_row("INFO", "No findings available", "Run analysis to generate findings")
+    def update_findings(self) -> None:
+        """Update findings table from progress tracker."""
+        table = self.query_one("#findings-table", DataTable)
+        table.clear()
+
+        if not self.progress_tracker.findings:
+            table.add_row("INFO", "No findings yet", "Analysis in progress...")
+            return
+
+        # Sort findings by severity (Critical -> Info)
+        severity_order = {
+            FindingSeverity.CRITICAL: 0,
+            FindingSeverity.HIGH: 1,
+            FindingSeverity.MEDIUM: 2,
+            FindingSeverity.LOW: 3,
+            FindingSeverity.INFO: 4,
+        }
+        sorted_findings = sorted(
+            self.progress_tracker.findings, key=lambda f: severity_order[f.severity]
+        )
+
+        # Display top 20 findings
+        for finding in sorted_findings[:20]:
+            severity_display = finding.severity.value[:4].upper()
+            title = finding.title
+            if len(title) > 40:
+                title = title[:37] + "..."
+            details = finding.details[:30] if finding.details else ""
+            table.add_row(severity_display, title, details)
 
 
 class SelfCorrectionPanel(Static):
     """Bottom-left panel showing self-correction events."""
 
+    def __init__(self, progress_tracker: ProgressTracker, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.progress_tracker = progress_tracker
+        self.contradiction_count = 0
+
     def compose(self) -> ComposeResult:
         yield Label("SELF-CORRECT", classes="panel-title")
-        yield Label("[!] CONTRADICT", classes="status-label")
-        yield Label("  Resolved 3x", classes="status-detail")
+        yield Label("[!] No contradictions yet", classes="status-label", id="contradiction-status")
+        yield Label("  Monitoring...", classes="status-detail", id="contradiction-detail")
 
     def on_mount(self) -> None:
         # Future: tail audit JSONL and highlight contradictions
         pass
 
+    def add_contradiction(self, description: str) -> None:
+        """Add a contradiction event."""
+        self.contradiction_count += 1
+        try:
+            status_label = self.query_one("#contradiction-status", Label)
+            detail_label = self.query_one("#contradiction-detail", Label)
+            status_label.update(f"[!] CONTRADICT: {description}")
+            detail_label.update(f"  Resolved {self.contradiction_count}x")
+        except Exception:
+            pass
+
 
 class ReasoningPanel(Static):
     """Bottom-right panel showing reasoning trace."""
 
+    def __init__(self, progress_tracker: ProgressTracker, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.progress_tracker = progress_tracker
+
     def compose(self) -> ComposeResult:
         yield Label("REASONING", classes="panel-title")
         yield Static(
-            "MFT $STANDARD_INFORMATION shows 2019-01-15\n"
-            "MFT $FILE_NAME shows 2019-02-06 (22-day delta)\n"
-            "-> Timestomping detected. SI can be modified,\n"
-            "  FN is more reliable. Reduced confidence.",
+            "Waiting for analysis to start...",
             id="reasoning-text",
         )
+
+    def update_reasoning(self, reasoning: str) -> None:
+        """Update reasoning text."""
+        try:
+            reasoning_text = self.query_one("#reasoning-text", Static)
+            reasoning_text.update(reasoning)
+        except Exception:
+            pass
 
 
 class SystemResourcesPanel(Static):
