@@ -747,6 +747,7 @@ class E01MountScreen(Screen):
         self.e01_images = e01_images
         self.selected_image: E01Image | None = None
         self.mounted_image: MountedImage | None = None
+        self.mounting_in_progress = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -790,6 +791,11 @@ class E01MountScreen(Screen):
         if not button_id:
             return
 
+        # Prevent multiple mount operations
+        if self.mounting_in_progress:
+            self.app.notify("Mount operation already in progress", severity="warning")
+            return
+
         if button_id.startswith("mount_"):
             # Extract image name
             img_name = button_id.replace("mount_", "")
@@ -814,6 +820,9 @@ class E01MountScreen(Screen):
 
     def _mount_image(self, image: E01Image) -> None:
         """Mount an E01 image and proceed to analysis."""
+        # Set flag to prevent multiple mounts
+        self.mounting_in_progress = True
+
         self.app.notify(
             f"Mounting {image.name}... (this may take a moment)", timeout=10
         )
@@ -851,6 +860,7 @@ class E01MountScreen(Screen):
             )
         else:
             self.app.notify(f"✗ Mount failed: {message}", severity="error", timeout=10)
+            self.mounting_in_progress = False  # Reset flag on failure
 
 
 class AnalysisConfigScreen(Screen):
