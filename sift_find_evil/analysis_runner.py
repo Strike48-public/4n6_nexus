@@ -38,6 +38,8 @@ class AnalysisRunner:
         """
         self.evidence_path = evidence_path
         self.mode = mode
+        # Register phases when mode is configured
+        self._register_phases_for_mode()
 
     async def run_analysis(self) -> None:
         """Run complete forensic analysis workflow."""
@@ -117,6 +119,37 @@ class AnalysisRunner:
         """Run custom detector selection."""
         # TODO: Implement based on selected_detectors
         await self._run_full_analysis()
+
+    def _register_phases_for_mode(self) -> None:
+        """Register analysis phases based on selected mode."""
+        if self.mode == "quick":
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("prefetch", "Prefetch"),
+                ("yara", "YARA"),
+                ("report", "Report"),
+            ])
+        elif self.mode == "memory":
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("memory", "Memory"),
+                ("report", "Report"),
+            ])
+        elif self.mode == "timeline":
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("timestamps", "Timestamps"),
+                ("report", "Report"),
+            ])
+        else:  # full or custom
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("timestamps", "Timestamps"),
+                ("yara", "YARA"),
+                ("memory", "Memory"),
+                ("persist", "Persist"),
+                ("report", "Report"),
+            ])
 
     # Phase implementations
     async def _phase_load_artifacts(self) -> None:
