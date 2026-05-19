@@ -176,7 +176,15 @@ class E01Mounter:
 
         # Mount E01 with ewfmount
         try:
-            cmd = ["sudo", "ewfmount", str(e01_image.path), str(mount_point)]
+            # Use -X allow_other to make FUSE mount accessible to all users
+            cmd = [
+                "sudo",
+                "ewfmount",
+                "-X",
+                "allow_other",
+                str(e01_image.path),
+                str(mount_point),
+            ]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode != 0:
