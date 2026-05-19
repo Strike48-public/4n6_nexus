@@ -17,6 +17,10 @@ libpff-python>=20231205   # provides `pypff` (used by pst_parser)
 rbloom>=1.5.0             # bloom filter for NSRL (200M+ hashes, ~400 MB RAM)
 yara-python>=4.3.0        # optional — malware classification; requires native libyara
 
+# TUI and system monitoring
+textual>=0.47.0
+psutil>=5.9.0             # system resource monitoring for TUI progress tracking
+
 # Logging and audit
 structlog>=24.1.0
 

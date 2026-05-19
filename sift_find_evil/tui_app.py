@@ -22,7 +22,11 @@ from textual.widgets import (
     Label,
     Static,
 )
+from textual.worker import Worker, WorkerState
 
+from .progress_tracker import ProgressTracker, FindingSeverity, PhaseStatus
+from .resource_monitor import ResourceMonitor
+from .analysis_runner import AnalysisRunner
 from .tui import CommandPalette, TEXTUAL_CSS
 
 
@@ -197,6 +201,13 @@ class FileSelectionScreen(Screen):
         background: $error;
     }
 
+    .danger-button {
+        width: 1fr;
+        margin: 0 1;
+        background: $forensic-button-danger;
+        color: $text;
+    }
+
     .refresh-button {
         width: 100%;
         margin: 0 0 1 0;
@@ -317,12 +328,14 @@ class FileSelectionScreen(Screen):
         self.selected_path = Path(event.path)
         path_input = self.query_one("#path-input", Input)
         path_input.value = str(self.selected_path)
+        self._update_bookmark_button()
 
     def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
         """Handle directory selection from tree."""
         self.selected_path = Path(event.path)
         path_input = self.query_one("#path-input", Input)
         path_input.value = str(self.selected_path)
+        self._update_bookmark_button()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle manual path entry."""
@@ -432,26 +445,65 @@ class FileSelectionScreen(Screen):
         self.selected_path = path
         self.current_tree_path = path
 
+        # Update bookmark button to reflect new path
+        self._update_bookmark_button()
+
         # Refresh to show selection
         self.refresh()
 
+    def _is_path_bookmarked(self, path: Path | None) -> bool:
+        """Check if a path is bookmarked.
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if bookmarked, False otherwise
+        """
+        if not path:
+            return False
+
+        path_str = str(path)
+        return any(bookmark["path"] == path_str for bookmark in self.bookmarks)
+
+    def _update_bookmark_button(self) -> None:
+        """Update bookmark button text based on current selection."""
+        try:
+            bookmark_btn = self.query_one("#bookmark-current-btn", Button)
+            if self._is_path_bookmarked(self.selected_path):
+                bookmark_btn.label = "Delete Bookmark"
+                bookmark_btn.remove_class("action-button")
+                bookmark_btn.add_class("danger-button")
+            else:
+                bookmark_btn.label = "Bookmark Current"
+                bookmark_btn.remove_class("danger-button")
+                bookmark_btn.add_class("action-button")
+        except Exception:
+            # Button might not exist yet during initialization
+            pass
+
     def _bookmark_current(self) -> None:
-        """Bookmark the currently selected path."""
+        """Bookmark or unbookmark the currently selected path."""
         if not self.selected_path:
             self.app.notify("No path selected to bookmark", severity="warning")
             return
 
-        # Check if already bookmarked
         path_str = str(self.selected_path)
-        for bookmark in self.bookmarks:
+
+        # Check if already bookmarked - if so, delete it
+        for i, bookmark in enumerate(self.bookmarks):
             if bookmark["path"] == path_str:
-                self.app.notify("Path already bookmarked", severity="warning")
+                bookmark_name = bookmark["name"]
+                del self.bookmarks[i]
+                save_bookmarks(self.bookmarks)
+                self.app.notify(f"Deleted bookmark: {bookmark_name}")
+                self._rebuild_quick_access()
+                self._update_bookmark_button()
                 return
 
-        # Prompt for bookmark name (use path name as default)
+        # Not bookmarked - add it
         bookmark_name = self.selected_path.name or "Root"
 
-        # Add bookmark
         self.bookmarks.append({
             "name": bookmark_name,
             "path": path_str
@@ -460,10 +512,11 @@ class FileSelectionScreen(Screen):
         # Save to disk
         save_bookmarks(self.bookmarks)
 
-        self.app.notify(f"Bookmarked: {bookmark_name} (focus & press 'd' to delete)", timeout=3)
+        self.app.notify(f"Bookmarked: {bookmark_name}", timeout=3)
 
         # Refresh the screen to show new bookmark
         self._rebuild_quick_access()
+        self._update_bookmark_button()
 
     def _refresh_drives(self) -> None:
         """Re-scan for mounted drives and rebuild Quick Access section."""
@@ -843,6 +896,7 @@ class AnalysisScreen(Screen):
         ("d", "drill", "Drill Down"),
         ("e", "export", "Export"),
         ("b", "back", "Back"),
+        ("p", "toggle_progress", "Toggle Progress"),
     ]
 
     def __init__(
@@ -860,23 +914,46 @@ class AnalysisScreen(Screen):
         self.evidence_type = evidence_type
         self.mode = mode
         self.selected_detectors = selected_detectors or []
+        self.progress_collapsed = False
+
+        # Initialize progress tracking
+        self.progress_tracker = ProgressTracker()
+        self.resource_monitor = ResourceMonitor(interval=5.0)
+        self.analysis_runner = AnalysisRunner(self.progress_tracker)
+
+        # Register phases based on mode
+        self._register_phases_for_mode()
 
     def compose(self) -> ComposeResult:
-        """Compose the four-panel analysis layout."""
+        """Compose the four-panel analysis layout with bottom panels."""
         yield Header(show_clock=True)
         yield Container(DetectorPanel(), id="detector-panel")
         yield Container(FindingsPanel(), id="findings-panel")
         yield Container(SelfCorrectionPanel(), id="self-correction-panel")
         yield Container(ReasoningPanel(), id="reasoning-panel")
+        yield Container(SystemResourcesPanel(self.progress_tracker), id="system-resources-panel")
+        yield ProgressPanel(self.progress_tracker, id="progress-panel")
         yield Footer()
 
     def on_mount(self) -> None:
-        """Update title with case info."""
+        """Update title with case info and start resource monitoring."""
         evidence_name = str(self.evidence_path.name) if self.evidence_path else self.case_name
         mode_display = self.mode.upper()
         if self.mode == "custom" and self.selected_detectors:
             mode_display = f"CUSTOM ({len(self.selected_detectors)} detectors)"
         self.app.sub_title = f"Case: {self.case_name}    Evidence: {evidence_name}    Mode: {mode_display}    [ANALYZING]"
+
+        # Register progress tracker callbacks
+        self.progress_tracker.on_progress_update(self._on_progress_update)
+        self.progress_tracker.on_resources_updated(self._on_resources_updated)
+        self.progress_tracker.on_phase_changed(self._on_phase_changed)
+        self.progress_tracker.on_activity_added(self._on_activity_added)
+
+        # Start resource monitoring
+        self.run_worker(self._monitor_resources(), exclusive=False, name="resource_monitor")
+
+        # Start real analysis
+        self.run_worker(self._run_real_analysis(), exclusive=True, name="analysis")
 
     def action_approve(self) -> None:
         """Approve selected finding."""
@@ -897,6 +974,96 @@ class AnalysisScreen(Screen):
     def action_back(self) -> None:
         """Go back to previous screen."""
         self.app.pop_screen()
+
+    def action_toggle_progress(self) -> None:
+        """Toggle progress panel collapse state."""
+        progress = self.query_one("#progress-panel", ProgressPanel)
+        progress.toggle_collapse()
+
+    # Progress tracker callbacks
+    def _on_progress_update(self) -> None:
+        """Handle progress update from tracker."""
+        progress = self.query_one("#progress-panel", ProgressPanel)
+        progress.refresh()
+
+    def _on_resources_updated(self) -> None:
+        """Handle resource update from tracker."""
+        resources = self.query_one("#system-resources-panel", SystemResourcesPanel)
+        resources.update_resources()
+
+    def _on_phase_changed(self, phase) -> None:
+        """Handle phase change from tracker."""
+        progress = self.query_one("#progress-panel", ProgressPanel)
+        progress.refresh()
+
+    def _on_activity_added(self, activity) -> None:
+        """Handle new activity from tracker."""
+        progress = self.query_one("#progress-panel", ProgressPanel)
+        progress.refresh()
+
+    # Worker methods
+    async def _monitor_resources(self) -> None:
+        """Monitor system resources and update tracker."""
+        import asyncio
+
+        while not self.progress_tracker.is_canceled:
+            resources = self.resource_monitor.get_current_resources()
+            self.progress_tracker.update_resources(
+                cpu_percent=resources["cpu_percent"],
+                ram_used_gb=resources["ram_used_gb"],
+                ram_total_gb=resources["ram_total_gb"],
+                disk_io_mb=resources["disk_io_mb"],
+            )
+            await asyncio.sleep(5.0)
+
+    def _register_phases_for_mode(self) -> None:
+        """Register analysis phases based on selected mode."""
+        if self.mode == "quick":
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("prefetch", "Prefetch"),
+                ("yara", "YARA"),
+                ("report", "Report"),
+            ])
+        elif self.mode == "memory":
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("memory", "Memory"),
+                ("report", "Report"),
+            ])
+        elif self.mode == "timeline":
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("timestamps", "Timestamps"),
+                ("report", "Report"),
+            ])
+        else:  # full or custom
+            self.progress_tracker.register_phases([
+                ("load", "Load"),
+                ("timestamps", "Timestamps"),
+                ("yara", "YARA"),
+                ("memory", "Memory"),
+                ("persist", "Persist"),
+                ("report", "Report"),
+            ])
+
+    async def _run_real_analysis(self) -> None:
+        """Run real forensic analysis with progress tracking."""
+        try:
+            # Configure analysis runner
+            if self.evidence_path:
+                self.analysis_runner.configure(self.evidence_path, self.mode)
+
+                # Run analysis
+                await self.analysis_runner.run_analysis()
+
+                # Notify completion
+                self.app.notify("Analysis complete!", severity="information")
+            else:
+                self.app.notify("No evidence path configured", severity="warning")
+        except Exception as e:
+            self.app.notify(f"Analysis failed: {str(e)}", severity="error")
+            raise
 
 
 class DetectorPanel(Static):
@@ -995,6 +1162,171 @@ class ReasoningPanel(Static):
         )
 
 
+class SystemResourcesPanel(Static):
+    """Small bottom-left panel showing system resource usage."""
+
+    def __init__(self, progress_tracker: ProgressTracker, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.progress_tracker = progress_tracker
+
+    def compose(self) -> ComposeResult:
+        yield Label("SYSTEM", classes="panel-title", id="sys-title")
+        yield Label("CPU:  --", classes="resource-item", id="sys-cpu")
+        yield Label("RAM:  --", classes="resource-item", id="sys-ram")
+        yield Label("Disk: --", classes="resource-item", id="sys-disk")
+        yield Label("", classes="resource-spacer")
+        yield Label("", classes="resource-warning", id="sys-warning")
+        yield Label("", classes="resource-spacer")
+        yield Label("[Press 'Esc' to cancel]", classes="resource-control")
+
+    def update_resources(self) -> None:
+        """Update resource display from progress tracker."""
+        resources = self.progress_tracker.system_resources
+
+        # Update CPU
+        try:
+            cpu_label = self.query_one("#sys-cpu", Label)
+            cpu_label.update(f"CPU:  {resources.cpu_percent:.0f}%")
+        except Exception:
+            pass
+
+        # Update RAM
+        try:
+            ram_label = self.query_one("#sys-ram", Label)
+            ram_label.update(f"RAM:  {resources.ram_used_gb:.1f}/{resources.ram_total_gb:.0f}GB")
+        except Exception:
+            pass
+
+        # Update Disk
+        try:
+            disk_label = self.query_one("#sys-disk", Label)
+            disk_label.update(f"Disk: {resources.disk_io_mb:.1f}MB/s")
+        except Exception:
+            pass
+
+        # Update warning
+        try:
+            warning_label = self.query_one("#sys-warning", Label)
+            if resources.has_warning and resources.warning_message:
+                warning_label.update(f"⚠ {resources.warning_message}")
+            else:
+                warning_label.update("")
+        except Exception:
+            pass
+
+
+class ProgressPanel(Static):
+    """Collapsible progress panel for investigation status."""
+
+    def __init__(self, progress_tracker: ProgressTracker, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.is_collapsed = False
+        self.progress_tracker = progress_tracker
+
+    def compose(self) -> ComposeResult:
+        if self.is_collapsed:
+            yield from self._render_collapsed()
+        else:
+            yield from self._render_full()
+
+    def _render_full(self) -> ComposeResult:
+        """Render full progress panel."""
+        yield Label("Investigation Progress", classes="progress-title")
+
+        # Current phase
+        phase_name = self.progress_tracker.current_phase.display_name if self.progress_tracker.current_phase else "Idle"
+        yield Label(f"Current Phase: {phase_name}", classes="progress-phase", id="prog-phase")
+
+        # Progress bar and metrics
+        pct = 0
+        current = 0
+        total = 0
+        if self.progress_tracker.current_phase:
+            pct = int(self.progress_tracker.current_phase.progress_pct)
+            current = self.progress_tracker.current_phase.items_processed
+            total = self.progress_tracker.current_phase.items_total
+
+        elapsed = self.progress_tracker.elapsed_time
+        eta = self.progress_tracker.estimated_time_remaining or "--:--:--"
+
+        progress_text = f"{'█' * int(pct * 40 / 100)}{'░' * (40 - int(pct * 40 / 100))} {pct}% ({current}/{total} files)  │  Elapsed: {elapsed}  ETA: {eta}"
+        yield Label(progress_text, classes="progress-bar-text", id="prog-bar")
+
+        yield Label("")  # Spacer
+
+        # Phase indicators
+        phase_indicators = "Phases: "
+        for phase in self.progress_tracker.phases:
+            status_symbol = " "
+            if phase.status == PhaseStatus.COMPLETE:
+                status_symbol = "✓"
+            elif phase.status == PhaseStatus.ACTIVE:
+                status_symbol = "●"
+            phase_indicators += f"[{status_symbol}] {phase.display_name}  "
+        yield Label(phase_indicators, classes="progress-phases", id="prog-phases")
+
+        yield Label("")  # Spacer
+
+        # Findings counter
+        findings = self.progress_tracker.findings_by_severity
+        findings_text = f"Findings: Critical: {findings[FindingSeverity.CRITICAL]}  High: {findings[FindingSeverity.HIGH]}  Medium: {findings[FindingSeverity.MEDIUM]}  Low: {findings[FindingSeverity.LOW]}  Info: {findings[FindingSeverity.INFO]}"
+        yield Label(findings_text, classes="progress-findings", id="prog-findings")
+
+        yield Label("")  # Spacer
+
+        # Recent activity
+        yield Label("Recent Activity:", classes="progress-activity-title")
+        activities = self.progress_tracker.activities[:3]  # Show last 3
+        if activities:
+            for activity in activities:
+                yield Label(f"• {activity.formatted_time} - {activity.message}", classes="progress-activity-item")
+        else:
+            yield Label("  No activity yet", classes="progress-activity-item")
+
+        yield Label("")  # Spacer
+
+        # Bottom controls
+        yield Label("[p: Collapse]", classes="progress-controls")
+
+    def _render_collapsed(self) -> ComposeResult:
+        """Render collapsed progress panel."""
+        # Compact single-line summary
+        phase_name = self.progress_tracker.current_phase.display_name if self.progress_tracker.current_phase else "Idle"
+        pct = int(self.progress_tracker.current_phase.progress_pct) if self.progress_tracker.current_phase else 0
+        current = self.progress_tracker.current_phase.items_processed if self.progress_tracker.current_phase else 0
+        total = self.progress_tracker.current_phase.items_total if self.progress_tracker.current_phase else 0
+        elapsed = self.progress_tracker.elapsed_time
+        eta = self.progress_tracker.estimated_time_remaining or "--:--:--"
+        findings = self.progress_tracker.findings_by_severity
+
+        summary = f"{phase_name}: {pct}% ({current}/{total})  │  Elapsed: {elapsed}  ETA: {eta}  │  Findings: C:{findings[FindingSeverity.CRITICAL]} H:{findings[FindingSeverity.HIGH]} M:{findings[FindingSeverity.MEDIUM]}"
+        yield Label(summary, classes="progress-collapsed-summary")
+
+        # Phase indicators and controls
+        phase_text = ""
+        for phase in self.progress_tracker.phases:
+            short_name = phase.display_name[:4]
+            status_symbol = " "
+            if phase.status == PhaseStatus.COMPLETE:
+                status_symbol = "✓"
+            elif phase.status == PhaseStatus.ACTIVE:
+                status_symbol = "●"
+            phase_text += f"[{status_symbol}] {short_name} "
+
+        controls = f"{phase_text}     [p: Expand]"
+        yield Label(controls, classes="progress-collapsed-controls")
+
+    def toggle_collapse(self) -> None:
+        """Toggle between collapsed and full view."""
+        self.is_collapsed = not self.is_collapsed
+        self.remove_children()
+        if self.is_collapsed:
+            self.mount_all(self._render_collapsed())
+        else:
+            self.mount_all(self._render_full())
+        self.refresh()
+
+
 class HelpScreen(Screen):
     """Help screen showing keybindings and usage instructions."""
 
@@ -1046,6 +1378,7 @@ class HelpScreen(Screen):
             yield Label("r - Reject selected finding", classes="help-item")
             yield Label("d - Drill down for more details", classes="help-item")
             yield Label("e - Export findings to report", classes="help-item")
+            yield Label("p - Toggle progress panel (collapse/expand)", classes="help-item")
             yield Label("b - Go back to previous screen", classes="help-item")
 
             yield Label("GLOBAL KEYBINDINGS", classes="help-section")
@@ -1067,8 +1400,8 @@ class SIFTDemoApp(App):
     CSS = """
     AnalysisScreen {
         layout: grid;
-        grid-size: 2 2;
-        grid-rows: 1fr 1fr;
+        grid-size: 2 3;
+        grid-rows: 1fr 1fr auto;
         grid-columns: 1fr 2fr;
     }
 
@@ -1114,6 +1447,88 @@ class SIFTDemoApp(App):
 
     DataTable {
         height: 100%;
+    }
+
+    /* System Resources Panel Styles */
+    #system-resources-panel {
+        border: solid $primary;
+        padding: 1;
+        row-span: 1;
+        column-span: 1;
+    }
+
+    .resource-item {
+        color: $text;
+        padding: 0;
+    }
+
+    .resource-spacer {
+        height: 1;
+    }
+
+    .resource-warning {
+        color: $warning;
+        text-style: bold;
+    }
+
+    .resource-control {
+        color: $text-muted;
+        text-style: italic;
+    }
+
+    /* Progress Panel Styles */
+    #progress-panel {
+        border: solid $accent;
+        padding: 1;
+        background: $surface-darken-1;
+        row-span: 1;
+        column-span: 1;
+    }
+
+    .progress-title {
+        text-style: bold;
+        color: $accent;
+        text-align: center;
+    }
+
+    .progress-phase {
+        color: $text;
+        padding: 0 0 1 0;
+    }
+
+    .progress-bar-text {
+        color: $success;
+        text-style: bold;
+    }
+
+    .progress-phases {
+        color: $text;
+    }
+
+    .progress-findings {
+        color: $text;
+    }
+
+    .progress-activity-title {
+        text-style: bold;
+        color: $text-muted;
+    }
+
+    .progress-activity-item {
+        color: $text-muted;
+    }
+
+    .progress-controls {
+        color: $warning;
+    }
+
+    .progress-collapsed-summary {
+        color: $text;
+        text-style: bold;
+    }
+
+    .progress-collapsed-controls {
+        color: $text-muted;
     }
     """
 
