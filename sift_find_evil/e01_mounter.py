@@ -187,8 +187,13 @@ class E01Mounter:
             time.sleep(1)
 
             # Check for raw device (usually ewf1)
+            # Use sudo to check since the file is owned by root
             raw_device = mount_point / "ewf1"
-            if not raw_device.exists():
+            check_result = subprocess.run(
+                ["sudo", "test", "-e", str(raw_device)], capture_output=True, timeout=5
+            )
+
+            if check_result.returncode != 0:
                 # Try to unmount
                 subprocess.run(
                     ["sudo", "umount", str(mount_point)], capture_output=True
