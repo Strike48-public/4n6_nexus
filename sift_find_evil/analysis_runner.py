@@ -48,6 +48,16 @@ class AnalysisRunner:
 
         self.progress_tracker.is_running = True
         self.progress_tracker.log_activity(f"Starting {self.mode} analysis")
+        self.progress_tracker.log_activity(f"Evidence path: {self.evidence_path}")
+        self.progress_tracker.log_activity(
+            f"Path exists: {self.evidence_path.exists()}"
+        )
+        if self.evidence_path.exists():
+            if self.evidence_path.is_dir():
+                file_count = len(list(self.evidence_path.rglob("*")))
+                self.progress_tracker.log_activity(
+                    f"Directory contains {file_count} files"
+                )
 
         try:
             # Determine phases based on mode
@@ -123,33 +133,41 @@ class AnalysisRunner:
     def _register_phases_for_mode(self) -> None:
         """Register analysis phases based on selected mode."""
         if self.mode == "quick":
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("prefetch", "Prefetch"),
-                ("yara", "YARA"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("prefetch", "Prefetch"),
+                    ("yara", "YARA"),
+                    ("report", "Report"),
+                ]
+            )
         elif self.mode == "memory":
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("memory", "Memory"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("memory", "Memory"),
+                    ("report", "Report"),
+                ]
+            )
         elif self.mode == "timeline":
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("timestamps", "Timestamps"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("timestamps", "Timestamps"),
+                    ("report", "Report"),
+                ]
+            )
         else:  # full or custom
-            self.progress_tracker.register_phases([
-                ("load", "Load"),
-                ("timestamps", "Timestamps"),
-                ("yara", "YARA"),
-                ("memory", "Memory"),
-                ("persist", "Persist"),
-                ("report", "Report"),
-            ])
+            self.progress_tracker.register_phases(
+                [
+                    ("load", "Load"),
+                    ("timestamps", "Timestamps"),
+                    ("yara", "YARA"),
+                    ("memory", "Memory"),
+                    ("persist", "Persist"),
+                    ("report", "Report"),
+                ]
+            )
 
     # Phase implementations
     async def _phase_load_artifacts(self) -> None:
@@ -198,7 +216,9 @@ class AnalysisRunner:
 
             parser = PrefetchParser()
 
-            self.progress_tracker.start_phase("prefetch", items_total=len(prefetch_files))
+            self.progress_tracker.start_phase(
+                "prefetch", items_total=len(prefetch_files)
+            )
 
             for prefetch_file in prefetch_files:
                 # Check for cancellation
@@ -277,7 +297,8 @@ class AnalysisRunner:
             from .self_correction.engine import SelfCorrectionEngine
 
             self.progress_tracker.start_phase(
-                "timestamps", items_total=len(mft_files) + len(prefetch_files) + len(evtx_files)
+                "timestamps",
+                items_total=len(mft_files) + len(prefetch_files) + len(evtx_files),
             )
 
             # Parse artifacts
@@ -285,7 +306,9 @@ class AnalysisRunner:
             prefetch_parser = PrefetchParser()
             evtx_parser = EvtxParser()
 
-            for mft_file, prefetch_file, evtx_file in zip(mft_files, prefetch_files, evtx_files):
+            for mft_file, prefetch_file, evtx_file in zip(
+                mft_files, prefetch_files, evtx_files
+            ):
                 # Check for cancellation
                 if self.progress_tracker.is_canceled:
                     self.progress_tracker.log_activity(
@@ -317,19 +340,28 @@ class AnalysisRunner:
                     engine = SelfCorrectionEngine()
 
                     # Also get raw contradictions for self-correction panel
-                    from .self_correction.contradiction_detector import ContradictionDetector
+                    from .self_correction.contradiction_detector import (
+                        ContradictionDetector,
+                    )
+
                     detector = ContradictionDetector()
-                    contradictions = detector.detect_all(mft_records, prefetch_records, evtx_records)
+                    contradictions = detector.detect_all(
+                        mft_records, prefetch_records, evtx_records
+                    )
 
                     # Track contradictions
                     for contradiction in contradictions:
                         self.progress_tracker.add_contradiction(
                             description=f"{contradiction.contradiction_type.value}: {contradiction.executable}",
-                            resolution=contradiction.resolution if contradiction.resolution else "Unresolved"
+                            resolution=contradiction.resolution
+                            if contradiction.resolution
+                            else "Unresolved",
                         )
 
                     # Run full analysis
-                    findings = engine.analyze(mft_records, prefetch_records, evtx_records)
+                    findings = engine.analyze(
+                        mft_records, prefetch_records, evtx_records
+                    )
 
                     # Map findings to progress tracker
                     for finding in findings:
@@ -342,16 +374,12 @@ class AnalysisRunner:
                         )
 
                 except (FileNotFoundError, ValueError, KeyError) as e:
-                    self.progress_tracker.log_activity(
-                        f"Timestamp analysis error: {e}"
-                    )
+                    self.progress_tracker.log_activity(f"Timestamp analysis error: {e}")
 
             self.progress_tracker.complete_phase()
 
         except Exception as e:
-            self.progress_tracker.log_activity(
-                f"Timestamp analysis phase error: {e}"
-            )
+            self.progress_tracker.log_activity(f"Timestamp analysis phase error: {e}")
             self.progress_tracker.complete_phase()
 
     async def _phase_yara_scan(self) -> None:
@@ -471,17 +499,26 @@ class AnalysisRunner:
                     # Parse plugin outputs with error handling for malformed data
                     try:
                         pslist = (
-                            [ProcessRow(**row) for row in fixture_data.get("pslist", [])]
+                            [
+                                ProcessRow(**row)
+                                for row in fixture_data.get("pslist", [])
+                            ]
                             if "pslist" in fixture_data
                             else None
                         )
                         psscan = (
-                            [ProcessRow(**row) for row in fixture_data.get("psscan", [])]
+                            [
+                                ProcessRow(**row)
+                                for row in fixture_data.get("psscan", [])
+                            ]
                             if "psscan" in fixture_data
                             else None
                         )
                         malfind = (
-                            [InjectionRow(**row) for row in fixture_data.get("malfind", [])]
+                            [
+                                InjectionRow(**row)
+                                for row in fixture_data.get("malfind", [])
+                            ]
                             if "malfind" in fixture_data
                             else None
                         )
@@ -494,7 +531,10 @@ class AnalysisRunner:
                             else None
                         )
                         netscan = (
-                            [NetworkRow(**row) for row in fixture_data.get("netscan", [])]
+                            [
+                                NetworkRow(**row)
+                                for row in fixture_data.get("netscan", [])
+                            ]
                             if "netscan" in fixture_data
                             else None
                         )
