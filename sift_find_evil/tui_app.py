@@ -22,7 +22,6 @@ from textual.widgets import (
     Label,
     Static,
 )
-from textual.worker import Worker, WorkerState
 
 from .progress_tracker import ProgressTracker, FindingSeverity, PhaseStatus
 from .resource_monitor import ResourceMonitor
@@ -541,7 +540,7 @@ class FileSelectionScreen(Screen):
 
     def _rebuild_quick_access(self) -> None:
         """Rebuild the Quick Access container with updated mounts and bookmarks."""
-        from textual.containers import Vertical, Horizontal
+        from textual.containers import Horizontal
 
         container = self.query_one("#quick-access-container")
 
@@ -842,7 +841,7 @@ class CustomDetectorScreen(Screen):
         with VerticalScroll(id="detector-container"):
             yield Label("SIFT FIND EVIL - SELECT DETECTORS", classes="screen-title")
             yield Label(f"Evidence: {self.case_name}")
-            yield Label(f"Mode: Custom")
+            yield Label("Mode: Custom")
 
             yield Label("Select detectors to run:", classes="section-title")
 
