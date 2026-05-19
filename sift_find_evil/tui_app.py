@@ -978,6 +978,7 @@ class AnalysisScreen(Screen):
 
     def action_toggle_progress(self) -> None:
         """Toggle progress panel collapse state."""
+        # ProgressPanel is NOT wrapped in Container, it's mounted directly
         progress = self.query_one("#progress-panel", ProgressPanel)
         progress.toggle_collapse()
 
@@ -992,7 +993,7 @@ class AnalysisScreen(Screen):
 
     def _on_resources_updated(self) -> None:
         """Handle resource update from tracker."""
-        resources = self.query_one("#system-resources-panel", SystemResourcesPanel)
+        resources = self.query_one("#system-resources-panel", Container).query_one(SystemResourcesPanel)
         resources.update_resources()
 
     def _on_phase_changed(self, phase) -> None:
