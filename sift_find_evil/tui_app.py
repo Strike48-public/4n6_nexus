@@ -1382,6 +1382,7 @@ class AnalysisScreen(Screen):
 
     async def _run_real_analysis(self) -> None:
         """Run real forensic analysis with progress tracking."""
+        analysis_succeeded = False
         try:
             # Configure analysis runner
             if self.evidence_path:
@@ -1390,25 +1391,39 @@ class AnalysisScreen(Screen):
                 # Run analysis
                 await self.analysis_runner.run_analysis()
 
+                # Mark success before cleanup
+                analysis_succeeded = True
+
                 # Notify completion
                 self.app.notify("Analysis complete!", severity="information")
             else:
                 self.app.notify("No evidence path configured", severity="warning")
         except Exception as e:
             self.app.notify(f"Analysis failed: {str(e)}", severity="error")
+            import traceback
+
+            self.progress_tracker.log_activity(f"Error: {traceback.format_exc()}")
             raise
         finally:
             # Cleanup mounted image if present
             if self.mounted_image:
                 try:
+                    self.progress_tracker.log_activity("Starting E01 cleanup...")
                     commands = self.mounted_image.cleanup()
                     self.progress_tracker.log_activity(
-                        f"Cleaned up E01 mount: {len(commands)} commands executed"
+                        f"✓ E01 cleanup complete: {len(commands)} commands executed"
                     )
+                    if analysis_succeeded:
+                        self.app.notify("✓ E01 image unmounted", severity="information")
                 except Exception as cleanup_error:
+                    error_msg = f"Cleanup error: {str(cleanup_error)}"
+                    self.progress_tracker.log_activity(f"✗ {error_msg}")
                     self.app.notify(
                         f"Cleanup warning: {str(cleanup_error)}", severity="warning"
                     )
+                    # Don't re-raise cleanup errors if analysis succeeded
+                    if not analysis_succeeded:
+                        raise
 
 
 class DetectorPanel(Static):
