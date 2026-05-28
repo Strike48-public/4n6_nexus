@@ -356,3 +356,354 @@ def test_load_scenario_rejects_non_numeric_min_recall(tmp_path: Path) -> None:
 
     with pytest.raises(ScenarioLoadError, match="must be numeric"):
         load_scenario(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Scenario Validation Edge Cases
+# ---------------------------------------------------------------------------
+
+
+def test_run_scenario_with_neither_fixtures_nor_evidence_skips_gracefully(
+    tmp_path: Path,
+) -> None:
+    """Scenario with neither fixtures nor evidence skips with clear reason."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: empty\n"
+        "tier: synthetic\n"
+        "description: Test scenario with no data\n",
+    )
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.skipped is True
+    assert "neither fixtures nor evidence" in report.skip_reason.lower()
+
+
+def test_run_scenario_with_missing_causality_fixtures_skips(tmp_path: Path) -> None:
+    """Scenario missing required causality fixtures (mft/prefetch/evtx) skips."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: incomplete\n"
+        "tier: synthetic\n"
+        "fixtures:\n"
+        "  mft: mft.csv\n"
+        "  # Missing prefetch and evtx\n",
+    )
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.skipped is True
+    assert "missing required mft/prefetch/evtx" in report.skip_reason.lower()
+
+
+def test_run_evidence_scenario_missing_required_evidence_file_skips(
+    tmp_path: Path,
+) -> None:
+    """Evidence scenario with missing required file skips gracefully."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: missing_evidence\n"
+        "tier: real\n"
+        "evidence:\n"
+        "  - path: disk.dd\n"
+        "    kind: raw\n"
+        "    required: true\n",
+    )
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.skipped is True
+    assert "missing required evidence" in report.skip_reason.lower()
+
+
+def test_run_evidence_scenario_no_dispatchable_kind_skips_with_warning(
+    tmp_path: Path,
+) -> None:
+    """Evidence scenario with unsupported evidence kind skips."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: unsupported\n"
+        "tier: real\n"
+        "evidence:\n"
+        "  - path: capture.pcap\n"
+        "    kind: pcap\n",
+    )
+    (tmp_path / "capture.pcap").write_bytes(b"fake pcap data")
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.skipped is True
+    assert "no dispatchable kind" in report.skip_reason.lower()
+
+
+def test_run_evidence_scenario_no_files_present_skips(tmp_path: Path) -> None:
+    """Evidence scenario with no files on disk skips gracefully."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: no_files\n"
+        "tier: real\n"
+        "evidence:\n"
+        "  - path: disk.dd\n"
+        "    kind: raw\n",
+    )
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.skipped is True
+    assert "no evidence files present" in report.skip_reason.lower()
+
+
+# ---------------------------------------------------------------------------
+# Scoring Edge Cases
+# ---------------------------------------------------------------------------
+
+
+def test_score_webmail_exfiltration_counting_with_zero_events(tmp_path: Path) -> None:
+    """Scoring correctly handles zero webmail exfiltration events."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: test_webmail\n"
+        "tier: synthetic\n"
+        "fixtures:\n"
+        "  mft: mft.csv\n"
+        "  prefetch: prefetch.csv\n"
+        "  evtx: evtx.csv\n"
+        "expected:\n"
+        "  finding_counts:\n"
+        "    webmail_exfiltration: 2\n",
+    )
+
+    # Create minimal valid fixture files with proper schemas
+    (tmp_path / "mft.csv").write_text(
+        "EntryNumber,FileName,ParentPath,Created0x10\n"
+        "1,test.exe,C:\\\\Users,2024-01-01T00:00:00Z\n"
+    )
+    (tmp_path / "prefetch.csv").write_text(
+        "SourceFilename,Executable,RunCount,LastRunTime\n"
+        "TEST.EXE-ABCD1234.pf,TEST.EXE,1,2024-01-01T00:00:00Z\n"
+    )
+    (tmp_path / "evtx.csv").write_text(
+        "TimeCreated,EventId,RecordId,Computer,PayloadData1\n"
+        "2024-01-01T00:00:00Z,4688,1,TEST-PC,C:\\\\Users\\\\test.exe\n"
+    )
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.passed is False
+    assert "webmail_exfiltration" in report.false_negatives
+    assert report.false_negatives.count("webmail_exfiltration") == 2
+
+
+def test_score_cloud_upload_counting_with_zero_events(tmp_path: Path) -> None:
+    """Scoring correctly handles zero cloud upload events."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: test_cloud\n"
+        "tier: synthetic\n"
+        "fixtures:\n"
+        "  mft: mft.csv\n"
+        "  prefetch: prefetch.csv\n"
+        "  evtx: evtx.csv\n"
+        "expected:\n"
+        "  finding_counts:\n"
+        "    cloud_upload: 1\n",
+    )
+
+    # Create minimal valid fixture files with proper schemas
+    (tmp_path / "mft.csv").write_text(
+        "EntryNumber,FileName,ParentPath,Created0x10\n"
+        "1,test.exe,C:\\\\Users,2024-01-01T00:00:00Z\n"
+    )
+    (tmp_path / "prefetch.csv").write_text(
+        "SourceFilename,Executable,RunCount,LastRunTime\n"
+        "TEST.EXE-ABCD1234.pf,TEST.EXE,1,2024-01-01T00:00:00Z\n"
+    )
+    (tmp_path / "evtx.csv").write_text(
+        "TimeCreated,EventId,RecordId,Computer,PayloadData1\n"
+        "2024-01-01T00:00:00Z,4688,1,TEST-PC,C:\\\\Users\\\\test.exe\n"
+    )
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.passed is False
+    assert "cloud_upload" in report.false_negatives
+    assert report.false_negatives.count("cloud_upload") == 1
+
+
+def test_score_yara_match_counting_with_zero_matches(tmp_path: Path) -> None:
+    """Scoring correctly handles zero YARA matches."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: test_yara\n"
+        "tier: synthetic\n"
+        "fixtures:\n"
+        "  yara_rules: rules\n"
+        "  yara_scan_dir: samples\n"
+        "expected:\n"
+        "  finding_counts:\n"
+        "    yara_match: 1\n",
+    )
+
+    # Create empty directories
+    (tmp_path / "rules").mkdir()
+    (tmp_path / "samples").mkdir()
+    (tmp_path / "rules" / "test.yar").write_text(
+        "rule test { condition: false }"
+    )
+    (tmp_path / "samples" / "benign.exe").write_bytes(b"benign content")
+
+    # Act
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    # Assert
+    assert report.passed is False
+    assert "yara_match" in report.false_negatives
+
+
+def test_load_scenario_with_empty_expected_block_uses_defaults(tmp_path: Path) -> None:
+    """Scenario with empty expected block uses default 1.0 precision/recall."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: defaults\n"
+        "tier: synthetic\n"
+        "expected: {}\n",
+    )
+
+    # Act
+    manifest = load_scenario(tmp_path)
+
+    # Assert
+    assert manifest.min_precision == 1.0
+    assert manifest.min_recall == 1.0
+    assert len(manifest.expected_malicious_executables) == 0
+    assert len(manifest.expected_finding_counts) == 0
+
+
+def test_load_scenario_with_null_expected_uses_defaults(tmp_path: Path) -> None:
+    """Scenario with null expected block uses default values."""
+    # Arrange
+    _write_manifest(
+        tmp_path,
+        "name: null_expected\n"
+        "tier: synthetic\n"
+        "expected: null\n",
+    )
+
+    # Act
+    manifest = load_scenario(tmp_path)
+
+    # Assert
+    assert manifest.min_precision == 1.0
+    assert manifest.min_recall == 1.0
+
+
+def test_scenario_report_precision_with_zero_detections_returns_one(
+    synthetic_clean_dir: Path,
+) -> None:
+    """ScenarioReport.precision returns 1.0 when no detections and none expected."""
+    # Arrange
+    report = run_scenario_path(synthetic_clean_dir)
+
+    # Act
+    precision = report.precision
+
+    # Assert
+    assert precision == 1.0
+    assert len(report.true_positives) == 0
+    assert len(report.false_positives) == 0
+
+
+def test_scenario_report_recall_with_zero_expectations_returns_one(
+    synthetic_clean_dir: Path,
+) -> None:
+    """ScenarioReport.recall returns 1.0 when no findings expected."""
+    # Arrange
+    report = run_scenario_path(synthetic_clean_dir)
+
+    # Act
+    recall = report.recall
+
+    # Assert
+    assert recall == 1.0
+    assert len(report.true_positives) == 0
+    assert len(report.false_negatives) == 0
+
+
+def test_scenario_report_f1_score_with_zero_values_returns_zero() -> None:
+    """ScenarioReport.f1 returns 0.0 when precision and recall are both 0."""
+    # Arrange
+    from sift_find_evil.scenario_runner import ScenarioReport, ScenarioManifest
+
+    manifest = ScenarioManifest(
+        name="test",
+        tier="synthetic",
+        directory=Path("/tmp"),
+        description="",
+        fixtures={},
+        evidence=[],
+        expected_malicious_executables=frozenset(["malware.exe"]),
+        expected_finding_counts={},
+        min_precision=1.0,
+        min_recall=1.0,
+    )
+
+    report = ScenarioReport(
+        manifest=manifest,
+        findings_count=0,
+        detected_executables=[],
+        false_negatives=["malware.exe"],
+    )
+
+    # Act
+    f1 = report.f1
+
+    # Assert
+    assert f1 == 0.0
