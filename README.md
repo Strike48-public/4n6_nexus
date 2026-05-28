@@ -439,12 +439,33 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component design.
 git clone https://github.com/Strike48/sift_find_evil.git
 cd sift_find_evil
 
-# Install dependencies
+# Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
+
+# Install core dependencies (pure-Python, installs on any platform).
+# This is sufficient for the demo, the validation harness, the TUI, and all
+# detectors running against the synthetic fixtures.
 pip install -r requirements.txt
 
 # Verify installation
 python -m sift_find_evil.cli --help
 ```
+
+**Processing real evidence (optional).** Disk images (E01/raw), PST email, and
+memory dumps require native forensic libraries (Sleuth Kit, libewf, libpff,
+YARA). These need a compiler and system headers, so they are kept separate:
+
+```bash
+# Debian/Ubuntu/SIFT: install the underlying system libraries first
+sudo apt-get install libtsk-dev libewf-dev libpff-dev libyara-dev
+
+# Then the Python bindings + Volatility 3
+pip install -r requirements-forensic.txt
+```
+
+The application loads and runs without these; code paths that need them raise a
+clear, install-oriented error rather than failing at startup.
 
 ### Demo Mode (Try It Now!)
 

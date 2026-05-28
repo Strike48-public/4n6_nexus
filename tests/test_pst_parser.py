@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +17,6 @@ from sift_find_evil.parsers.pst_parser import (
     _parse_attachment,
     _parse_message,
 )
-
 
 # Fake pypff attachment for unit tests
 
@@ -217,6 +217,7 @@ def test_parse_attachment_size_exception():
 
 def test_parse_message_attachment_enumeration_fails():
     """_parse_message handles exception during attachment enumeration."""
+
     class MessageWithBrokenAttachments:
         client_submit_time = None
         delivery_time = None
@@ -356,6 +357,10 @@ def test_parse_message_with_tzinfo_aware_timestamps():
 @pytest.mark.skipif(
     not Path("analysis/m57-jean/extracted/email/outlook.pst").exists(),
     reason="Jean PST not extracted",
+)
+@pytest.mark.skipif(
+    importlib.util.find_spec("pypff") is None,
+    reason="pypff (libpff-python) not installed — forensic extra",
 )
 def test_parse_jean_pst_critical_message():
     """Parse Jean's PST and assert the exfil email has the correct attachment hash.

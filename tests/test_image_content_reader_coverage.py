@@ -6,17 +6,27 @@ Missing lines from coverage report: 33-34, 38, 50-51, 59, 86-109, 120-132, 140,
 
 from __future__ import annotations
 
+import importlib.util
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
-from sift_find_evil.parsers.image_content_reader import (
+# These tests patch pyewf/pytsk3 as real module attributes; without the native
+# forensic libraries installed those names are None and the patches cannot bind.
+# Skip the whole module in a core (non-forensic) environment.
+pytestmark = pytest.mark.skipif(
+    importlib.util.find_spec("pyewf") is None
+    or importlib.util.find_spec("pytsk3") is None,
+    reason="pyewf/pytsk3 not installed — forensic extras",
+)
+
+from sift_find_evil.parsers.image_content_reader import (  # noqa: E402
     ImageContentReader,
     make_content_reader,
 )
-from sift_find_evil.parsers.mft_parser import MFTEntry
+from sift_find_evil.parsers.mft_parser import MFTEntry  # noqa: E402
 
 
 def create_test_mft_entry(

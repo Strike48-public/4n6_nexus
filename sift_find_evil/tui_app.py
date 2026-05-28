@@ -34,7 +34,6 @@ from .analysis_runner import AnalysisRunner
 from .tui import CommandPalette, TEXTUAL_CSS
 from .e01_mounter import E01Mounter, E01Image, MountedImage
 
-
 # Bookmarks file location
 BOOKMARKS_FILE = Path.home() / ".sift" / "bookmarks.json"
 
@@ -232,9 +231,9 @@ class FileSelectionScreen(Screen):
         self._mount_id_counter = 0  # Counter for unique mount button IDs
         self._bookmark_id_counter = 0  # Counter for unique bookmark button IDs
         self._mount_id_to_index: dict[str, int] = {}  # Map button ID to mount index
-        self._bookmark_id_to_index: dict[
-            str, int
-        ] = {}  # Map button ID to bookmark index
+        self._bookmark_id_to_index: dict[str, int] = (
+            {}
+        )  # Map button ID to bookmark index
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -760,8 +759,11 @@ class E01MountScreen(Screen):
                 f"\nFound {len(self.e01_images)} E01 image(s):", classes="section-title"
             )
 
-            # Show E01 images as buttons
-            for img in self.e01_images:
+            # Show E01 images as buttons. Use the enumeration index for the widget
+            # ID (not img.name) because two images can share a basename across
+            # subdirectories (e.g. case_a/disk.E01 and case_b/disk.E01), which
+            # would otherwise produce duplicate widget IDs and crash compose().
+            for idx, img in enumerate(self.e01_images):
                 button_class = (
                     "disk-button" if img.image_type == "disk" else "memory-button"
                 )
@@ -770,7 +772,7 @@ class E01MountScreen(Screen):
                 )
                 yield Button(
                     button_label,
-                    id=f"mount_{img.name}",
+                    id=f"mount_{idx}",
                     classes=f"e01-button {button_class}",
                 )
 
@@ -797,13 +799,13 @@ class E01MountScreen(Screen):
             return
 
         if button_id.startswith("mount_"):
-            # Extract image name
-            img_name = button_id.replace("mount_", "")
-            # Find the image
-            for img in self.e01_images:
-                if img.name == img_name:
-                    self._mount_image(img)
-                    break
+            # Resolve the image by its enumeration index (set in compose()).
+            try:
+                idx = int(button_id.removeprefix("mount_"))
+            except ValueError:
+                return
+            if 0 <= idx < len(self.e01_images):
+                self._mount_image(self.e01_images[idx])
 
         elif button_id == "skip-btn":
             # Skip mounting, go directly to analysis with raw path

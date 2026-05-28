@@ -10,53 +10,81 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pyewf
-import pytsk3
-
 if TYPE_CHECKING:
     from .mft_parser import MFTEntry
 
+# pyewf (`libewf-python`) and pytsk3 are optional native dependencies, only needed
+# for reading content from E01/raw disk images. Import them defensively so a system
+# without libewf/libtsk can still load the rest of the package and CLI. Runtime code
+# paths that actually need them raise an actionable error via _require_forensic_libs().
+try:
+    import pyewf
+    import pytsk3
+except ImportError:  # pragma: no cover - exercised only on systems without the libs
+    pyewf = None  # type: ignore[assignment]
+    pytsk3 = None  # type: ignore[assignment]
 
-class EwfImgInfo(pytsk3.Img_Info):
-    """pytsk3 image adapter for pyewf file handles.
 
-    pytsk3 expects a file-like object with read/seek; pyewf provides that via
-    its handle. This adapter wires the two together.
+def _require_forensic_libs() -> None:
+    """Raise an actionable error if pyewf/pytsk3 are unavailable.
+
+    Called by code paths that read disk image content. Keeps the failure mode a
+    clear, install-oriented message rather than an opaque AttributeError on None.
     """
+    if pyewf is None or pytsk3 is None:
+        raise ImportError(
+            "Reading disk image content requires 'libewf-python' (pyewf) and "
+            "'pytsk3', which have native dependencies. Install them with "
+            "'pip install libewf-python pytsk3' or install the forensic extras: "
+            "'pip install -r requirements-forensic.txt'."
+        )
 
-    def __init__(self, ewf_handle):
-        """Initialize the adapter with a pyewf file handle.
 
-        Args:
-            ewf_handle: An opened pyewf handle (result of pyewf.handle().open()).
+if pytsk3 is not None:
+
+    class EwfImgInfo(pytsk3.Img_Info):
+        """pytsk3 image adapter for pyewf file handles.
+
+        pytsk3 expects a file-like object with read/seek; pyewf provides that via
+        its handle. This adapter wires the two together.
         """
-        self._ewf_handle = ewf_handle
-        super().__init__(url="", type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
 
-    def close(self):
-        """Close the underlying EWF handle to release resources."""
-        self._ewf_handle.close()
+        def __init__(self, ewf_handle):
+            """Initialize the adapter with a pyewf file handle.
 
-    def read(self, offset: int, size: int) -> bytes:
-        """Read bytes from the EWF image at a given offset.
+            Args:
+                ewf_handle: An opened pyewf handle (result of pyewf.handle().open()).
+            """
+            self._ewf_handle = ewf_handle
+            super().__init__(url="", type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
 
-        Args:
-            offset: Byte offset in the image.
-            size: Number of bytes to read.
+        def close(self):
+            """Close the underlying EWF handle to release resources."""
+            self._ewf_handle.close()
 
-        Returns:
-            Bytes read from the image.
-        """
-        self._ewf_handle.seek(offset)
-        return self._ewf_handle.read(size)
+        def read(self, offset: int, size: int) -> bytes:
+            """Read bytes from the EWF image at a given offset.
 
-    def get_size(self) -> int:
-        """Get the total size of the EWF image in bytes.
+            Args:
+                offset: Byte offset in the image.
+                size: Number of bytes to read.
 
-        Returns:
-            Total media size in bytes.
-        """
-        return self._ewf_handle.get_media_size()
+            Returns:
+                Bytes read from the image.
+            """
+            self._ewf_handle.seek(offset)
+            return self._ewf_handle.read(size)
+
+        def get_size(self) -> int:
+            """Get the total size of the EWF image in bytes.
+
+            Returns:
+                Total media size in bytes.
+            """
+            return self._ewf_handle.get_media_size()
+
+else:  # pragma: no cover - exercised only on systems without the libs
+    EwfImgInfo = None  # type: ignore[assignment,misc]
 
 
 class ImageContentReader:
@@ -85,6 +113,8 @@ class ImageContentReader:
         """
         if not image_path.exists():
             raise FileNotFoundError(f"Image file not found: {image_path}")
+
+        _require_forensic_libs()
 
         # pyewf needs a list of segment filenames. For split images (.E01, .E02, ...),
         # pass just the first; pyewf auto-discovers the rest.

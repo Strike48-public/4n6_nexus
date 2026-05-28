@@ -7,10 +7,22 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-from scapy.all import IP, TCP, UDP, DNS, DNSQR, Ether, wrpcap
-from scapy.layers.http import HTTPRequest as ScapyHTTPRequest
 
-from sift_find_evil.parsers.pcap_parser import (
+# scapy is a test-only dependency used to synthesize PCAP fixtures; the
+# production parser (pcap_parser.py) shells out to tshark and does not import it.
+# Skip this module cleanly when scapy is not installed (core, non-forensic env)
+# rather than failing collection.
+scapy_all = pytest.importorskip("scapy.all")
+IP = scapy_all.IP
+TCP = scapy_all.TCP
+UDP = scapy_all.UDP
+DNS = scapy_all.DNS
+DNSQR = scapy_all.DNSQR
+Ether = scapy_all.Ether
+wrpcap = scapy_all.wrpcap
+from scapy.layers.http import HTTPRequest as ScapyHTTPRequest  # noqa: E402
+
+from sift_find_evil.parsers.pcap_parser import (  # noqa: E402
     DNSQuery,
     HTTPRequest,
     HTTPSession,
@@ -146,9 +158,7 @@ def test_extract_http_requests_tshark_error(http_pcap: Path, monkeypatch) -> Non
     parser = PcapParser()
 
     def mock_run(*args, **kwargs):
-        raise subprocess.CalledProcessError(
-            returncode=1, cmd=[], stderr="tshark error"
-        )
+        raise subprocess.CalledProcessError(returncode=1, cmd=[], stderr="tshark error")
 
     monkeypatch.setattr(subprocess, "run", mock_run)
 
@@ -251,9 +261,7 @@ def test_extract_dns_queries_tshark_error(dns_pcap: Path, monkeypatch) -> None:
     parser = PcapParser()
 
     def mock_run(*args, **kwargs):
-        raise subprocess.CalledProcessError(
-            returncode=1, cmd=[], stderr="tshark error"
-        )
+        raise subprocess.CalledProcessError(returncode=1, cmd=[], stderr="tshark error")
 
     monkeypatch.setattr(subprocess, "run", mock_run)
 
@@ -430,7 +438,9 @@ def test_extract_http_requests_malformed_line(http_pcap: Path, monkeypatch) -> N
     assert isinstance(requests, list)
 
 
-def test_extract_http_requests_value_error_on_parse(http_pcap: Path, monkeypatch) -> None:
+def test_extract_http_requests_value_error_on_parse(
+    http_pcap: Path, monkeypatch
+) -> None:
     """Test extract_http_requests handles ValueError on timestamp parse."""
     parser = PcapParser()
 
@@ -518,9 +528,7 @@ def test_extract_smtp_messages_tshark_error(temp_pcap_dir: Path, monkeypatch) ->
     wrpcap(str(pcap_path), [])
 
     def mock_run(*args, **kwargs):
-        raise subprocess.CalledProcessError(
-            returncode=1, cmd=[], stderr="tshark error"
-        )
+        raise subprocess.CalledProcessError(returncode=1, cmd=[], stderr="tshark error")
 
     monkeypatch.setattr(subprocess, "run", mock_run)
 

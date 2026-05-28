@@ -1,43 +1,44 @@
-# Core dependencies
+# Core dependencies — pure-Python, install cleanly on any platform.
+#
+# This set is sufficient to run the full demo, the scenario validation harness,
+# the TUI, and every detector against the synthetic fixtures. No native build
+# toolchain or external forensic libraries are required.
+#
+# For processing REAL evidence (E01/raw images, PST email, memory dumps), also
+# install the native forensic extras:  pip install -r requirements-forensic.txt
+
+# Date/time handling
 python-dateutil>=2.8.2
 pytz>=2024.1
+
+# Config / scenario manifests
 pyyaml>=6.0
-click>=8.1.0
+
+# Data validation
 pydantic>=2.0.0
+
+# Terminal UI and rich output
 rich>=13.0.0
-
-# Protocol SIFT MCP integration
-anthropic>=0.18.0
-
-# Forensic tool wrappers
-pytsk3>=20231007
-volatility3>=2.5.0
-libewf-python>=20240506   # provides `pyewf` (used by image_content_reader)
-libpff-python>=20231205   # provides `pypff` (used by pst_parser)
-rbloom>=1.5.0             # bloom filter for NSRL (200M+ hashes, ~400 MB RAM)
-yara-python>=4.3.0        # optional — malware classification; requires native libyara
-
-# TUI and system monitoring
 textual>=0.47.0
-psutil>=5.9.0             # system resource monitoring for TUI progress tracking
 
-# Logging and audit
-structlog>=24.1.0
+# System resource monitoring (TUI progress tracking)
+psutil>=5.9.0
 
-# Data processing
+# Data processing (detector analytics)
 pandas>=2.0.0
 numpy>=1.24.0
 
-# Reporting
-jinja2>=3.1.0
-markdown>=3.5.0
+# Malware classification — ships as prebuilt manylinux/macOS/Windows wheels with
+# bundled libyara, so it installs without a compiler. Required for the YARA
+# detection scenario (11_yara_malware) and the headline 12/12 F1=1.00 result.
+yara-python>=4.3.0
 
-# Testing (will move to requirements-dev.txt later)
+# Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0
 pytest-asyncio>=0.21.0
 
-# Code quality (will move to requirements-dev.txt later)
+# Code quality
+ruff>=0.5.0
 black>=24.0.0
-pylint>=3.0.0
 mypy>=1.8.0

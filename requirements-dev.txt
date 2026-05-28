@@ -1,0 +1,13 @@
+# Development / test-only dependencies.
+#
+# These are not needed to run the application. They are used by the test suite to
+# synthesize fixtures and exercise optional code paths. Install on top of core:
+#     pip install -r requirements.txt
+#     pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+# Synthesizes PCAP fixtures for the network-parser tests. The production PCAP
+# parser shells out to tshark and does NOT import scapy; tests that build .pcap
+# files are skipped automatically when scapy is absent.
+scapy>=2.5.0
