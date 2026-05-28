@@ -2,7 +2,6 @@
 
 import base64
 
-import pytest
 
 from sift_find_evil.memory.obfuscation import (
     DeobfuscationResult,
@@ -75,8 +74,6 @@ def test_non_text_binary_decode_returns_result():
 
 def test_high_entropy_decoded_payload():
     """High entropy (>= 5.0) decoded payload adds reason."""
-    # Compressed/encrypted-looking payload (high entropy)
-    compressed_text = "x" * 200  # Uniform distribution = low entropy
     # Create high-entropy text by using many different chars
     high_entropy_text = "".join(chr(i) for i in range(33, 127)) * 10  # ASCII printable
     encoded = base64.b64encode(high_entropy_text.encode("utf-16-le")).decode("ascii")

@@ -794,7 +794,7 @@ def test_linux_sockstat_shell_rfc1918_peer_fires_lateral_movement() -> None:
     assert "T1021" in findings[0].evidence["mitre_attack"]
 
 
-def test_linux_sockstat_loopback_skipped() -> None:
+def test_linux_sockstat_loopback_skipped_simple() -> None:
     row = _linux_netscan_row(foreign_addr="127.0.0.1", foreign_port=8080)
     assert MemoryDetector().analyze(linux_sockstat=[row]) == []
 

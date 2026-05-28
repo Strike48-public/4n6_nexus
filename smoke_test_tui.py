@@ -12,7 +12,7 @@ Run on a synthetic scenario to check:
 import asyncio
 from pathlib import Path
 
-from sift_find_evil.progress_tracker import ProgressTracker, FindingSeverity, PhaseStatus
+from sift_find_evil.progress_tracker import ProgressTracker, PhaseStatus
 from sift_find_evil.analysis_runner import AnalysisRunner
 
 

@@ -8,7 +8,7 @@ async monitoring loop, and error handling.
 import asyncio
 import time
 import unittest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 from sift_find_evil.resource_monitor import ResourceMonitor
 

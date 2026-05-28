@@ -1,10 +1,7 @@
 """Tests for Event Log parser."""
 
-import csv
 import json
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional
 
 import pytest
 

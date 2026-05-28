@@ -34,13 +34,13 @@ def diagnose_path(evidence_path: Path) -> None:
     # Check 2: Path type
     print("\n[2] Path Type Check")
     if evidence_path.is_file():
-        print(f"ℹ Path is a FILE (will be treated as disk image)")
+        print("ℹ Path is a FILE (will be treated as disk image)")
         print(f"  Size: {evidence_path.stat().st_size / (1024**3):.2f} GB")
         return
     elif evidence_path.is_dir():
-        print(f"✓ Path is a DIRECTORY")
+        print("✓ Path is a DIRECTORY")
     else:
-        print(f"❌ FAIL: Path is neither file nor directory")
+        print("❌ FAIL: Path is neither file nor directory")
         return
 
     # Check 3: Directory listing
@@ -77,15 +77,15 @@ def diagnose_path(evidence_path: Path) -> None:
                 all_files.append(f)
                 file_count += 1
                 if file_count >= 10000:
-                    print(f"  ⚠ Stopped at 10,000 files for safety")
+                    print("  ⚠ Stopped at 10,000 files for safety")
                     break
 
         elapsed = time.time() - start
         print(f"✓ Scanned {len(all_files)} files in {elapsed:.2f}s")
 
         if len(all_files) == 0:
-            print(f"  ⚠ WARNING: No files found in directory tree")
-            print(f"  This is unusual - check if the directory is empty or has permission issues")
+            print("  ⚠ WARNING: No files found in directory tree")
+            print("  This is unusual - check if the directory is empty or has permission issues")
 
     except PermissionError as e:
         print(f"❌ FAIL: Permission denied during recursive scan: {e}")

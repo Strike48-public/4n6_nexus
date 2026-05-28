@@ -8,14 +8,13 @@ from pathlib import Path
 
 import pytest
 from scapy.all import IP, TCP, UDP, DNS, DNSQR, Ether, wrpcap
-from scapy.layers.http import HTTP, HTTPRequest as ScapyHTTPRequest
+from scapy.layers.http import HTTPRequest as ScapyHTTPRequest
 
 from sift_find_evil.parsers.pcap_parser import (
     DNSQuery,
     HTTPRequest,
     HTTPSession,
     PcapParser,
-    SMTPMessage,
     TCPConversation,
 )
 

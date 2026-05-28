@@ -20,8 +20,7 @@ from .categories import FindingCategory
 if TYPE_CHECKING:
     # Import types only for type checking to avoid circular dependencies
     # These types are only used in self-correction (Enterprise)
-    from ..self_correction.contradiction_detector import Contradiction
-    from ..self_correction.confidence_scorer import Resolution
+    pass
 
 
 @dataclass

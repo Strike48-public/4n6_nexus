@@ -15,6 +15,7 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+extend-exclude = ["rules/yara/community"]
 
 [tool.pytest.ini_options]
 markers = [

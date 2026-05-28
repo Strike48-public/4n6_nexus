@@ -2,7 +2,7 @@
 """Test button attribute persistence in Textual."""
 
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Static, Header
+from textual.widgets import Button, Header
 from textual.containers import Container
 
 

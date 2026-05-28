@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import subprocess
-import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-import pytest
 
 from sift_find_evil.e01_mounter import E01Image, MountedImage, E01Mounter
 
@@ -589,7 +587,7 @@ def test_e01_mounter_mount_filesystem_creates_filesystem_mount_point(
     )
 
     # Act
-    result = E01Mounter._mount_filesystem(mounted)
+    E01Mounter._mount_filesystem(mounted)
 
     # Assert
     mock_mkdtemp.assert_called()

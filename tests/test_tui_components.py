@@ -4,7 +4,6 @@ import pytest
 
 from sift_find_evil.tui import (
     Command,
-    CommandPalette,
     filter_commands,
     get_command_by_id,
     OperationProgress,

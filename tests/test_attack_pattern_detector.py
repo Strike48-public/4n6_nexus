@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from sift_find_evil.self_correction.attack_pattern_detector import (
     AttackPatternDetector,

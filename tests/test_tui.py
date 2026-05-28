@@ -6,7 +6,6 @@ Tests interactive functionality including button clicks, navigation, and screen 
 
 import pytest
 from pathlib import Path
-from textual.pilot import Pilot
 from sift_find_evil.tui_app import SIFTDemoApp, FileSelectionScreen
 
 
@@ -27,16 +26,13 @@ class TestFileSelectionScreen:
         """Test clicking the refresh drives button."""
         app = SIFTDemoApp()
         async with app.run_test() as pilot:
-            # Get initial mount count
-            screen = pilot.app.screen
-            initial_mount_count = len(screen.mounts)
-
             # Click refresh button
             await pilot.click("#refresh-drives-btn")
             await pilot.pause()
 
             # Should have same or different mount count (depends on system state)
             # But should not crash
+            screen = pilot.app.screen
             assert len(screen.mounts) >= 0
 
     @pytest.mark.asyncio
