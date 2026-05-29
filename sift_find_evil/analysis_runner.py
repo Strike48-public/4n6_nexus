@@ -307,7 +307,7 @@ class AnalysisRunner:
 
             from .parsers.mft_parser import MFTParser
             from .parsers.prefetch_parser import PrefetchParser
-            from .parsers.evtx_parser import EvtxParser
+            from .parsers.evtx_parser import EventLogParser
             from .self_correction.engine import SelfCorrectionEngine
 
             self.progress_tracker.start_phase(
@@ -318,7 +318,7 @@ class AnalysisRunner:
             # Parse artifacts
             mft_parser = MFTParser()
             prefetch_parser = PrefetchParser()
-            evtx_parser = EvtxParser()
+            evtx_parser = EventLogParser()
 
             for mft_file, prefetch_file, evtx_file in zip(
                 mft_files, prefetch_files, evtx_files
@@ -343,7 +343,9 @@ class AnalysisRunner:
                     await asyncio.sleep(0.001)
 
                     self.progress_tracker.log_activity("Parsing event logs...")
-                    evtx_records = evtx_parser.parse_csv(evtx_file)
+                    evtx_records = evtx_parser.parse_csv(
+                        evtx_file, filter_event_ids=[4688]
+                    )
                     self.progress_tracker.increment_progress()
                     await asyncio.sleep(0.001)
 
@@ -363,14 +365,15 @@ class AnalysisRunner:
                         mft_records, prefetch_records, evtx_records
                     )
 
-                    # Track contradictions
+                    # Track contradictions. Contradiction exposes `type` (enum)
+                    # and a human-readable `description`; resolution is decided by
+                    # the SelfCorrectionEngine downstream, so surface it as pending
+                    # here for the self-correction panel.
                     for contradiction in contradictions:
                         self.progress_tracker.add_contradiction(
-                            description=f"{contradiction.contradiction_type.value}: {contradiction.executable}",
-                            resolution=(
-                                contradiction.resolution
-                                if contradiction.resolution
-                                else "Unresolved"
+                            description=f"{contradiction.type.value}: {contradiction.description}",
+                            resolution=contradiction.details.get(
+                                "resolution", "See finding"
                             ),
                         )
 
@@ -420,8 +423,10 @@ class AnalysisRunner:
                 return
 
             try:
-                scanner = YaraScanner()
-                scanner.compile_from_directory(rules_dir)
+                # compile_from_directory is a classmethod that returns a
+                # configured scanner; calling YaraScanner() directly fails
+                # because the constructor requires compiled rules.
+                scanner = YaraScanner.compile_from_directory(rules_dir)
                 detector = YaraDetector(scanner=scanner)
             except Exception as e:
                 self.progress_tracker.log_activity(f"YARA scanner init failed: {e}")
@@ -501,12 +506,16 @@ class AnalysisRunner:
 
             detector = MemoryDetector()
 
-            # Import plugin types once before loop
+            # Import the row coercers once before the loop. These map raw
+            # Volatility 3 JSON (PascalCase keys like PID/ImageFileName) onto the
+            # typed dataclasses; constructing the dataclasses directly with
+            # **row would fail on the real key names. Mirrors the coercion used
+            # by the scenario harness so both paths parse identical fixtures.
             from .memory.volatility_runner import (
-                ProcessRow,
-                InjectionRow,
-                CommandLineRow,
-                NetworkRow,
+                _to_cmdline_row,
+                _to_injection_row,
+                _to_network_row,
+                _to_process_row,
             )
 
             self.progress_tracker.start_phase(
@@ -535,42 +544,27 @@ class AnalysisRunner:
                     # Parse plugin outputs with error handling for malformed data
                     try:
                         pslist = (
-                            [
-                                ProcessRow(**row)
-                                for row in fixture_data.get("pslist", [])
-                            ]
+                            [_to_process_row(row) for row in fixture_data["pslist"]]
                             if "pslist" in fixture_data
                             else None
                         )
                         psscan = (
-                            [
-                                ProcessRow(**row)
-                                for row in fixture_data.get("psscan", [])
-                            ]
+                            [_to_process_row(row) for row in fixture_data["psscan"]]
                             if "psscan" in fixture_data
                             else None
                         )
                         malfind = (
-                            [
-                                InjectionRow(**row)
-                                for row in fixture_data.get("malfind", [])
-                            ]
+                            [_to_injection_row(row) for row in fixture_data["malfind"]]
                             if "malfind" in fixture_data
                             else None
                         )
                         cmdline = (
-                            [
-                                CommandLineRow(**row)
-                                for row in fixture_data.get("cmdline", [])
-                            ]
+                            [_to_cmdline_row(row) for row in fixture_data["cmdline"]]
                             if "cmdline" in fixture_data
                             else None
                         )
                         netscan = (
-                            [
-                                NetworkRow(**row)
-                                for row in fixture_data.get("netscan", [])
-                            ]
+                            [_to_network_row(row) for row in fixture_data["netscan"]]
                             if "netscan" in fixture_data
                             else None
                         )

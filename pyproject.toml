@@ -25,11 +25,15 @@ markers = [
 
 [tool.coverage.run]
 source = ["sift_find_evil"]
-# cli.py and __main__.py are thin argparse wrappers exercised end-to-end via
-# scenario_runner + CLI smoke tests, not by unit tests. Counting them drags
-# the project-wide figure down to ~77% without reflecting what we actually
-# cover in the detector/parser layer. Omit so --cov-fail-under speaks to the
-# library surface, not the CLI driver.
+# Driver and pure-rendering layers are omitted so --cov-fail-under speaks to the
+# detection library + orchestration surface, not to UI/CLI glue:
+#   - cli.py / __main__.py / cli_mcp.py: thin argparse wrappers exercised E2E via
+#     scenario_runner + CLI smoke tests, not unit tests.
+#   - tui_app.py / tui/*: Textual rendering. Line coverage of widget composition
+#     is brittle and low-signal; the interactive behavior is covered by the
+#     Pilot-driven tests in tests/test_tui.py instead.
+# Note: analysis_runner.py is intentionally NOT omitted — it orchestrates the
+# detectors and is unit-tested end-to-end in tests/test_analysis_runner.py.
 omit = [
     "sift_find_evil/cli.py",
     "sift_find_evil/__main__.py",
@@ -40,6 +44,8 @@ omit = [
     "sift_find_evil/case/*",
     "sift_find_evil/approval/*",
     "sift_find_evil/audit/*",
+    "sift_find_evil/tui_app.py",
+    "sift_find_evil/tui/*",
 ]
 
 [tool.coverage.report]
