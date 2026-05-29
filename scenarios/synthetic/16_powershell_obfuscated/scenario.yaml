@@ -1,0 +1,41 @@
+name: 16_powershell_obfuscated
+tier: synthetic
+category: malware_execution
+difficulty: intermediate
+description: >
+  Fileless malware execution via obfuscated PowerShell. Three malicious
+  command lines are present in the process list: a Base64 -EncodedCommand
+  that decodes to an IEX download cradle, a hidden/bypass file launcher
+  reading from C:\Users\Public, and a pwsh -enc payload that decodes to an
+  Invoke-WebRequest dropper. Two benign system processes (explorer, svchost)
+  are included to confirm the detector does not over-flag. Exercises the
+  MemoryDetector command-line analyzer and its Base64 decode path.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  memory:
+    windows_cmdline: memory_fixtures/windows_cmdline.json
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    memory_finding: 5
+    total: 5
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  MITRE ATT&CK T1059.001 (PowerShell) + T1027 (Obfuscated Files or
+  Information) + T1140 (Deobfuscate/Decode Files or Information).
+
+  The detector emits five findings from three malicious rows: each of the
+  two Base64-encoded command lines (PID 6101, 6103) yields both a
+  "suspicious command line" finding and an "obfuscated command decoded"
+  finding (the engine decodes the Base64 and surfaces the real payload —
+  an IEX download cradle and an Invoke-WebRequest dropper respectively).
+  The hidden/bypass file launcher (PID 6102) yields one suspicious-command
+  finding. The two benign processes produce nothing, demonstrating the
+  detector's specificity.

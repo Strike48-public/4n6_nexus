@@ -1,0 +1,45 @@
+name: 19_credential_dumping
+tier: synthetic
+category: credential_access
+difficulty: intermediate
+description: >
+  Credential dumping via LSASS process memory. Three malicious command
+  lines are present in the process list: the canonical comsvcs.dll
+  MiniDump LSASS dump executed through rundll32, a rundll32 mshtml
+  RunHTMLApplication COM-scriptlet launcher, and a pwsh -enc payload that
+  decodes to a Mimikatz download cradle. Two benign system processes
+  (lsass.exe, services.exe) are included to confirm the detector does not
+  over-flag the legitimate LSASS process it is meant to protect. Exercises
+  the MemoryDetector command-line analyzer and its Base64 decode path.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  memory:
+    windows_cmdline: memory_fixtures/windows_cmdline.json
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    memory_finding: 5
+    total: 5
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  MITRE ATT&CK T1003.001 (LSASS Memory) + T1218.011 (Rundll32) +
+  T1059.001 (PowerShell) + T1140 (Deobfuscate/Decode Files or
+  Information).
+
+  The detector emits five findings from three malicious rows. The
+  comsvcs.dll MiniDump launcher (PID 7201) yields one suspicious-command
+  finding. The rundll32 mshtml RunHTMLApplication launcher (PID 7202) and
+  the pwsh -enc cradle (PID 7203) each yield both a "suspicious command
+  line" finding and an "obfuscated command decoded" finding (the engine
+  decodes the scriptlet/Base64 and surfaces the real payload — a COM
+  WScript.Shell command and a Mimikatz download cradle respectively). The
+  two benign processes (legitimate lsass.exe and services.exe) produce
+  nothing, demonstrating that the detector distinguishes a credential dump
+  *of* LSASS from the LSASS process itself.
