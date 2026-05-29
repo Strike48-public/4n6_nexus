@@ -48,7 +48,9 @@ class CommandItem(Static):
     def compose(self) -> ComposeResult:
         """Compose command item."""
         # Show aliases if available
-        aliases = f" ({', '.join(self.command.aliases)})" if self.command.aliases else ""
+        aliases = (
+            f" ({', '.join(self.command.aliases)})" if self.command.aliases else ""
+        )
         yield Label(f"/{self.command.label}{aliases}", classes="command-label")
         yield Label(self.command.description, classes="command-desc")
 

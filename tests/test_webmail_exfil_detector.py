@@ -392,7 +392,10 @@ def test_http_corroboration_filters_non_webmail_hosts() -> None:
     findings = detector.analyze(browser_history=entries, http_requests=http_non_webmail)
     assert len(findings) == 1
     # Should not have HTTP corroboration boost
-    assert "http_corroboration_count" not in findings[0].evidence or findings[0].evidence["http_corroboration_count"] == 0
+    assert (
+        "http_corroboration_count" not in findings[0].evidence
+        or findings[0].evidence["http_corroboration_count"] == 0
+    )
 
 
 def test_unknown_webmail_provider_detection() -> None:

@@ -13,7 +13,25 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
-import pypff
+
+def _require_pypff():
+    """Import pypff lazily so the package loads without the native libpff bindings.
+
+    pypff (from `libpff-python`) is an optional native dependency only needed for
+    PST email parsing. Importing it at module top-level would crash the entire CLI
+    on systems without libpff installed. Defer the import to call time and raise an
+    actionable error instead.
+    """
+    try:
+        import pypff
+    except ImportError as exc:  # pragma: no cover - exercised only without libpff
+        raise ImportError(
+            "PST parsing requires the 'libpff-python' package (provides pypff), "
+            "which has native dependencies. Install it with "
+            "'pip install libpff-python' or install the forensic extras: "
+            "'pip install -r requirements-forensic.txt'."
+        ) from exc
+    return pypff
 
 
 @dataclass(frozen=True)
@@ -281,6 +299,7 @@ class PstParser:
         if not path.exists():
             raise FileNotFoundError(f"PST file not found: {path}")
 
+        pypff = _require_pypff()
         pst = pypff.file()
         pst.open(str(path))
         try:

@@ -8,6 +8,12 @@ import pytest
 from pathlib import Path
 from sift_find_evil.tui_app import SIFTDemoApp, FileSelectionScreen
 
+# Textual's default test viewport is 80x24, which renders the lower buttons
+# (bookmark/load) below the fold so simulated clicks land out of bounds. Real
+# terminals are always larger; use a realistic size so click targets are
+# reachable and tests reflect actual product behavior.
+TEST_VIEWPORT = (120, 50)
+
 
 class TestFileSelectionScreen:
     """Test the file selection screen functionality."""
@@ -16,7 +22,7 @@ class TestFileSelectionScreen:
     async def test_screen_loads(self):
         """Test that the file selection screen loads successfully."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             # Should start on file selection screen
             assert isinstance(pilot.app.screen, FileSelectionScreen)
             assert pilot.app.screen.query_one("#quick-access-container") is not None
@@ -25,7 +31,7 @@ class TestFileSelectionScreen:
     async def test_refresh_drives_button(self):
         """Test clicking the refresh drives button."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             # Click refresh button
             await pilot.click("#refresh-drives-btn")
             await pilot.pause()
@@ -39,7 +45,7 @@ class TestFileSelectionScreen:
     async def test_mount_button_click(self):
         """Test clicking a mount button navigates to the path."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             screen = pilot.app.screen
 
             # Skip if no mounts detected
@@ -68,7 +74,7 @@ class TestFileSelectionScreen:
     async def test_manual_path_navigation(self):
         """Test entering a path manually and pressing Enter."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             # Enter a valid path (use /tmp which should exist)
             test_path = "/tmp"
             path_input = pilot.app.screen.query_one("#path-input")
@@ -86,7 +92,7 @@ class TestFileSelectionScreen:
     async def test_bookmark_current_path(self):
         """Test bookmarking the current path."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             screen = pilot.app.screen
             initial_bookmark_count = len(screen.bookmarks)
 
@@ -107,7 +113,7 @@ class TestFileSelectionScreen:
     async def test_help_screen(self):
         """Test opening and closing the help screen."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             # Press ? to open help
             await pilot.press("question_mark")
             await pilot.pause()
@@ -126,7 +132,7 @@ class TestFileSelectionScreen:
     async def test_quit_keybinding(self):
         """Test that 'q' quits the app."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             # Press q to quit
             await pilot.press("q")
             await pilot.pause()
@@ -138,7 +144,7 @@ class TestFileSelectionScreen:
     async def test_load_evidence_with_selection(self):
         """Test loading evidence with a selected path."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             screen = pilot.app.screen
 
             # Set a selected path
@@ -156,7 +162,7 @@ class TestFileSelectionScreen:
     async def test_no_duplicate_ids_after_refresh(self):
         """Test that refreshing drives doesn't create duplicate IDs."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             # Click refresh multiple times
             for _ in range(3):
                 await pilot.click("#refresh-drives-btn")
@@ -169,7 +175,7 @@ class TestFileSelectionScreen:
     async def test_mount_buttons_exist(self):
         """Test that mount buttons are created."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             screen = pilot.app.screen
 
             # Should have mount buttons matching mount count
@@ -180,7 +186,7 @@ class TestFileSelectionScreen:
     async def test_bookmark_deletion_with_ctrl_click(self):
         """Test deleting a bookmark with Ctrl+Click."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             screen = pilot.app.screen
 
             # First ensure we have a bookmark by adding /tmp
@@ -205,7 +211,7 @@ class TestIntegration:
     async def test_full_navigation_workflow(self):
         """Test complete navigation workflow: mount click -> bookmark -> navigate."""
         app = SIFTDemoApp()
-        async with app.run_test() as pilot:
+        async with app.run_test(size=TEST_VIEWPORT) as pilot:
             screen = pilot.app.screen
 
             if not screen.mounts:

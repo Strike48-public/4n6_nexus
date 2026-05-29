@@ -55,14 +55,17 @@ def valid_gpt_entry_bytes():
     name = "TestPartition"
     name_bytes = name.encode("utf-16-le").ljust(72, b"\x00")
 
-    return struct.pack(
-        "<16s 16s QQQ",
-        type_guid.bytes_le,
-        unique_guid.bytes_le,
-        2048,  # first_lba
-        4095,  # last_lba
-        0,  # attributes
-    ) + name_bytes
+    return (
+        struct.pack(
+            "<16s 16s QQQ",
+            type_guid.bytes_le,
+            unique_guid.bytes_le,
+            2048,  # first_lba
+            4095,  # last_lba
+            0,  # attributes
+        )
+        + name_bytes
+    )
 
 
 def test_gpt_header_is_efi_part():
@@ -469,7 +472,7 @@ def test_inspect_gpt_with_valid_headers(valid_gpt_header_bytes):
     """Test inspect_gpt with valid primary and secondary headers."""
     # Build disk image with valid GPT headers
     # MBR should have non-zero bytes to not be detected as zeroed
-    mbr = b"\x55\xAA" + (b"\x00" * (SECTOR - 2))  # Valid MBR signature
+    mbr = b"\x55\xaa" + (b"\x00" * (SECTOR - 2))  # Valid MBR signature
     primary_header = valid_gpt_header_bytes.ljust(SECTOR, b"\x00")
     filler = b"\x00" * (SECTOR * 97)
     secondary_header = valid_gpt_header_bytes.ljust(SECTOR, b"\x00")

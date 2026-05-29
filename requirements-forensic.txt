@@ -1,0 +1,35 @@
+# Forensic extras — native libraries for processing REAL evidence.
+#
+# These have native build dependencies (libtsk, libewf, libpff, libyara) and may
+# require a compiler and system headers to install. They are NOT needed for the
+# demo, the validation harness, the TUI, or running detectors against synthetic
+# fixtures — install them only when analyzing actual disk images, memory dumps,
+# or PST email stores.
+#
+#   Install core first, then these:
+#     pip install -r requirements.txt
+#     pip install -r requirements-forensic.txt
+#
+# On Debian/Ubuntu/SIFT, the underlying system libraries are usually available via:
+#     sudo apt-get install libtsk-dev libewf-dev libpff-dev libyara-dev
+
+-r requirements.txt
+
+# Disk image filesystem access (Sleuth Kit bindings) — image_content_reader.py
+pytsk3>=20231007
+
+# E01/EWF image handling — provides `pyewf` (image_content_reader.py, gpt_inspector.py)
+libewf-python>=20240506
+
+# PST email parsing — provides `pypff` (pst_parser.py)
+libpff-python>=20231205
+
+# Memory analysis (invoked as a subprocess by volatility_runner.py)
+volatility3>=2.5.0
+
+# Note: yara-python lives in core requirements.txt — it ships as a prebuilt
+# wheel with bundled libyara, so it does not need this native-build tier.
+
+# Bloom-filter backend for NSRL hash filtering (lazy-imported by nsrl_filter.py)
+# ~400 MB RAM for 200M hashes. Only needed with --nsrl-bloom.
+rbloom>=1.5.0

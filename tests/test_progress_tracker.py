@@ -27,7 +27,9 @@ class TestPhase(unittest.TestCase):
 
     def test_phase_progress_pct_calculates_correctly(self):
         # Arrange
-        phase = Phase(name="test", display_name="Test", items_total=100, items_processed=25)
+        phase = Phase(
+            name="test", display_name="Test", items_total=100, items_processed=25
+        )
 
         # Act
         progress = phase.progress_pct
@@ -37,7 +39,9 @@ class TestPhase(unittest.TestCase):
 
     def test_phase_progress_pct_returns_zero_when_no_items(self):
         # Arrange
-        phase = Phase(name="test", display_name="Test", items_total=0, items_processed=0)
+        phase = Phase(
+            name="test", display_name="Test", items_total=0, items_processed=0
+        )
 
         # Act
         progress = phase.progress_pct
@@ -195,7 +199,9 @@ class TestSystemResources(unittest.TestCase):
 
     def test_system_resources_has_warning_high_cpu(self):
         # Arrange
-        resources = SystemResources(ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=95.0)
+        resources = SystemResources(
+            ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=95.0
+        )
 
         # Act
         has_warning = resources.has_warning
@@ -205,7 +211,9 @@ class TestSystemResources(unittest.TestCase):
 
     def test_system_resources_no_warning(self):
         # Arrange
-        resources = SystemResources(ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=50.0)
+        resources = SystemResources(
+            ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=50.0
+        )
 
         # Act
         has_warning = resources.has_warning
@@ -229,7 +237,9 @@ class TestSystemResources(unittest.TestCase):
 
     def test_system_resources_warning_message_cpu(self):
         # Arrange
-        resources = SystemResources(ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=95.0)
+        resources = SystemResources(
+            ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=95.0
+        )
 
         # Act
         message = resources.warning_message
@@ -240,7 +250,9 @@ class TestSystemResources(unittest.TestCase):
 
     def test_system_resources_no_warning_message(self):
         # Arrange
-        resources = SystemResources(ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=50.0)
+        resources = SystemResources(
+            ram_used_gb=8.0, ram_total_gb=16.0, cpu_percent=50.0
+        )
 
         # Act
         message = resources.warning_message
@@ -485,9 +497,7 @@ class TestProgressTrackerCallbacks(unittest.TestCase):
 
         # Assert
         callback.assert_called_once()
-        self.assertEqual(
-            callback.call_args[0][0].description, "Test"
-        )
+        self.assertEqual(callback.call_args[0][0].description, "Test")
 
     def test_callback_registration_and_notification_on_resource_update(self):
         # Arrange

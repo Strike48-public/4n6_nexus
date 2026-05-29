@@ -945,9 +945,7 @@ def test_hidden_process_with_exit_time_skipped() -> None:
         _proc(2000, "exited.exe", exit_time="2024-01-01T01:00:00"),
     ]
     findings = MemoryDetector().analyze(pslist=pslist_rows, psscan=psscan_rows)
-    hidden_findings = [
-        f for f in findings if "Hidden process" in f.title
-    ]
+    hidden_findings = [f for f in findings if "Hidden process" in f.title]
     assert len(hidden_findings) == 0, "Exited processes should not be flagged"
 
 

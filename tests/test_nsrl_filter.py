@@ -1,9 +1,18 @@
 """Tests for NSRL (National Software Reference Library) hash filtering."""
 
+import importlib.util
 import pytest
 import tempfile
 from pathlib import Path
 from sift_find_evil.carving.nsrl_filter import NSRLFilter, find_nsrl_database
+
+# The bloom-filter backend lazily imports rbloom (a native forensic extra). Tests
+# that exercise use_bloom=True skip cleanly when rbloom is not installed; the
+# default set-backed tests run everywhere.
+requires_rbloom = pytest.mark.skipif(
+    importlib.util.find_spec("rbloom") is None,
+    reason="rbloom not installed — forensic extra",
+)
 
 
 @pytest.fixture
@@ -281,6 +290,7 @@ def test_nsrl_filter_invalid_format():
 # --- Bloom filter backend tests --------------------------------------------
 
 
+@requires_rbloom
 def test_bloom_backend_init(mock_nsrl_file):
     """Bloom backend is selectable via constructor and reports its backend."""
     nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
@@ -299,6 +309,7 @@ def test_bloom_backend_default_is_set(mock_nsrl_file):
     assert nsrl_filter.get_stats()["backend"] == "set"
 
 
+@requires_rbloom
 def test_bloom_backend_load_and_positive_lookup(mock_nsrl_file):
     """Bloom backend returns True for hashes that were loaded (no false negatives)."""
     nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
@@ -315,6 +326,7 @@ def test_bloom_backend_load_and_positive_lookup(mock_nsrl_file):
     )
 
 
+@requires_rbloom
 def test_bloom_backend_case_insensitive(mock_nsrl_file):
     """Bloom backend lowercases inputs just like the set backend."""
     nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
@@ -324,6 +336,7 @@ def test_bloom_backend_case_insensitive(mock_nsrl_file):
     )
 
 
+@requires_rbloom
 def test_bloom_backend_no_false_negatives_under_stress(mock_nsrl_file):
     """Every hash inserted into the bloom filter must resolve to True on lookup.
 
@@ -349,6 +362,7 @@ def test_bloom_backend_no_false_negatives_under_stress(mock_nsrl_file):
         assert nsrl_filter.is_known_good(h, hash_type="md5"), h
 
 
+@requires_rbloom
 def test_bloom_backend_false_positive_rate_bounded():
     """False-positive rate stays close to target over a realistic workload.
 
@@ -392,6 +406,7 @@ def test_bloom_backend_false_positive_rate_bounded():
     )
 
 
+@requires_rbloom
 def test_bloom_backend_stats_after_load(mock_nsrl_file):
     """Bloom backend reports approximate counts and size metadata."""
     nsrl_filter = NSRLFilter(
@@ -410,6 +425,7 @@ def test_bloom_backend_stats_after_load(mock_nsrl_file):
     assert abs(stats["md5_count"] - 3) <= 1
 
 
+@requires_rbloom
 def test_bloom_backend_filter_files(mock_nsrl_file):
     """filter_files partitions correctly using the bloom backend."""
     nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)
@@ -430,6 +446,7 @@ def test_bloom_backend_filter_files(mock_nsrl_file):
     assert len(unknown) >= 1
 
 
+@requires_rbloom
 def test_bloom_backend_invalid_hash_type(mock_nsrl_file):
     """Bloom backend raises ValueError for unsupported hash types."""
     nsrl_filter = NSRLFilter(mock_nsrl_file, use_bloom=True, expected_items=1000)

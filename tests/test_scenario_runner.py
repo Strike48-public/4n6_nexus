@@ -226,10 +226,7 @@ def test_load_scenario_rejects_non_dict_fixtures(tmp_path: Path) -> None:
     """Test load_scenario rejects non-dict fixtures."""
     _write_manifest(
         tmp_path,
-        "name: bad\n"
-        "tier: synthetic\n"
-        "fixtures:\n"
-        "  - mft.csv\n",
+        "name: bad\n" "tier: synthetic\n" "fixtures:\n" "  - mft.csv\n",
     )
 
     with pytest.raises(ScenarioLoadError, match="'fixtures' must be a mapping"):
@@ -258,10 +255,7 @@ def test_load_scenario_rejects_non_list_evidence(tmp_path: Path) -> None:
     """Test load_scenario rejects non-list evidence."""
     _write_manifest(
         tmp_path,
-        "name: bad\n"
-        "tier: real\n"
-        "evidence:\n"
-        "  path: disk.dd\n",
+        "name: bad\n" "tier: real\n" "evidence:\n" "  path: disk.dd\n",
     )
 
     with pytest.raises(ScenarioLoadError, match="'evidence' must be a list"):
@@ -289,10 +283,7 @@ def test_load_scenario_rejects_evidence_entry_missing_path(tmp_path: Path) -> No
     """Test load_scenario rejects evidence entry missing path."""
     _write_manifest(
         tmp_path,
-        "name: bad\n"
-        "tier: real\n"
-        "evidence:\n"
-        "  - kind: raw\n",
+        "name: bad\n" "tier: real\n" "evidence:\n" "  - kind: raw\n",
     )
 
     with pytest.raises(ScenarioLoadError, match="evidence entry missing string 'path'"):
@@ -303,11 +294,7 @@ def test_load_scenario_rejects_evidence_entry_empty_path(tmp_path: Path) -> None
     """Test load_scenario rejects evidence entry with empty path."""
     _write_manifest(
         tmp_path,
-        "name: bad\n"
-        "tier: real\n"
-        "evidence:\n"
-        "  - path: ''\n"
-        "    kind: raw\n",
+        "name: bad\n" "tier: real\n" "evidence:\n" "  - path: ''\n" "    kind: raw\n",
     )
 
     with pytest.raises(ScenarioLoadError, match="evidence entry missing string 'path'"):
@@ -325,7 +312,9 @@ def test_load_scenario_rejects_non_dict_finding_counts(tmp_path: Path) -> None:
         "    - total: 5\n",
     )
 
-    with pytest.raises(ScenarioLoadError, match="expected.finding_counts must be a mapping"):
+    with pytest.raises(
+        ScenarioLoadError, match="expected.finding_counts must be a mapping"
+    ):
         load_scenario(tmp_path)
 
 
@@ -340,7 +329,9 @@ def test_load_scenario_rejects_non_integer_finding_count_values(tmp_path: Path) 
         "    total: five\n",
     )
 
-    with pytest.raises(ScenarioLoadError, match="finding_counts values must be integers"):
+    with pytest.raises(
+        ScenarioLoadError, match="finding_counts values must be integers"
+    ):
         load_scenario(tmp_path)
 
 
@@ -348,10 +339,7 @@ def test_load_scenario_rejects_non_numeric_min_recall(tmp_path: Path) -> None:
     """Test load_scenario rejects non-numeric min_recall."""
     _write_manifest(
         tmp_path,
-        "name: bad\n"
-        "tier: synthetic\n"
-        "expected:\n"
-        "  min_recall: high\n",
+        "name: bad\n" "tier: synthetic\n" "expected:\n" "  min_recall: high\n",
     )
 
     with pytest.raises(ScenarioLoadError, match="must be numeric"):
@@ -370,9 +358,7 @@ def test_run_scenario_with_neither_fixtures_nor_evidence_skips_gracefully(
     # Arrange
     _write_manifest(
         tmp_path,
-        "name: empty\n"
-        "tier: synthetic\n"
-        "description: Test scenario with no data\n",
+        "name: empty\n" "tier: synthetic\n" "description: Test scenario with no data\n",
     )
 
     # Act
@@ -591,9 +577,7 @@ def test_score_yara_match_counting_with_zero_matches(tmp_path: Path) -> None:
     # Create empty directories
     (tmp_path / "rules").mkdir()
     (tmp_path / "samples").mkdir()
-    (tmp_path / "rules" / "test.yar").write_text(
-        "rule test { condition: false }"
-    )
+    (tmp_path / "rules" / "test.yar").write_text("rule test { condition: false }")
     (tmp_path / "samples" / "benign.exe").write_bytes(b"benign content")
 
     # Act
@@ -612,9 +596,7 @@ def test_load_scenario_with_empty_expected_block_uses_defaults(tmp_path: Path) -
     # Arrange
     _write_manifest(
         tmp_path,
-        "name: defaults\n"
-        "tier: synthetic\n"
-        "expected: {}\n",
+        "name: defaults\n" "tier: synthetic\n" "expected: {}\n",
     )
 
     # Act
@@ -632,9 +614,7 @@ def test_load_scenario_with_null_expected_uses_defaults(tmp_path: Path) -> None:
     # Arrange
     _write_manifest(
         tmp_path,
-        "name: null_expected\n"
-        "tier: synthetic\n"
-        "expected: null\n",
+        "name: null_expected\n" "tier: synthetic\n" "expected: null\n",
     )
 
     # Act
