@@ -348,14 +348,22 @@ def test_yara_phase_skips_real_windows_filesystem(
     tmp_path: Path,
     activity_log: list[str],
 ):
-    """YARA phase refuses to scan a full Windows tree (would take hours)."""
+    """YARA phase refuses to scan a full Windows tree (would take hours).
+
+    The runner only reaches the Windows-filesystem guard after it successfully
+    compiles rules, so this test requires the YARA community submodule to be
+    not just present but populated with rule files. CI does not check the
+    submodule out, so we skip unless real rules exist (an empty directory
+    would make the scanner init fail and return before the guard).
+    """
     if importlib.util.find_spec("yara") is None:
         pytest.skip("yara-python not installed")
     rules_dir = (
         Path(__file__).parent.parent / "rules" / "yara" / "community" / "signature-base"
     )
-    if not rules_dir.exists():
-        pytest.skip("YARA community rules submodule not checked out")
+    has_rules = rules_dir.exists() and any(rules_dir.rglob("*.yar"))
+    if not has_rules:
+        pytest.skip("YARA community rules submodule not checked out / empty")
 
     (tmp_path / "Windows").mkdir()
     runner.configure(tmp_path, "quick")
