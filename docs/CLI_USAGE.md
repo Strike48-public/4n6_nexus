@@ -11,7 +11,8 @@ The SIFT Find Evil CLI provides an interface to the autonomous self-correction e
 git clone https://github.com/jtomek-strike48/sift_find_evil.git
 cd sift_find_evil
 
-# Install dependencies
+# Install core dependencies (add `-r requirements-forensic.txt` for real
+# evidence: E01/raw images, PST, memory dumps)
 pip install -r requirements.txt
 ```
 

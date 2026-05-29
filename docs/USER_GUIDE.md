@@ -28,15 +28,35 @@ Complete guide to using the SIFT Find Evil forensic analysis tool for detecting 
 git clone https://github.com/jtomek-strike48/sift_find_evil.git
 cd sift_find_evil
 
-# Install dependencies
+# Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
+
+# Install core dependencies (pure-Python; covers the demo, the harness,
+# the TUI, and all detectors against synthetic fixtures)
 pip install -r requirements.txt
 ```
+
+To process real evidence (E01/raw disk images, PST email, memory dumps) you
+also need the native forensic libraries, which are kept separate because they
+require a compiler and system headers:
+
+```bash
+# Debian/Ubuntu/SIFT: install the system libraries first
+sudo apt-get install libtsk-dev libewf-dev libpff-dev libyara-dev
+
+# Then the Python bindings + Volatility 3
+pip install -r requirements-forensic.txt
+```
+
+The application loads and runs without the forensic extras; features that need
+them raise a clear, install-oriented error rather than failing at startup.
 
 ### Verify Installation
 
 ```bash
-# Run tests
-pytest
+# Run the full test suite
+PYTHONPATH=. pytest
 
 # Check CLI
 python -m sift_find_evil --help

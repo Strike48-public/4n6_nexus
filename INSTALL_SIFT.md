@@ -71,13 +71,21 @@ pip3 install --user -r requirements.txt
 pip3 install --user -e .
 ```
 
-**Option B: Virtual environment (isolated)**
+**Option B: Virtual environment (isolated, recommended)**
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt   # core: demo, harness, TUI, detectors
 pip install -e .
+```
+
+To process real evidence (E01/raw images, PST, memory dumps), also install the
+native forensic extras (require a compiler + system headers):
+
+```bash
+sudo apt-get install libtsk-dev libewf-dev libpff-dev libyara-dev
+pip install -r requirements-forensic.txt
 ```
 
 **Option C: System-wide (requires sudo)**
