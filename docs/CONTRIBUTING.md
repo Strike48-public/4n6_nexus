@@ -142,7 +142,8 @@ except SpecificException as exc:
 
 ### Test Coverage
 
-**Minimum 80% line coverage required.**
+**Minimum 85% line coverage required** (enforced by CI via `--cov-fail-under=85`).
+Current: ~91% on a core install, ~95% with the forensic extras installed.
 
 ```bash
 # Run tests with coverage
@@ -151,6 +152,12 @@ pytest --cov=sift_find_evil --cov-report=html
 # View coverage report
 open htmlcov/index.html
 ```
+
+Pure-rendering UI modules (`tui_app.py`, `tui/*`) and thin CLI/driver wrappers
+are omitted from the coverage gate (see `[tool.coverage.run]` in
+`pyproject.toml`); their behavior is covered by the Pilot-driven tests in
+`tests/test_tui.py`. The detection library and orchestration layer are measured
+directly.
 
 ### Test Organization
 
@@ -451,7 +458,7 @@ PYTHONPATH=. python3 tests/scenario_harness.py
    - Unit tests for new functions/classes
    - Integration tests for CLI commands
    - Scenario tests for new detectors
-   - Maintain 80%+ coverage
+   - Maintain 85%+ coverage
 
 ### PR Template
 
@@ -473,7 +480,7 @@ Brief description of changes.
 - [ ] Integration tests added/updated
 - [ ] Scenario tests added/updated
 - [ ] All tests passing
-- [ ] Coverage >= 80%
+- [ ] Coverage >= 85%
 
 ## Checklist
 

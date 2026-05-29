@@ -823,12 +823,16 @@ sift_find_evil/
 # Scenario validation harness
 PYTHONPATH=. python3 tests/scenario_harness.py
 
-# Unit tests (requires pytest)
-pytest tests/unit/
+# Full test suite (requires pytest)
+pytest
 
-# Test coverage
+# Test coverage (matches the CI gate: 85% minimum)
 pytest --cov=sift_find_evil --cov-report=html
 ```
+
+> Tests that exercise native forensic libraries (E01 images, PST, NSRL bloom,
+> PCAP synthesis) are skipped automatically on a core install and run once the
+> forensic extras are present. See `requirements-forensic.txt`.
 
 ### Code Quality
 
@@ -848,7 +852,7 @@ mypy sift_find_evil/
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 - Development environment setup
 - Coding standards (PEP 8, type hints)
-- Testing requirements (80% coverage minimum)
+- Testing requirements (85% coverage minimum)
 - Pull request workflow
 - Adding new detectors, parsers, scenarios
 
@@ -863,7 +867,7 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | **Recall** | 1.00 (0 false negatives) |
 | **Total Findings** | 47 |
 | **Scenario Runtime** | ~2 seconds (synthetic) |
-| **Test Coverage** | 85% (lines) |
+| **Test Coverage** | 91% core install / 95% with forensic extras (lines) |
 | **CI/CD** | All tests passing |
 
 ---
