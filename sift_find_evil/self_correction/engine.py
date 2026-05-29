@@ -46,6 +46,7 @@ def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
 # Finding class moved to findings/finding.py to enable clean Community/Enterprise split.
 # It is now imported above from ..findings import Finding
 
+
 class SelfCorrectionEngine:
     """Main orchestrator for autonomous self-correction.
 

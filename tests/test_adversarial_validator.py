@@ -393,7 +393,10 @@ def test_confidence_justification_graduated_valid_85():
 
 def test_validation_report_to_dict():
     """Test ValidationReport.to_dict() serialization."""
-    from sift_find_evil.validation.adversarial_validator import ValidationCheck, ValidationReport
+    from sift_find_evil.validation.adversarial_validator import (
+        ValidationCheck,
+        ValidationReport,
+    )
 
     checks = [
         ValidationCheck("test_check", ["issue1"]),

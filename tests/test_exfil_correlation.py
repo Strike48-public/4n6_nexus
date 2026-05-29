@@ -505,7 +505,9 @@ def test_detect_save_then_exfil_size_name_fallback_returns_high():
     )
 
     attachment = Attachment(name="report.pdf", size=5000, sha256="dummy")
-    email = make_email(subject="Report", submit_time=send_time, attachments=[attachment])
+    email = make_email(
+        subject="Report", submit_time=send_time, attachments=[attachment]
+    )
 
     detector = ContradictionDetector()
     contradictions = detector.detect_save_then_exfil(
@@ -603,7 +605,9 @@ def test_detect_save_then_exfil_content_reader_exception_falls_back():
     )
 
     attachment = Attachment(name="corrupt.txt", size=100, sha256=file_hash)
-    email = make_email(subject="Corrupt", submit_time=send_time, attachments=[attachment])
+    email = make_email(
+        subject="Corrupt", submit_time=send_time, attachments=[attachment]
+    )
 
     detector = ContradictionDetector()
     contradictions = detector.detect_save_then_exfil(

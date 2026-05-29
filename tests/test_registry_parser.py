@@ -40,7 +40,9 @@ def test_amcache_entry_empty_path_raises() -> None:
 
 def test_amcache_entry_invalid_sha1_raises() -> None:
     """Test AmcacheEntry raises ValueError for invalid SHA-1 hash."""
-    with pytest.raises(ValueError, match="SHA-1 hash must be 40 hexadecimal characters"):
+    with pytest.raises(
+        ValueError, match="SHA-1 hash must be 40 hexadecimal characters"
+    ):
         AmcacheEntry(
             file_path=r"C:\test.exe",
             first_execution=datetime(2025, 1, 1, 10, 0, tzinfo=timezone.utc),
@@ -168,7 +170,10 @@ def test_parse_amcache_csv_naive_timestamps(tmp_path: Path) -> None:
     csv_file = tmp_path / "amcache.csv"
     csv_file.write_text(
         "file_path,first_execution,sha1_hash,file_size,publisher\n"
-        r'"C:\test.exe",2025-01-01T10:00:00,' + "a" * 40 + ',1024,"Test Publisher"' + "\n",
+        r'"C:\test.exe",2025-01-01T10:00:00,'
+        + "a" * 40
+        + ',1024,"Test Publisher"'
+        + "\n",
         encoding="utf-8",
     )
 
@@ -279,7 +284,8 @@ def test_parse_run_keys_csv_naive_timestamps(tmp_path: Path) -> None:
     csv_file = tmp_path / "runkeys.csv"
     csv_file.write_text(
         "key_path,value_name,command,hive,last_write_time\n"
-        r'"Software\Microsoft\Windows\CurrentVersion\Run",Test,test.exe,HKLM,2025-01-01T10:00:00' + "\n",
+        r'"Software\Microsoft\Windows\CurrentVersion\Run",Test,test.exe,HKLM,2025-01-01T10:00:00'
+        + "\n",
         encoding="utf-8",
     )
 

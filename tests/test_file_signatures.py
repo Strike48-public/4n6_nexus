@@ -66,8 +66,10 @@ def test_detect_pptx():
 def test_detect_odt():
     """Detect OpenDocument text (ZIP with mimetype)."""
     data = (
-        b"PK\x03\x04" + b"\x00" * 50
-        + b"mimetype" + b"\x00" * 20
+        b"PK\x03\x04"
+        + b"\x00" * 50
+        + b"mimetype"
+        + b"\x00" * 20
         + b"application/vnd.oasis.opendocument.text"
     )
     ext, desc = detect_file_type(data)

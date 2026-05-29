@@ -25,9 +25,7 @@ def test_analyze_command_line_credential_access_critical() -> None:
 
     assert len(patterns) > 0
     assert any(p.severity == "critical" for p in patterns)
-    assert any(
-        p.technique == AttackTechnique.CREDENTIAL_ACCESS for p in patterns
-    )
+    assert any(p.technique == AttackTechnique.CREDENTIAL_ACCESS for p in patterns)
 
 
 def test_analyze_command_line_lateral_movement_critical() -> None:
@@ -50,8 +48,7 @@ def test_analyze_command_line_defense_evasion_high_confidence_critical() -> None
     assert len(patterns) > 0
     # At least one pattern should be defense evasion with high confidence
     defense_patterns = [
-        p for p in patterns
-        if p.technique == AttackTechnique.DEFENSE_EVASION
+        p for p in patterns if p.technique == AttackTechnique.DEFENSE_EVASION
     ]
     if defense_patterns:
         high_conf = [p for p in defense_patterns if p.confidence >= 0.90]
@@ -63,12 +60,13 @@ def test_analyze_command_line_persistence_high_severity() -> None:
     """Test persistence techniques marked as high severity."""
     detector = AttackPatternDetector()
 
-    patterns = detector.analyze_command_line("schtasks /create /tn malware /tr C:\\evil.exe")
+    patterns = detector.analyze_command_line(
+        "schtasks /create /tn malware /tr C:\\evil.exe"
+    )
 
     assert len(patterns) > 0
     persistence_patterns = [
-        p for p in patterns
-        if p.technique == AttackTechnique.PERSISTENCE
+        p for p in patterns if p.technique == AttackTechnique.PERSISTENCE
     ]
     assert any(p.severity in ("high", "critical") for p in persistence_patterns)
 
@@ -81,8 +79,7 @@ def test_analyze_command_line_execution_high_severity() -> None:
 
     assert len(patterns) > 0
     execution_patterns = [
-        p for p in patterns
-        if p.technique == AttackTechnique.EXECUTION
+        p for p in patterns if p.technique == AttackTechnique.EXECUTION
     ]
     if execution_patterns:
         assert any(p.severity in ("high", "critical") for p in execution_patterns)
@@ -96,8 +93,7 @@ def test_analyze_command_line_reconnaissance_medium_severity() -> None:
 
     assert len(patterns) > 0
     recon_patterns = [
-        p for p in patterns
-        if p.technique == AttackTechnique.RECONNAISSANCE
+        p for p in patterns if p.technique == AttackTechnique.RECONNAISSANCE
     ]
     assert any(p.severity == "medium" for p in recon_patterns)
 

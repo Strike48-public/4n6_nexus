@@ -367,9 +367,11 @@ class AnalysisRunner:
                     for contradiction in contradictions:
                         self.progress_tracker.add_contradiction(
                             description=f"{contradiction.contradiction_type.value}: {contradiction.executable}",
-                            resolution=contradiction.resolution
-                            if contradiction.resolution
-                            else "Unresolved",
+                            resolution=(
+                                contradiction.resolution
+                                if contradiction.resolution
+                                else "Unresolved"
+                            ),
                         )
 
                     # Run full analysis
@@ -688,14 +690,14 @@ class AnalysisRunner:
 
             # Run detector analysis on all collected entries
             findings = detector.analyze(
-                shimcache=all_entries["shimcache"]
-                if all_entries["shimcache"]
-                else None,
+                shimcache=(
+                    all_entries["shimcache"] if all_entries["shimcache"] else None
+                ),
                 amcache=all_entries["amcache"] if all_entries["amcache"] else None,
                 bam=all_entries["bam"] if all_entries["bam"] else None,
-                userassist=all_entries["userassist"]
-                if all_entries["userassist"]
-                else None,
+                userassist=(
+                    all_entries["userassist"] if all_entries["userassist"] else None
+                ),
                 run_keys=all_entries["run_keys"] if all_entries["run_keys"] else None,
             )
 

@@ -118,9 +118,10 @@ def test_mounted_image_cleanup_unmounts_ewf_mount(mock_run: Mock) -> None:
         mount_point=mount_point,
     )
 
-    with patch.object(Path, "exists", return_value=True), patch.object(
-        Path, "rmdir"
-    ) as mock_rmdir:
+    with (
+        patch.object(Path, "exists", return_value=True),
+        patch.object(Path, "rmdir") as mock_rmdir,
+    ):
         # Act
         commands = mounted.cleanup()
 
@@ -168,9 +169,10 @@ def test_mounted_image_cleanup_removes_mount_point(mock_run: Mock) -> None:
         mount_point=mount_point,
     )
 
-    with patch.object(Path, "exists", return_value=True), patch.object(
-        Path, "rmdir"
-    ) as mock_rmdir:
+    with (
+        patch.object(Path, "exists", return_value=True),
+        patch.object(Path, "rmdir") as mock_rmdir,
+    ):
         # Act
         mounted.cleanup()
 
@@ -413,9 +415,7 @@ def test_e01_mounter_mount_image_returns_mounted_image_on_success(
     """E01Mounter.mount_e01 returns MountedImage on successful mount."""
     # Arrange
     mock_mkdtemp.return_value = "/tmp/mount"
-    mock_run.return_value = subprocess.CompletedProcess(
-        args=["sudo"], returncode=0
-    )
+    mock_run.return_value = subprocess.CompletedProcess(args=["sudo"], returncode=0)
 
     image = E01Image(
         path=Path("/tmp/evidence.E01"),
@@ -493,9 +493,7 @@ def test_e01_mounter_mount_image_cleans_up_on_failure(
                 args=cmd, returncode=0, stdout="/usr/bin/ewfmount"
             )
         else:
-            return subprocess.CompletedProcess(
-                args=cmd, returncode=1, stderr="Error"
-            )
+            return subprocess.CompletedProcess(args=cmd, returncode=1, stderr="Error")
 
     mock_run.side_effect = mock_run_side_effect
 
@@ -523,9 +521,7 @@ def test_e01_mounter_mount_image_skips_filesystem_mount_for_memory_images(
     """E01Mounter.mount_e01 skips filesystem mounting for memory images."""
     # Arrange
     mock_mkdtemp.return_value = "/tmp/mount"
-    mock_run.return_value = subprocess.CompletedProcess(
-        args=["sudo"], returncode=0
-    )
+    mock_run.return_value = subprocess.CompletedProcess(args=["sudo"], returncode=0)
 
     image = E01Image(
         path=Path("/tmp/memory.E01"),

@@ -30,7 +30,10 @@ def sample_entries():
             payload_json={
                 "EventData": {
                     "Data": [
-                        {"@Name": "NewProcessName", "#text": "C:\\Windows\\System32\\cmd.exe"},
+                        {
+                            "@Name": "NewProcessName",
+                            "#text": "C:\\Windows\\System32\\cmd.exe",
+                        },
                         {"@Name": "CommandLine", "#text": "cmd.exe /c echo test"},
                     ]
                 }
@@ -108,7 +111,10 @@ def test_get_process_name_from_json():
         payload_json={
             "EventData": {
                 "Data": [
-                    {"@Name": "NewProcessName", "#text": "C:\\Windows\\System32\\notepad.exe"}
+                    {
+                        "@Name": "NewProcessName",
+                        "#text": "C:\\Windows\\System32\\notepad.exe",
+                    }
                 ]
             }
         },
@@ -170,9 +176,7 @@ def test_get_command_line_from_json():
         level="Information",
         payload_json={
             "EventData": {
-                "Data": [
-                    {"@Name": "CommandLine", "#text": "notepad.exe test.txt"}
-                ]
+                "Data": [{"@Name": "CommandLine", "#text": "notepad.exe test.txt"}]
             }
         },
     )
@@ -315,9 +319,7 @@ def test_parse_row_with_json_payload(parser):
     """Test _parse_row parses JSON payload."""
     payload_json = {
         "EventData": {
-            "Data": [
-                {"@Name": "NewProcessName", "#text": "C:\\Windows\\notepad.exe"}
-            ]
+            "Data": [{"@Name": "NewProcessName", "#text": "C:\\Windows\\notepad.exe"}]
         }
     }
     row = {
@@ -375,6 +377,7 @@ def test_parse_timestamp_with_null_datetime(parser):
     """Test _parse_timestamp returns None for null datetime (1601-01-01)."""
     # Mock comparator.is_null to return True
     from unittest.mock import Mock
+
     parser.comparator.is_null = Mock(return_value=True)
     parser.comparator.parse_iso8601 = Mock(return_value=datetime(1601, 1, 1))
 
@@ -397,17 +400,23 @@ def test_get_process_creation_events(parser, sample_entries):
 
 def test_find_by_executable_case_insensitive(parser, sample_entries):
     """Test find_by_executable case-insensitive search."""
-    result = parser.find_by_executable(sample_entries, "MALWARE.EXE", case_sensitive=False)
+    result = parser.find_by_executable(
+        sample_entries, "MALWARE.EXE", case_sensitive=False
+    )
     assert len(result) == 1
     assert result[0].event_id == 4688
 
 
 def test_find_by_executable_case_sensitive(parser, sample_entries):
     """Test find_by_executable case-sensitive search."""
-    result = parser.find_by_executable(sample_entries, "malware.exe", case_sensitive=True)
+    result = parser.find_by_executable(
+        sample_entries, "malware.exe", case_sensitive=True
+    )
     assert len(result) == 1
 
-    result = parser.find_by_executable(sample_entries, "MALWARE.EXE", case_sensitive=True)
+    result = parser.find_by_executable(
+        sample_entries, "MALWARE.EXE", case_sensitive=True
+    )
     assert len(result) == 0
 
 
@@ -420,7 +429,9 @@ def test_find_by_executable_no_matches(parser, sample_entries):
 def test_find_by_time_window(parser, sample_entries):
     """Test find_by_time_window finds events within tolerance."""
     target_time = datetime(2024, 1, 15, 10, 30, 30, tzinfo=timezone.utc)
-    result = parser.find_by_time_window(sample_entries, target_time, tolerance_seconds=60)
+    result = parser.find_by_time_window(
+        sample_entries, target_time, tolerance_seconds=60
+    )
     # Within 60s of 10:30:30 = 10:29:30 to 10:31:30
     # Entries at 10:30:00 (30s delta) and 10:31:00 (30s delta) both match
     assert len(result) == 2
@@ -430,7 +441,9 @@ def test_find_by_time_window(parser, sample_entries):
 def test_find_by_time_window_no_matches(parser, sample_entries):
     """Test find_by_time_window returns empty list when no matches."""
     target_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
-    result = parser.find_by_time_window(sample_entries, target_time, tolerance_seconds=60)
+    result = parser.find_by_time_window(
+        sample_entries, target_time, tolerance_seconds=60
+    )
     assert len(result) == 0
 
 
@@ -515,6 +528,8 @@ def test_get_timeline_with_both_filters(parser, sample_entries):
     """Test get_timeline with start and end time filters."""
     start_time = datetime(2024, 1, 15, 10, 30, 30, tzinfo=timezone.utc)
     end_time = datetime(2024, 1, 15, 10, 31, 30, tzinfo=timezone.utc)
-    result = parser.get_timeline(sample_entries, start_time=start_time, end_time=end_time)
+    result = parser.get_timeline(
+        sample_entries, start_time=start_time, end_time=end_time
+    )
     assert len(result) == 1
     assert result[0].record_id == 1002

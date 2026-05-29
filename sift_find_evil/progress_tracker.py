@@ -221,7 +221,9 @@ class ProgressTracker:
             self._notify_phase_changed(self.current_phase)
             self.current_phase = None
 
-    def add_finding(self, severity: FindingSeverity, message: str, details: str = "") -> None:
+    def add_finding(
+        self, severity: FindingSeverity, message: str, details: str = ""
+    ) -> None:
         """Record a new finding.
 
         Args:

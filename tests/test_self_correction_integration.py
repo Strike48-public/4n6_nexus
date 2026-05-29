@@ -341,7 +341,9 @@ def test_analyze_event_logs_detects_mimikatz_in_cmdline():
 
     # Should detect mimikatz attack pattern
     attack_findings = [
-        f for f in findings if "Attack Pattern" in f.title and "mimikatz" in f.title.lower()
+        f
+        for f in findings
+        if "Attack Pattern" in f.title and "mimikatz" in f.title.lower()
     ]
     assert len(attack_findings) >= 1, "Should detect mimikatz attack pattern"
 
@@ -489,7 +491,9 @@ def test_analyze_event_logs_no_patterns_returns_empty_list():
     )
 
     attack_findings = [f for f in findings if "Attack Pattern" in f.title]
-    assert len(attack_findings) == 0, "Benign commands should not generate attack patterns"
+    assert (
+        len(attack_findings) == 0
+    ), "Benign commands should not generate attack patterns"
 
 
 def test_analyze_event_logs_multiple_patterns_in_one_event():
@@ -549,9 +553,7 @@ def test_pattern_to_category_maps_credential_dumping():
     )
 
     cred_findings = [
-        f
-        for f in findings
-        if f.category == FindingCategory.CREDENTIAL_ACCESS
+        f for f in findings if f.category == FindingCategory.CREDENTIAL_ACCESS
     ]
     assert len(cred_findings) >= 1, "Credential dumping should map to CREDENTIAL_ACCESS"
 
