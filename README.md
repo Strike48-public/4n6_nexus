@@ -824,10 +824,10 @@ sift_find_evil/
 PYTHONPATH=. python3 tests/scenario_harness.py
 
 # Full test suite (requires pytest)
-PYTHONPATH=. pytest
+pytest
 
 # Test coverage (matches the CI gate: 85% minimum)
-PYTHONPATH=. pytest --cov=sift_find_evil --cov-report=html
+pytest --cov=sift_find_evil --cov-report=html
 ```
 
 > Tests that exercise native forensic libraries (E01 images, PST, NSRL bloom,

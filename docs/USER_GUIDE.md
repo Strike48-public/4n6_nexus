@@ -56,7 +56,7 @@ them raise a clear, install-oriented error rather than failing at startup.
 
 ```bash
 # Run the full test suite
-PYTHONPATH=. pytest
+pytest
 
 # Check CLI
 python -m sift_find_evil --help

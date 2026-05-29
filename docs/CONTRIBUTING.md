@@ -147,7 +147,7 @@ Current: ~91% on a core install, ~95% with the forensic extras installed.
 
 ```bash
 # Run tests with coverage
-PYTHONPATH=. pytest --cov=sift_find_evil --cov-report=html
+pytest --cov=sift_find_evil --cov-report=html
 
 # View coverage report
 open htmlcov/index.html
