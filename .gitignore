@@ -53,6 +53,7 @@ evidence/*
 
 # Scenario harness outputs (regenerated on every run)
 analysis/scenario_*.json
+analysis/demo_*.json
 
 # Scenario analysis outputs (derived from evidence, not shipped)
 analysis/*/extracted/
@@ -100,6 +101,12 @@ cases/*
 logs/*
 !logs/sample_investigation.jsonl
 !logs/.gitkeep
+
+# Node / npm (MCP server deps, e.g. tavily-mcp) - reinstall from package-lock.json
+node_modules/
+
+# Timestamped synthetic test-run outputs (regenerated; curated results stay tracked)
+test-results/synthetic/
 
 # Temporary files
 *.tmp
