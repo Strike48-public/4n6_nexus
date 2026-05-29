@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/affaan-m/everything-claude-code/main/schemas/ecc-install-config.schema.json",
+  "version": 1,
+  "target": "claude",
+  "profile": "security",
+  "modules": [
+    "devops-infra",
+    "research-apis"
+  ]
+}

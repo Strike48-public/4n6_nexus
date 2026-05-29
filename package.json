@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "tavily-mcp": "^0.2.19"
+  }
+}
