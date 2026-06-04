@@ -15,6 +15,7 @@
 | Real | `circl-2023-wiped` | CIRCL TR-80 (2023) | ✅ CLI | 1 CRITICAL: wiped GPT partition table (0.95) |
 | Real | `m57-jean` | Digital Corpora (2008) | ✅ CLI | CRITICAL data-exfiltration (BEC) + supporting artifacts |
 | Real | `nitroba` | Digital Corpora (2008) | ✅ CLI | 1 finding: beaconing to image.weather.com (0.95) |
+| Real | `insider_threat_2022` (Narcos/CCleaner) | Digital Corpora (2019) | ◑ partial | Disk-image wipe path: 0 findings (true negative — disk not wiped). Full triage pending Windows CSVs |
 | Real | `apt_attack_2015` | SANS SRL-2015 | ⛔ not run | Evidence on external media, not bundled (see below) |
 
 Two evidence styles are used deliberately:
@@ -172,6 +173,30 @@ boundary — see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)).
   manifest declares `total: 0` (PCAP not scored by the CSV harness); the
   beaconing finding is from the network-analysis pipeline.
 
+### `insider_threat_2022` (Narcos / CCleaner) — partial run
+
+- **What it is:** The Digital Corpora "Narcos" scenario, CCleaner-custodian
+  subset: an authorized user exfiltrating sensitive data while CCleaner runs
+  muddy the filesystem timeline. Focus areas are USB device artifacts,
+  anti-forensic tool use, and cloud-storage indicators across disk + memory.
+- **Source / provenance:** Digital Corpora, 2019 Narcos scenario. URL:
+  https://digitalcorpora.org/corpora/scenarios/2019-narcos/. Academic use.
+  Evidence: `Narcos-CCleaner.E01` (8.17 GB disk, SHA-256 pinned in
+  `scenario.yaml`) + `Narcos-Mem-CCleaner.E01` (1.55 GB memory).
+- **What the agent found:** the disk-image analysis path (partition-table /
+  wipe detection + content reading) ran end-to-end against the real 8.17 GB E01
+  and reported **0 findings — a correct true negative**: this disk's GPT is
+  intact (unlike `circl-2023-wiped`), so there is no anti-forensic wipe to flag.
+  This is a useful accuracy data point: the engine does **not** invent a finding
+  on a clean partition table.
+- **Not yet run:** the USB/cloud/timeline triage the scenario is designed for
+  requires MFT/Prefetch/registry CSVs from Windows-only EZ Tools (and Volatility
+  output from the memory image); generating those is the pending breadth work.
+  We claim only the true-negative wipe result, which has a run artifact
+  (`analysis/insider_threat_2022/`).
+- **Note:** this dataset is the one whose fabricated "1,071-finding" result was
+  removed in SFE-3sc. The honest result above replaces that claim.
+
 ### `apt_attack_2015` — multi-system APT (NOT yet run)
 
 - **What it is:** A multi-system enterprise APT compromise (domain controller,
@@ -189,12 +214,14 @@ boundary — see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)).
 ## What is and isn't claimed (honesty statement)
 
 - **Claimed (with run artifacts):** the synthetic harness result (57 findings,
-  F1 = 1.00), and the three real-evidence findings above (`circl-2023-wiped`,
-  `m57-jean`, `nitroba`).
-- **Not claimed:** any result for `apt_attack_2015` (not run), and the spec-stub
-  scenarios 13–15/17–18/20–21 (no manifest, not run). A previously circulated
-  `insider_threat_2022` "1,071-finding" result was unverifiable and has been
-  removed across the docs (tracked in SFE-3sc).
+  F1 = 1.00), the three real-evidence findings above (`circl-2023-wiped`,
+  `m57-jean`, `nitroba`), and the `insider_threat_2022` disk-wipe true negative
+  (0 findings on an intact partition table).
+- **Not claimed:** any result for `apt_attack_2015` (not run), the
+  USB/cloud/timeline triage of `insider_threat_2022` (needs Windows CSVs), and
+  the spec-stub scenarios 13–15/17–18/20–21 (no manifest, not run). A previously
+  circulated `insider_threat_2022` "1,071-finding" result was unverifiable and
+  has been removed across the docs (tracked in SFE-3sc).
 - **Evidence integrity:** every real image is processed read-only; the SHA-256 of
   each evidence file is pinned in its `scenario.yaml` so a judge can verify
   integrity before and after a run.
