@@ -1,6 +1,9 @@
 # Agent-to-Agent (A2A) Message Log Schema
 
-> Status: DESIGN (review artifact, not yet implemented). Output-routed to ./analysis/.
+> Status: IMPLEMENTED. The `AgentMessage`, `FindingEmitted`, and `Verification`
+> records, the `correlation_id`/`entry_id` envelope, and `AuditLogger.trace()` are
+> implemented in `sift_find_evil/audit/` and exercised by the orchestration harness
+> (`python -m sift_find_evil.orchestration`). This file remains the schema reference.
 > Purpose: Satisfy FIND EVIL! Deliverable #8 (Agent Execution Logs, multi-agent variant) and
 > the Audit Trail Quality criterion: "Judges must be able to trace any finding back to the
 > specific tool execution that produced it." Designed to carry a FULL cross-domain
