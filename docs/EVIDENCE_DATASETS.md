@@ -71,6 +71,18 @@ Reproduce:
 PYTHONPATH=. python tests/scenario_harness.py   # writes analysis/scenario_report.json
 ```
 
+### Cross-domain self-correction demo (`02_ransomware`)
+
+Beyond the regression-scored CSV fixtures, the `02_ransomware` scenario also
+carries `memory_fixtures/` and `network_fixtures/` consumed by the reproducible
+orchestration harness (not the regression harness). Running
+`python -m sift_find_evil.orchestration` over it produces **six findings across
+disk/timeline, memory, and network** in one correlated A2A log — including a
+hidden process resolved via a psscan tiebreaker and a hardcoded-IP C2 that stays
+detected next to a benign direct-IP hit that resolves. See
+[ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) and
+[TRY_IT_OUT.md](TRY_IT_OUT.md).
+
 ---
 
 ## Real evidence

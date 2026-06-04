@@ -89,12 +89,6 @@ report numbers for them.
     when a matching Prefetch entry exists.
   - **IPv6 network destinations** are deliberately skipped by the netscan and
     network-contradiction detectors (no tuned policy / fixtures yet).
-  - **Memory and network self-correction** (contradiction types
-    `MEMORY_PRESENCE_MISMATCH`, `NETWORK_PRESENCE_MISMATCH`) are implemented in
-    the engine and unit-tested, but the end-to-end orchestration harness
-    currently drives only the disk/timeline domain. A real investigation today
-    exercises disk/timeline self-correction live; memory/network run via the
-    detectors and unit tests, not yet the harnessed agent loop.
 - **F1 = 1.00 is on synthetic fixtures**, not a claim of real-world infallibility.
   It means the implemented detection logic matches its ground truth with no drift;
   it does not measure performance against adversarial real-world noise.
@@ -115,12 +109,18 @@ observe in tool output:
   "Emit a finding ONLY when grounded in tool output … Never assert an artifact
   you did not observe." This is a prompt-based control layered on top of the
   architectural audit trail (see ARCHITECTURE_DIAGRAM.md guardrail taxonomy).
-- **The verifier challenges every finding.** The `dfir-verifier` runs each
-  finding through the `SelfCorrectionEngine`, which can lower or recover
-  confidence and is recorded as an A2A `verification` entry. In the demo
-  investigation all three findings move `0.95 → 0.75` (contradiction detected
-  then resolved via the Event Log tiebreaker) — visible self-correction, not a
-  silent pass.
+- **The verifier challenges every finding, across all three domains.** The
+  `dfir-verifier` runs each finding through the `SelfCorrectionEngine`, which can
+  lower or recover confidence and is recorded as an A2A `verification` entry. The
+  reproducible demo (`python -m sift_find_evil.orchestration`) emits **six
+  findings across disk/timeline, memory, and network** in one correlated A2A log:
+  disk causality violations resolve `0.95 → 0.75` via the Event Log tiebreaker; a
+  hidden process (psscan-but-not-pslist) resolves `0.95 → 0.75` via the psscan
+  tiebreaker; and a hardcoded-IP C2 conversation **stays detected** `0.90 → 0.45`
+  *next to* a benign direct-IP hit that **resolves** `0.90 → 0.75`. The
+  side-by-side network outcome shows the verifier does not blanket-resolve — it
+  keeps a genuine contradiction flagged. Visible self-correction, not a silent
+  pass.
 
 No hallucinated findings were observed in testing. The honest framing: with
 synthetic fixtures the inputs are known-good, so this measures that the controls
@@ -209,7 +209,5 @@ because anything not on the per-tool allowlist is rejected.
 - **Single-vote verification.** The verifier currently applies one
   self-correction pass per finding (engine tiebreaker), not an N-way adversarial
   panel. Multi-vote verification is a future enhancement.
-- **Memory/network self-correction is engine + unit-test only**, not yet wired
-  into the end-to-end orchestration harness (the harness drives disk/timeline).
 - **Executable-level scoring.** The harness scores findings at the
   executable/category level; per-contradiction scoring is future work.

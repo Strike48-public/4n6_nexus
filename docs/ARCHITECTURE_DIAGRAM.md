@@ -224,10 +224,14 @@ flowchart TD
 ```
 
 Domains map to the A2A `verification.domain` field
-(`disk_timeline` / `memory` / `network`). The disk/timeline tiebreaker (Event Log
-4688) is exercised end-to-end by the reproducible harness; the memory and network
-contradiction types are implemented in the engine (`SelfCorrectionEngine.analyze`,
-SFE-11v / SFE-q41) and unit-tested.
+(`disk_timeline` / `memory` / `network`). **All three are exercised end-to-end by
+the reproducible harness** (`python -m sift_find_evil.orchestration`): the
+disk/timeline tiebreaker (Event Log 4688), the memory tiebreaker (a hidden
+process present in psscan but not pslist, resolved via psscan), and the network
+tiebreaker (a hardcoded-IP C2 conversation that stays detected alongside a
+benign direct-IP hit that resolves) all emit `verification` records on one
+correlated A2A log. The contradiction types are implemented in
+`SelfCorrectionEngine.analyze` (SFE-11v / SFE-q41) and unit-tested.
 
 ---
 
@@ -289,11 +293,11 @@ SFE-11v / SFE-q41) and unit-tested.
 - The **architectural guardrails, audit trail, and all three domain self-
   correction types** are implemented and tested in code.
 - The **reproducible orchestration harness** (`python -m sift_find_evil.orchestration`)
-  currently drives the **disk/timeline** domain end-to-end against the demo
-  scenario, emitting one correlated A2A log with a real self-correction
-  round-trip and an optional audited guardrail-bypass attempt. The memory and
-  network contradiction types are implemented in `SelfCorrectionEngine` and unit-
-  tested; wiring them into the end-to-end harness run is tracked follow-up work.
+  drives **all three domains** (disk/timeline, memory, network) end-to-end
+  against the demo scenario, emitting one correlated A2A log with six findings
+  and self-correction round-trips in each domain — including a network case that
+  stays *detected* (hardcoded-IP C2) next to one that *resolves* (benign
+  direct-IP), plus an optional audited guardrail-bypass attempt.
 - The live recorded demo uses the real Claude Code subagents against the same MCP
   server; the in-process harness guarantees the identical-every-time artifact
   behind that demo.
