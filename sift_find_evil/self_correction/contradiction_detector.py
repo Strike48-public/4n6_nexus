@@ -4,12 +4,32 @@ This is the core of the self-correction mechanism.
 """
 
 import hashlib
+import ipaddress
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Callable, List, Optional, Any
 from enum import Enum
 
 from ..validators.timestamp_comparator import TimestampComparator
+
+# Known-benign direct-IP infrastructure: public DNS resolvers that clients
+# legitimately reach by hardcoded IP without a preceding A-record lookup (a
+# resolver cannot resolve its own address first). A conversation to one of
+# these is a presence mismatch we *resolve* (downgrade) rather than escalate.
+# Deliberately tight and limited to well-known anycast resolver IPs — broad
+# allowlists are how real C2 hides. Extend only with addresses that are
+# overwhelmingly direct-IP by design.
+_BENIGN_DIRECT_IP_INFRA: frozenset[str] = frozenset(
+    {
+        "8.8.8.8",  # Google Public DNS
+        "8.8.4.4",  # Google Public DNS (secondary)
+        "1.1.1.1",  # Cloudflare DNS
+        "1.0.0.1",  # Cloudflare DNS (secondary)
+        "9.9.9.9",  # Quad9 DNS
+        "208.67.222.222",  # OpenDNS
+        "208.67.220.220",  # OpenDNS (secondary)
+    }
+)
 
 
 class ContradictionType(Enum):
@@ -22,6 +42,10 @@ class ContradictionType(Enum):
     EXFIL_CORRELATION = "exfil_correlation"  # File-save-then-email pattern (SFE-3)
     MEMORY_PRESENCE_MISMATCH = (
         "memory_presence_mismatch"  # netscan socket owner absent from pslist (SFE-11v)
+    )
+    NETWORK_PRESENCE_MISMATCH = (
+        # external-IP conversation with no resolving DNS query (SFE-q41)
+        "network_presence_mismatch"
     )
 
 
@@ -466,6 +490,104 @@ class ContradictionDetector:
 
         return contradictions
 
+    def detect_network_presence_mismatch(
+        self,
+        tcp_conversations: List[Any],
+        dns_queries: List[Any],
+    ) -> List[Contradiction]:
+        """Detect external-IP conversations with no resolving DNS query.
+
+        A TCP conversation to a routable external IPv4 that no DNS A/AAAA
+        query ever resolved is the hardcoded-C2 signal (MITRE T1071 /
+        T1571): malware with a baked-in address connects without the
+        hostname lookup that legitimate clients almost always perform first.
+
+        Scope guards (mirroring the netscan detectors): private/RFC1918,
+        loopback, and IPv6 destinations are skipped — only routable external
+        IPv4 peers are in scope, and IPv6 has no tuned policy yet.
+
+        Known-benign direct-IP infrastructure (public DNS resolvers, NTP) is
+        still reported as a contradiction but flagged ``known_benign_infra``
+        so the engine can resolve (downgrade) it rather than escalate.
+
+        Args:
+            tcp_conversations: List of TCPConversation objects.
+            dns_queries: List of DNSQuery objects (the resolution evidence).
+
+        Returns:
+            List of NETWORK_PRESENCE_MISMATCH contradictions, one per unique
+            unresolved external destination IP.
+        """
+        # Every IP that DNS is known to have produced as an answer. A
+        # destination present here was resolved and is therefore not a
+        # hardcoded-IP signal.
+        resolved_ips = {
+            q.response_ip for q in dns_queries if getattr(q, "response_ip", None)
+        }
+
+        contradictions: List[Contradiction] = []
+        seen_ips: set[str] = set()
+
+        for conv in tcp_conversations:
+            dst_ip = self._external_destination(conv)
+            if dst_ip is None:
+                continue
+            if dst_ip in resolved_ips:
+                continue
+            if dst_ip in seen_ips:
+                continue
+            seen_ips.add(dst_ip)
+
+            benign = dst_ip in _BENIGN_DIRECT_IP_INFRA
+            dst_port = self._destination_port(conv, dst_ip)
+            contradictions.append(
+                Contradiction(
+                    type=ContradictionType.NETWORK_PRESENCE_MISMATCH,
+                    severity=Severity.HIGH,
+                    description=(
+                        f"TCP conversation to external IP {dst_ip}:{dst_port} "
+                        "with no preceding DNS resolution for that address — "
+                        "a hardcoded-IP command-and-control signal "
+                        "(MITRE T1071 / T1571)."
+                    ),
+                    confidence_impact=-0.45,
+                    artifacts=[conv],
+                    details={
+                        "dst_ip": dst_ip,
+                        "dst_port": dst_port,
+                        "total_bytes": getattr(conv, "total_bytes", None),
+                        "known_benign_infra": benign,
+                    },
+                )
+            )
+
+        return contradictions
+
+    @staticmethod
+    def _external_destination(conv: Any) -> Optional[str]:
+        """Return the routable external IPv4 endpoint of a conversation.
+
+        tshark's A/B ordering is arbitrary, so we inspect both endpoints and
+        return the one that is a routable external IPv4. Conversations with
+        no external IPv4 endpoint (internal-only, loopback, IPv6) yield None.
+        """
+        for addr in (
+            getattr(conv, "endpoint_a_ip", None),
+            getattr(conv, "endpoint_b_ip", None),
+        ):
+            if addr and _is_external_ipv4(addr):
+                return addr
+        return None
+
+    @staticmethod
+    def _destination_port(conv: Any, dst_ip: str) -> Optional[int]:
+        """Return the port associated with the external destination endpoint."""
+        if getattr(conv, "endpoint_a_ip", None) == dst_ip:
+            return getattr(conv, "endpoint_a_port", None)
+        if getattr(conv, "endpoint_b_ip", None) == dst_ip:
+            return getattr(conv, "endpoint_b_port", None)
+        return None
+
     def detect_save_then_exfil(
         self,
         mft_entries: List[Any],
@@ -635,3 +757,42 @@ class ContradictionDetector:
                 )
 
         return None
+
+
+# RFC5737 documentation ranges (TEST-NET-1/2/3). The stdlib classifies these
+# as non-global, but the rest of this codebase and its scenario fixtures use
+# them as stand-in *external* addresses (see ``memory_detector._is_rfc1918``),
+# so we explicitly re-admit them as external.
+_TESTNET_NETWORKS: tuple[ipaddress.IPv4Network, ...] = (
+    ipaddress.IPv4Network("192.0.2.0/24"),
+    ipaddress.IPv4Network("198.51.100.0/24"),
+    ipaddress.IPv4Network("203.0.113.0/24"),
+)
+
+
+def _is_external_ipv4(addr: str) -> bool:
+    """True if addr is a routable public IPv4 address (or a TEST-NET stand-in).
+
+    "External" means routable on the public internet. We use the stdlib
+    ``is_global`` predicate, which already excludes *all* non-routable space
+    in one place — RFC1918 private, CGNAT/shared (100.64/10), loopback,
+    link-local, benchmarking (198.18/15), reserved/Class E (240/4), broadcast,
+    and 0.0.0.0/8 — so the denylist cannot drift out of date. Multicast is
+    excluded separately (``is_global`` reports it global, but a unicast TCP
+    conversation to a multicast group is not a C2 destination).
+
+    The one deliberate exception: RFC5737 documentation ranges (TEST-NET) are
+    re-admitted as external because this codebase's fixtures use them as
+    stand-in public addresses. IPv6 is out of scope until tuned fixtures exist.
+    """
+    try:
+        ip = ipaddress.ip_address(addr)
+    except ValueError:
+        return False
+    if not isinstance(ip, ipaddress.IPv4Address):
+        return False
+    if ip.is_multicast:
+        return False
+    if ip.is_global:
+        return True
+    return any(ip in net for net in _TESTNET_NETWORKS)

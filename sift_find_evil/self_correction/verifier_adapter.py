@@ -24,6 +24,7 @@ from .contradiction_detector import ContradictionType
 _DOMAIN_BY_CONTRADICTION: dict[str, str] = {
     ContradictionType.EXFIL_CORRELATION.value: "exfil",
     ContradictionType.MEMORY_PRESENCE_MISMATCH.value: "memory",
+    ContradictionType.NETWORK_PRESENCE_MISMATCH.value: "network",
 }
 
 

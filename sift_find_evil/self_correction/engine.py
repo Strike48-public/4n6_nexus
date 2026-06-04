@@ -24,6 +24,7 @@ _CATEGORY_BY_CONTRADICTION: dict[ContradictionType, FindingCategory] = {
     ContradictionType.TEMPORAL_MISMATCH: FindingCategory.TIMELINE_TAMPERING,
     ContradictionType.MISSING_ARTIFACT: FindingCategory.ANTI_FORENSICS,
     ContradictionType.MEMORY_PRESENCE_MISMATCH: FindingCategory.PROCESS_INJECTION,
+    ContradictionType.NETWORK_PRESENCE_MISMATCH: FindingCategory.COMMAND_AND_CONTROL,
 }
 
 
@@ -37,6 +38,8 @@ def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
         _CATEGORY_BY_CONTRADICTION.get(c.type, FindingCategory.UNKNOWN)
         for c in contradictions
     }
+    if FindingCategory.COMMAND_AND_CONTROL in categories:
+        return FindingCategory.COMMAND_AND_CONTROL
     if FindingCategory.PROCESS_INJECTION in categories:
         return FindingCategory.PROCESS_INJECTION
     if FindingCategory.ANTI_FORENSICS in categories:
@@ -87,6 +90,8 @@ class SelfCorrectionEngine:
         netscan: Optional[List[Any]] = None,
         pslist: Optional[List[Any]] = None,
         psscan: Optional[List[Any]] = None,
+        tcp_conversations: Optional[List[Any]] = None,
+        dns_queries: Optional[List[Any]] = None,
     ) -> List[Finding]:
         """Run full self-correction analysis.
 
@@ -106,6 +111,12 @@ class SelfCorrectionEngine:
             pslist: Optional list of ProcessRow objects (windows.pslist).
             psscan: Optional list of ProcessRow objects (windows.psscan), used as a
                    tiebreaker to resolve memory presence mismatches.
+            tcp_conversations: Optional list of TCPConversation objects. When
+                   provided with ``dns_queries``, the NETWORK_PRESENCE_MISMATCH
+                   detector runs to find conversations to hardcoded external IPs
+                   with no preceding DNS resolution (SFE-q41).
+            dns_queries: Optional list of DNSQuery objects (the resolution
+                   evidence checked against conversation destinations).
 
         Returns:
             List of Finding objects with confidence and reasoning
@@ -148,6 +159,16 @@ class SelfCorrectionEngine:
             )
             for contradiction in memory_contradictions:
                 findings.append(self._generate_memory_finding(contradiction))
+
+        # Detect network presence mismatches (external-IP conversation with no
+        # preceding DNS resolution), resolved when the IP is benign direct-IP
+        # infrastructure (SFE-q41).
+        if tcp_conversations is not None and dns_queries is not None:
+            network_contradictions = self.detector.detect_network_presence_mismatch(
+                tcp_conversations=tcp_conversations, dns_queries=dns_queries
+            )
+            for contradiction in network_contradictions:
+                findings.append(self._generate_network_finding(contradiction))
 
         # Detect attack patterns in Event Log command lines
         attack_findings = self._detect_attack_patterns(event_log_entries)
@@ -457,6 +478,93 @@ class SelfCorrectionEngine:
                 "state": details.get("state"),
                 "corroborated_by_psscan": corroborated,
                 "mitre_attack": ["T1014"],
+            },
+            confidence=final_confidence,
+            confidence_label=self.scorer.get_confidence_label(final_confidence),
+            reasoning_chain=reasoning_chain,
+            contradictions=[contradiction],
+            resolutions=resolutions,
+            confidence_calculation=calc_details,
+            artifact_sources=artifact_types,
+        )
+
+    def _generate_network_finding(self, contradiction: Contradiction) -> Finding:
+        """Generate a finding for a NETWORK_PRESENCE_MISMATCH (SFE-q41).
+
+        Completes the cross-domain self-correction loop (disk -> memory ->
+        network). The contradiction (external-IP conversation with no DNS
+        resolution) applies its penalty; when the destination is known-benign
+        direct-IP infrastructure (public DNS resolvers) a resolution recovers
+        confidence — downgrading a legitimate direct-IP connection rather than
+        escalating it as C2.
+
+        Args:
+            contradiction: A NETWORK_PRESENCE_MISMATCH contradiction.
+
+        Returns:
+            Finding with COMMAND_AND_CONTROL category, confidence, reasoning.
+        """
+        details = contradiction.details
+        dst_ip = details.get("dst_ip")
+        dst_port = details.get("dst_port")
+        benign = bool(details.get("known_benign_infra"))
+
+        artifact_types = ["pcap_conversations", "pcap_dns"]
+        resolutions: List[Resolution] = []
+        reasoning_chain = [
+            f"TCP conversation to external IP {dst_ip}:{dst_port}.",
+            "No DNS A/AAAA query in the capture resolved that address — "
+            "a hardcoded-IP command-and-control signal (MITRE T1071 / T1571).",
+            f"Detected {contradiction.type.value}: {contradiction.description} "
+            f"(impact: {contradiction.confidence_impact:.2f})",
+        ]
+
+        if benign:
+            resolutions.append(
+                Resolution(
+                    contradiction_type=contradiction.type.value,
+                    resolution_method="known_benign_direct_ip_infrastructure",
+                    # +0.30 mirrors the disk causality tiebreaker and memory
+                    # psscan recovery: enough to lift a -0.45 penalty back
+                    # toward (but not above) the uncontradicted baseline, so a
+                    # resolved finding lands clearly below an unresolved one.
+                    confidence_recovery=0.30,
+                    evidence={
+                        "dst_ip": dst_ip,
+                        "note": (
+                            "Destination is a well-known public DNS resolver "
+                            "that clients legitimately reach by hardcoded IP; "
+                            "the missing DNS lookup is expected, not hostile."
+                        ),
+                    },
+                )
+            )
+            reasoning_chain.append(
+                f"Resolved: {dst_ip} is known-benign direct-IP infrastructure "
+                "(recovery: +0.30) — legitimate direct-IP traffic, not C2."
+            )
+
+        final_confidence, calc_details = self.scorer.calculate_final_confidence(
+            len(artifact_types), artifact_types, [contradiction], resolutions
+        )
+
+        reasoning_chain.append(
+            f"Final confidence: {final_confidence:.2f} "
+            f"({self.scorer.get_confidence_label(final_confidence)})"
+        )
+
+        return Finding(
+            title=f"Hardcoded-IP connection: {dst_ip}:{dst_port} (no DNS)",
+            description=contradiction.description,
+            finding_type="behavior",
+            severity=contradiction.severity.value,
+            category=FindingCategory.COMMAND_AND_CONTROL,
+            evidence={
+                "dst_ip": dst_ip,
+                "dst_port": dst_port,
+                "total_bytes": details.get("total_bytes"),
+                "known_benign_infra": benign,
+                "mitre_attack": ["T1071", "T1571"],
             },
             confidence=final_confidence,
             confidence_label=self.scorer.get_confidence_label(final_confidence),
