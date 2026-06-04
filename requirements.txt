@@ -17,6 +17,12 @@ pyyaml>=6.0
 # Data validation
 pydantic>=2.0.0
 
+# Model Context Protocol server (Custom MCP Server architecture lane). The agent
+# layer reaches forensic tools only through this server, where the architectural
+# guardrails (read-only allowlist, path containment, circuit breaker) are enforced.
+mcp>=1.14.0
+starlette>=0.27.0
+
 # Terminal UI and rich output
 rich>=13.0.0
 textual>=0.47.0
