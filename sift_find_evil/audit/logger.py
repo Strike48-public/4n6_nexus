@@ -32,13 +32,15 @@ class AuditLogger:
             audit_path: Path to audit.jsonl file
             examiner: Name of examiner (optional)
         """
-        self.audit_path = audit_path
+        # Accept str or Path for ergonomics — the documented trace command
+        # (AuditLogger("path/to/audit.jsonl").trace(...)) passes a string.
+        self.audit_path = Path(audit_path)
         self.examiner = examiner
 
         # Create audit file if it doesn't exist
-        if not audit_path.exists():
-            audit_path.parent.mkdir(parents=True, exist_ok=True)
-            audit_path.touch()
+        if not self.audit_path.exists():
+            self.audit_path.parent.mkdir(parents=True, exist_ok=True)
+            self.audit_path.touch()
 
         # Seed the entry-id counter from any existing log so ids never collide
         # across logger instances appending to the same file.
