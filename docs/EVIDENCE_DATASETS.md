@@ -190,10 +190,19 @@ boundary — see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)).
   This is a useful accuracy data point: the engine does **not** invent a finding
   on a clean partition table.
 - **Not yet run:** the USB/cloud/timeline triage the scenario is designed for
-  requires MFT/Prefetch/registry CSVs from Windows-only EZ Tools (and Volatility
-  output from the memory image); generating those is the pending breadth work.
-  We claim only the true-negative wipe result, which has a run artifact
-  (`analysis/insider_threat_2022/`).
+  requires MFT/Prefetch/registry CSVs from Windows-only EZ Tools; generating
+  those is the pending breadth work. We claim only the true-negative wipe
+  result, which has a run artifact (`analysis/insider_threat_2022/`).
+- **Memory image (`Narcos-Mem-CCleaner.E01`) — attempted, environment-blocked.**
+  The E01 exports cleanly to a 4 GiB raw image via `ewfexport`, and the engine's
+  `VolatilityRunner` shells out correctly. But Volatility 3 cannot symbolize this
+  Windows image in our offline environment: no Windows kernel symbol tables are
+  bundled with the install, the runner runs `--offline`, and the box has no
+  network to fetch the matching PDB symbols (a `windows.info` run reports "No
+  suitable kernels found during pdbscan"). This is an **environment limitation,
+  not a product defect** — the same `MemoryDetector` + self-correction code path
+  is exercised end-to-end by the synthetic Volatility-shaped fixtures (scenario
+  12 and the orchestration demo). Wiring real symbols is downstream work.
 - **Note:** this dataset is the one whose fabricated "1,071-finding" result was
   removed in SFE-3sc. The honest result above replaces that claim.
 
