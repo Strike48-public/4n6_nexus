@@ -125,8 +125,12 @@ test-results/synthetic/
 .env
 .env.local
 
-# Claude Code specific
-.claude/
+# Claude Code specific -- ignore local settings/reviews, but TRACK the multi-agent
+# definitions: they ARE the product's agentic layer and must ship in the public
+# submission repo so judges can deploy and inspect it.
+.claude/*
+!.claude/agents/
+.claude/agents/README.md
 
 # macOS
 .DS_Store
