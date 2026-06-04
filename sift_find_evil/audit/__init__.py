@@ -1,6 +1,19 @@
-"""Audit logging for forensic tool invocations."""
+"""Audit logging for forensic tool invocations and agent-to-agent messages."""
 
-from .models import AuditEntry, ToolInvocation
+from .models import (
+    AgentMessage,
+    AuditEntry,
+    FindingEmitted,
+    ToolInvocation,
+    Verification,
+)
 from .logger import AuditLogger
 
-__all__ = ["AuditEntry", "ToolInvocation", "AuditLogger"]
+__all__ = [
+    "AuditEntry",
+    "ToolInvocation",
+    "AgentMessage",
+    "FindingEmitted",
+    "Verification",
+    "AuditLogger",
+]
