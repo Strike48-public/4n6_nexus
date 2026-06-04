@@ -1,0 +1,4 @@
+[
+  {"endpoint_a_ip": "10.0.0.50", "endpoint_a_port": 49722, "endpoint_b_ip": "203.0.113.66", "endpoint_b_port": 4444, "frames_a_to_b": 120, "bytes_a_to_b": 18400, "frames_b_to_a": 95, "bytes_b_to_a": 220500, "total_frames": 215, "total_bytes": 238900},
+  {"endpoint_a_ip": "10.0.0.50", "endpoint_a_port": 49888, "endpoint_b_ip": "1.1.1.1", "endpoint_b_port": 53, "frames_a_to_b": 2, "bytes_a_to_b": 180, "frames_b_to_a": 2, "bytes_b_to_a": 240, "total_frames": 4, "total_bytes": 420}
+]

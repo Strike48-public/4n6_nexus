@@ -1,0 +1,3 @@
+[
+  {"frame_number": 12, "timestamp": "2026-01-01T00:04:30Z", "src_ip": "10.0.0.50", "query_name": "update.example.com", "query_type": "A", "response_ip": "198.51.100.20"}
+]

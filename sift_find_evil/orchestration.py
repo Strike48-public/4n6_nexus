@@ -12,28 +12,102 @@ it (``AuditLogger.trace``). The recorded demo uses the real Claude Code subagent
 (.claude/agents/dfir-*.md) against the same MCP server; this harness guarantees the
 reproducible artifact behind that demo.
 
-Phase A: the self-correction engine covers disk/timeline contradictions, so the
-demo investigation runs the disk/timeline domain end to end. Memory/network domains
-join once the Phase B engine extensions land.
+The demo investigation runs all three domains end to end: disk/timeline
+(causality violations resolved via the Event Log tiebreaker), memory (a hidden
+process in psscan-but-not-pslist owning a live socket, resolved via the psscan
+tiebreaker), and network (a hardcoded-IP C2 conversation with no DNS, plus a
+benign-infra direct-IP hit that resolves). Each domain's verifier records carry
+the matching ``domain`` so the single A2A log shows cross-domain self-correction.
 """
 
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from .audit.models import AgentMessage, FindingEmitted
 from .mcp.guardrails import GuardrailViolation
 from .mcp.server import EvidenceMCPServer
+from .memory.volatility_runner import _to_network_row, _to_process_row
 from .parsers.evtx_parser import EventLogParser
 from .parsers.mft_parser import MFTParser
+from .parsers.pcap_parser import DNSQuery, TCPConversation
 from .parsers.prefetch_parser import PrefetchParser
 from .self_correction.engine import SelfCorrectionEngine
 from .self_correction.verifier_adapter import finding_to_verification
 
 # The demo scenario: ransomware with timestomped binaries that each trigger a
 # causality contradiction the verifier resolves via the Event Log tiebreaker.
+# It also carries memory_fixtures/ and network_fixtures/ so the memory and
+# network analysts demonstrate their own cross-domain self-correction.
 _DEMO_SCENARIO = Path("scenarios/synthetic/02_ransomware")
+
+
+def _load_rows(path: Path, coercer: Callable[[dict], Any]) -> list:
+    """Load a JSON list fixture and coerce each row.
+
+    Returns [] only when the fixture is genuinely absent (the disk-only demo
+    path). A present-but-malformed fixture raises rather than silently
+    producing zero findings — silent fixture corruption would mask a real
+    detection gap, which is exactly what a forensic tool must not do.
+    """
+    if not path.is_file():
+        return []
+    try:
+        with path.open(encoding="utf-8") as handle:
+            raw = json.load(handle)
+    except (OSError, json.JSONDecodeError) as err:
+        raise RuntimeError(f"Failed to read fixture {path}: {err}") from err
+    if not isinstance(raw, list):
+        raise ValueError(f"{path}: expected a JSON array, got {type(raw).__name__}")
+    try:
+        return [coercer(row) for row in raw]
+    except (KeyError, TypeError, ValueError) as err:
+        raise RuntimeError(f"Failed to coerce a row in {path}: {err}") from err
+
+
+def _to_tcp_conversation(row: dict) -> TCPConversation:
+    """Build a TCPConversation from a fixture row (tshark conv,tcp shape)."""
+    return TCPConversation(
+        endpoint_a_ip=str(row["endpoint_a_ip"]),
+        endpoint_a_port=int(row["endpoint_a_port"]),
+        endpoint_b_ip=str(row["endpoint_b_ip"]),
+        endpoint_b_port=int(row["endpoint_b_port"]),
+        frames_a_to_b=int(row.get("frames_a_to_b", 0)),
+        bytes_a_to_b=int(row.get("bytes_a_to_b", 0)),
+        frames_b_to_a=int(row.get("frames_b_to_a", 0)),
+        bytes_b_to_a=int(row.get("bytes_b_to_a", 0)),
+        total_frames=int(row.get("total_frames", 0)),
+        total_bytes=int(row.get("total_bytes", 0)),
+    )
+
+
+def _to_dns_query(row: dict) -> DNSQuery:
+    """Build a DNSQuery from a fixture row."""
+    ts = row.get("timestamp")
+    when = (
+        datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if ts
+        else datetime(1970, 1, 1, tzinfo=timezone.utc)
+    )
+    return DNSQuery(
+        frame_number=int(row.get("frame_number", 0)),
+        timestamp=when,
+        src_ip=str(row.get("src_ip", "")),
+        query_name=str(row.get("query_name", "")),
+        query_type=str(row.get("query_type", "A")),
+        response_ip=row.get("response_ip"),
+    )
+
+
+def _artifact_label(finding: Any) -> Optional[str]:
+    """Best-effort human label for a finding's primary artifact, across domains."""
+    ev = getattr(finding, "evidence", {}) or {}
+    return (
+        ev.get("executable") or ev.get("process") or ev.get("dst_ip") or ev.get("owner")
+    )
 
 
 class InvestigationOrchestrator:
@@ -89,68 +163,86 @@ class InvestigationOrchestrator:
     # -- the investigation ---------------------------------------------------
 
     def run_demo_investigation(self, include_bypass_attempt: bool = False) -> dict:
-        """Run the disk/timeline investigation end to end, emitting the A2A log.
+        """Run the full cross-domain investigation end to end, emitting the A2A log.
 
-        Returns a structured report (the orchestrator's synthesized narrative).
+        The orchestrator dispatches triage, then three domain analysts
+        (disk/timeline, memory, network) whose findings each carry a
+        contradiction the verifier challenges and resolves -- so the single
+        correlated A2A log demonstrates self-correction across all three
+        domains. Returns a structured report (the synthesized narrative).
         """
-        # 1. Orchestrator -> Triage: scope the case.
+        # 1. Orchestrator -> Triage: scope the case across all domains present.
         self._dispatch(
             "orchestrator", "triage", "Enumerate artifacts and scope domains"
         )
         self._result(
             "triage",
             "orchestrator",
-            "Disk/timeline artifacts present (MFT, Prefetch, Event Logs); "
-            "disk domain in scope.",
-            domains_in_scope=["disk_timeline"],
-        )
-
-        # 2. Orchestrator -> Disk analyst: analyze.
-        self._dispatch(
-            "orchestrator", "disk_analyst", "Analyze MFT/Prefetch/EventLog for evil"
+            "Disk/timeline (MFT, Prefetch, Event Logs), memory (pslist/psscan/"
+            "netscan), and network (PCAP conversations + DNS) artifacts present; "
+            "all three domains in scope.",
+            domains_in_scope=["disk_timeline", "memory", "network"],
         )
 
         if include_bypass_attempt:
             self._attempt_bypass()
 
-        # The analyst runs its tools through the MCP boundary (audited), then the
-        # detection engine. We record a tool_invocation per artifact parsed so each
-        # finding can cite the executions that produced it.
-        tool_ids = self._analyst_run_tools()
-        findings = self._analyst_detect()
-
-        # 3. Emit findings, each linked to the tool executions.
-        report_findings = []
-        for idx, finding in enumerate(findings, start=1):
-            finding_id = f"F-{idx:03d}"
-            self.server.audit_logger.log_finding(
-                FindingEmitted(
-                    finding_id=finding_id,
-                    category=finding.category.value,
-                    severity=finding.severity,
-                    confidence=round(finding.confidence, 2),
-                    produced_by="disk_analyst",
-                    source_tool_invocations=tool_ids,
-                    artifact_refs=[{"executable": finding.evidence.get("executable")}],
-                ),
-                correlation_id=self.correlation_id,
-                agent="disk_analyst",
+        # 2. Each domain analyst runs its tools (MCP-audited) then its detector.
+        # Every analyst returns (findings, tool_invocation entry_ids) so each
+        # finding can cite the exact executions that produced it.
+        report_findings: list[tuple[str, Any, str]] = []
+        idx = 1
+        for analyst, task, runner in (
+            (
+                "disk_analyst",
+                "Analyze MFT/Prefetch/EventLog for evil",
+                self._disk_analyst,
+            ),
+            (
+                "memory_analyst",
+                "Analyze pslist/psscan/netscan for hidden processes",
+                self._memory_analyst,
+            ),
+            (
+                "network_analyst",
+                "Analyze PCAP conversations + DNS for hardcoded-IP C2",
+                self._network_analyst,
+            ),
+        ):
+            self._dispatch("orchestrator", analyst, task)
+            findings, tool_ids = runner()
+            emitted_ids = []
+            for finding in findings:
+                finding_id = f"F-{idx:03d}"
+                idx += 1
+                self.server.audit_logger.log_finding(
+                    FindingEmitted(
+                        finding_id=finding_id,
+                        category=finding.category.value,
+                        severity=finding.severity,
+                        confidence=round(finding.confidence, 2),
+                        produced_by=analyst,
+                        source_tool_invocations=tool_ids,
+                        artifact_refs=[{"label": _artifact_label(finding)}],
+                    ),
+                    correlation_id=self.correlation_id,
+                    agent=analyst,
+                )
+                report_findings.append((finding_id, finding, analyst))
+                emitted_ids.append(finding_id)
+            self._result(
+                analyst,
+                "orchestrator",
+                f"Emitted {len(findings)} candidate finding(s).",
+                finding_ids=emitted_ids,
             )
-            report_findings.append((finding_id, finding))
 
-        self._result(
-            "disk_analyst",
-            "orchestrator",
-            f"Emitted {len(findings)} candidate findings.",
-            finding_ids=[fid for fid, _ in report_findings],
-        )
-
-        # 4. Orchestrator -> Verifier: challenge findings (self-correction).
+        # 3. Orchestrator -> Verifier: challenge every finding (self-correction).
         self._dispatch(
             "orchestrator", "verifier", "Challenge findings; resolve contradictions"
         )
         verified = []
-        for finding_id, finding in report_findings:
+        for finding_id, finding, _analyst in report_findings:
             challenge_id = self.server.audit_logger.log_agent_message(
                 AgentMessage(
                     sender="verifier",
@@ -171,22 +263,26 @@ class InvestigationOrchestrator:
             )
             verified.append((finding_id, finding, verification))
 
+        resolved = sum(
+            1 for _, _, v in verified if v.verdict == "contradiction_resolved"
+        )
+        domains = sorted({v.domain for _, _, v in verified})
         self._result(
             "verifier",
             "orchestrator",
-            f"Verified {len(verified)} findings; "
-            f"{sum(1 for _, _, v in verified if v.verdict == 'contradiction_resolved')} "
-            "contradictions resolved.",
+            f"Verified {len(verified)} findings across domains {domains}; "
+            f"{resolved} contradictions resolved.",
         )
 
-        # 5. Synthesize the report (structured narrative, not a raw log).
+        # 4. Synthesize the report (structured narrative, not a raw log).
         return {
             "case_id": self.case_id,
             "correlation_id": self.correlation_id,
             "findings": [
                 {
                     "finding_id": fid,
-                    "executable": f.evidence.get("executable"),
+                    "label": _artifact_label(f),
+                    "domain": v.domain,
                     "severity": f.severity,
                     "confidence": round(f.confidence, 2),
                     "verdict": v.verdict,
@@ -199,37 +295,106 @@ class InvestigationOrchestrator:
 
     # -- analyst internals ---------------------------------------------------
 
-    def _analyst_run_tools(self) -> list[str]:
-        """Record tool invocations through the MCP audit boundary.
+    def _log_tools(self, agent: str, tools: tuple[tuple[str, str], ...]) -> list[str]:
+        """Record a set of tool invocations through the MCP audit boundary.
 
-        The fixtures are pre-parsed CSV (synthetic evidence), so we log the tool
-        executions that, on real evidence, would have produced them -- preserving
-        the finding -> tool-execution trace the audit criterion requires.
+        The fixtures are pre-parsed CSV/JSON (synthetic evidence), so we log the
+        tool executions that, on real evidence, would have produced them --
+        preserving the finding -> tool-execution trace the audit criterion
+        requires. Returns the entry_ids a finding cites as its sources.
         """
         tool_ids: list[str] = []
-        for tool, artifact in (
-            ("mftecmd", "mft.csv"),
-            ("pecmd", "prefetch.csv"),
-            ("evtxecmd", "evtx.csv"),
-        ):
+        for tool, artifact in tools:
             entry_id = self.server.audit_logger.log_tool_invocation(
                 tool=tool,
                 command=f"{tool} {self.scenario_dir / artifact}",
                 exit_code=0,
                 correlation_id=self.correlation_id,
-                agent="disk_analyst",
+                agent=agent,
             )
             tool_ids.append(entry_id)
         return tool_ids
 
-    def _analyst_detect(self) -> list:
-        """Run the real self-correction detection engine on the demo evidence."""
+    def _disk_analyst(self) -> tuple[list, list[str]]:
+        """Disk/timeline analyst: MFT/Prefetch/EventLog -> causality findings."""
+        tool_ids = self._log_tools(
+            "disk_analyst",
+            (
+                ("mftecmd", "mft.csv"),
+                ("pecmd", "prefetch.csv"),
+                ("evtxecmd", "evtx.csv"),
+            ),
+        )
         mft = MFTParser().parse_csv(self.scenario_dir / "mft.csv")
         prefetch = PrefetchParser().parse_csv(self.scenario_dir / "prefetch.csv")
         evtx = EventLogParser().parse_csv(
             self.scenario_dir / "evtx.csv", filter_event_ids=[4688]
         )
-        return SelfCorrectionEngine().analyze(mft, prefetch, evtx)
+        findings = SelfCorrectionEngine().analyze(mft, prefetch, evtx)
+        return findings, tool_ids
+
+    def _memory_analyst(self) -> tuple[list, list[str]]:
+        """Memory analyst: netscan/pslist/psscan -> hidden-process findings.
+
+        Returns no findings (and runs no tools) when the demo scenario has no
+        memory_fixtures/ directory, so the disk-only path is unchanged.
+        """
+        fixtures = self.scenario_dir / "memory_fixtures"
+        netscan = _load_rows(fixtures / "windows_netscan.json", _to_network_row)
+        pslist = _load_rows(fixtures / "windows_pslist.json", _to_process_row)
+        psscan = _load_rows(fixtures / "windows_psscan.json", _to_process_row)
+        if not (netscan and pslist):
+            return [], []
+        tool_ids = self._log_tools(
+            "memory_analyst",
+            (
+                ("volatility", "memory_fixtures/windows_pslist.json"),
+                ("volatility", "memory_fixtures/windows_psscan.json"),
+                ("volatility", "memory_fixtures/windows_netscan.json"),
+            ),
+        )
+        findings = SelfCorrectionEngine().analyze(
+            mft_entries=[],
+            prefetch_entries=[],
+            event_log_entries=[],
+            netscan=netscan,
+            pslist=pslist,
+            psscan=psscan,
+        )
+        return findings, tool_ids
+
+    def _network_analyst(self) -> tuple[list, list[str]]:
+        """Network analyst: PCAP conversations + DNS -> hardcoded-IP C2 findings.
+
+        Returns no findings (and runs no tools) when the demo scenario has no
+        network_fixtures/ directory, so the disk-only path is unchanged.
+
+        Conversations are required to do anything; DNS queries are optional —
+        the detector treats missing/empty DNS as "nothing was resolved", which
+        makes every external-IP conversation a candidate hardcoded-IP signal.
+        """
+        fixtures = self.scenario_dir / "network_fixtures"
+        conversations = _load_rows(
+            fixtures / "tcp_conversations.json", _to_tcp_conversation
+        )
+        dns = _load_rows(fixtures / "dns_queries.json", _to_dns_query)
+        if not conversations:
+            return [], []
+        tool_ids = self._log_tools(
+            "network_analyst",
+            (
+                ("tshark", "network_fixtures/tcp_conversations.json"),
+                ("tshark", "network_fixtures/dns_queries.json"),
+            ),
+        )
+        findings = SelfCorrectionEngine().analyze(
+            mft_entries=[],
+            prefetch_entries=[],
+            event_log_entries=[],
+            tcp_conversations=conversations,
+            dns_queries=dns,
+        )
+        return findings, tool_ids
 
     def _attempt_bypass(self) -> None:
         """Demonstrate the architectural guardrail blocking an out-of-bounds read."""
@@ -252,7 +417,6 @@ def main() -> int:
                                                [--bypass-demo]
     """
     import argparse
-    import json
 
     parser = argparse.ArgumentParser(
         description="SIFT Find Evil - reproducible multi-agent investigation harness"
@@ -280,8 +444,9 @@ def main() -> int:
 
     print(f"Case {report['case_id']} -- {len(report['findings'])} findings")
     for f in report["findings"]:
+        label = f.get("label") or "?"
         print(
-            f"  {f['finding_id']} {f['executable']:18} {f['verdict']:24} "
+            f"  {f['finding_id']} [{f['domain']:13}] {label:18} {f['verdict']:24} "
             f"confidence {f['confidence_before']} -> {f['confidence_after']}"
         )
     print(f"\nA2A audit log:  {audit_path}")

@@ -1,0 +1,3 @@
+[
+  {"PID": 6666, "Owner": "crypt_engine.exe", "Proto": "TCPv4", "LocalAddr": "10.0.0.50", "LocalPort": 49722, "ForeignAddr": "203.0.113.66", "ForeignPort": 4444, "State": "ESTABLISHED"}
+]

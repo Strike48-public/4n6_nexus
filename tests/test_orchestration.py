@@ -87,6 +87,105 @@ def test_self_correction_sequence_is_present(tmp_path):
     assert resolved, "demo must show a self-correction (contradiction handling)"
 
 
+def test_demo_covers_all_three_domains(tmp_path):
+    """The investigation must exercise disk, memory, and network self-correction."""
+    orch = InvestigationOrchestrator(
+        case_id="INC-2026-001",
+        audit_path=tmp_path / "audit.jsonl",
+        examiner="jtomek",
+    )
+    report = orch.run_demo_investigation()
+
+    domains = {f["domain"] for f in report["findings"]}
+    assert {"disk_timeline", "memory", "network"} <= domains
+
+    # The verification records carry the same domains (verifier_adapter routing).
+    verifications = [
+        e
+        for e in orch.server.audit_logger.get_recent(limit=1000)
+        if e.action == "verification"
+    ]
+    v_domains = {v.details.get("domain") for v in verifications}
+    assert {"disk_timeline", "memory", "network"} <= v_domains
+
+
+def test_demo_shows_resolved_and_unresolved_contradictions(tmp_path):
+    """Cross-domain run must show both a resolved and a persistent contradiction."""
+    orch = InvestigationOrchestrator(
+        case_id="INC-2026-001",
+        audit_path=tmp_path / "audit.jsonl",
+        examiner="jtomek",
+    )
+    report = orch.run_demo_investigation()
+
+    verdicts = {f["verdict"] for f in report["findings"]}
+    # A benign-infra network hit resolves; a hardcoded-C2 hit stays detected.
+    assert "contradiction_resolved" in verdicts
+    assert "contradiction_detected" in verdicts
+
+    # The memory finding is the hidden process corroborated by psscan -> resolved.
+    memory = [f for f in report["findings"] if f["domain"] == "memory"]
+    assert memory and memory[0]["verdict"] == "contradiction_resolved"
+
+
+def test_memory_and_network_findings_trace_to_tools(tmp_path):
+    """Every domain's findings cite the tool executions that produced them."""
+    orch = InvestigationOrchestrator(
+        case_id="INC-2026-001",
+        audit_path=tmp_path / "audit.jsonl",
+        examiner="jtomek",
+    )
+    report = orch.run_demo_investigation()
+
+    for finding in report["findings"]:
+        if finding["domain"] in ("memory", "network"):
+            thread = orch.server.audit_logger.trace(finding["finding_id"])
+            actions = [e.action for e in thread]
+            assert "tool_invocation" in actions
+            assert "finding_emitted" in actions
+            assert "verification" in actions
+
+
+def test_finding_ids_are_unique_and_sequential(tmp_path):
+    """Finding IDs are unique and sequential F-001..F-NNN across all domains."""
+    orch = InvestigationOrchestrator(
+        case_id="INC-2026-001",
+        audit_path=tmp_path / "audit.jsonl",
+        examiner="jtomek",
+    )
+    report = orch.run_demo_investigation()
+
+    ids = [f["finding_id"] for f in report["findings"]]
+    assert len(ids) == len(set(ids)), "finding IDs must be unique"
+    assert ids == [f"F-{i:03d}" for i in range(1, len(ids) + 1)]
+
+
+def test_demo_fixtures_trigger_expected_contradictions(tmp_path):
+    """The bundled demo fixtures must produce the documented contradictions.
+
+    Locks the memory/network fixture content against silent drift: if a fixture
+    changes shape and stops triggering its contradiction, this fails instead of
+    the demo quietly losing a domain.
+    """
+    orch = InvestigationOrchestrator(
+        case_id="INC-2026-001",
+        audit_path=tmp_path / "audit.jsonl",
+        examiner="jtomek",
+    )
+    report = orch.run_demo_investigation()
+    by_domain: dict[str, list] = {}
+    for f in report["findings"]:
+        by_domain.setdefault(f["domain"], []).append(f)
+
+    # Memory: the hidden process (psscan-not-pslist) resolves via psscan.
+    assert len(by_domain.get("memory", [])) == 1
+    assert by_domain["memory"][0]["verdict"] == "contradiction_resolved"
+
+    # Network: a hardcoded-IP C2 stays detected; a benign-infra hit resolves.
+    net_verdicts = sorted(f["verdict"] for f in by_domain.get("network", []))
+    assert net_verdicts == ["contradiction_detected", "contradiction_resolved"]
+
+
 def test_blocked_tool_attempt_is_recorded(tmp_path):
     """A guardrail denial during the run is captured for the audit trail."""
     orch = InvestigationOrchestrator(
