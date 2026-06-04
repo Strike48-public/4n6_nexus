@@ -17,6 +17,29 @@ from typing import Optional
 
 from ..audit.models import Verification
 from ..findings.finding import Finding
+from .contradiction_detector import ContradictionType
+
+# Which A2A verification domain each contradiction type belongs to. Types not
+# listed here default to ``disk_timeline`` (the original Phase A domain).
+_DOMAIN_BY_CONTRADICTION: dict[str, str] = {
+    ContradictionType.EXFIL_CORRELATION.value: "exfil",
+    ContradictionType.MEMORY_PRESENCE_MISMATCH.value: "memory",
+}
+
+
+def _domain_for(finding: Finding) -> str:
+    """Report the A2A domain from the finding's primary contradiction type.
+
+    A finding is domain-classified by its *first* contradiction. The engine
+    builds one finding per contradiction source (causality, exfil, memory),
+    so mixed-type findings do not arise today; if they ever do, the first
+    contradiction wins. Findings with no contradiction stay ``disk_timeline``
+    (the original Phase A default).
+    """
+    if not finding.contradictions:
+        return "disk_timeline"
+    primary = finding.contradictions[0].type.value
+    return _DOMAIN_BY_CONTRADICTION.get(primary, "disk_timeline")
 
 
 def _verdict_for(finding: Finding) -> str:
@@ -74,7 +97,7 @@ def finding_to_verification(
         finding_id=finding_id,
         verifier="verifier",
         verdict=_verdict_for(finding),
-        domain="disk_timeline",
+        domain=_domain_for(finding),
         confidence_before=confidence_before,
         confidence_after=confidence_after,
         contradiction_type=contradiction_type,

@@ -20,6 +20,9 @@ class ContradictionType(Enum):
     MISSING_ARTIFACT = "missing_artifact"
     TEMPORAL_MISMATCH = "temporal_mismatch"
     EXFIL_CORRELATION = "exfil_correlation"  # File-save-then-email pattern (SFE-3)
+    MEMORY_PRESENCE_MISMATCH = (
+        "memory_presence_mismatch"  # netscan socket owner absent from pslist (SFE-11v)
+    )
 
 
 class Severity(Enum):
@@ -382,6 +385,84 @@ class ContradictionDetector:
                 )
                 if missing:
                     contradictions.append(missing)
+
+        return contradictions
+
+    def detect_memory_presence_mismatch(
+        self,
+        netscan: List[Any],
+        pslist: List[Any],
+        psscan: Optional[List[Any]] = None,
+    ) -> List[Contradiction]:
+        """Detect netscan sockets whose owning PID is absent from pslist.
+
+        A live (owned) network connection whose owner does not appear in the
+        active process list is the canonical hidden-process / DKOM signal
+        (MITRE T1014): the process was unlinked from PsActiveProcessHead but
+        its socket survived in the network object pool.
+
+        Unowned sockets (pid=None) are deliberately *not* flagged here — those
+        are handled by ``MemoryDetector._build_unowned_socket_finding`` so the
+        two layers stay decoupled and scenario 12's count is untouched.
+
+        When ``psscan`` is supplied, a hidden owner that *does* appear in
+        psscan is marked ``corroborated_by_psscan`` so the engine can resolve
+        the contradiction via a psscan tiebreaker (a second source confirming
+        the unlink is real rather than a netscan artifact).
+
+        Args:
+            netscan: List of NetworkRow objects (windows.netscan).
+            pslist: List of ProcessRow objects (windows.pslist).
+            psscan: Optional list of ProcessRow objects (windows.psscan).
+
+        Returns:
+            List of MEMORY_PRESENCE_MISMATCH contradictions, one per unique
+            hidden PID. If a PID owns several sockets only the first is kept
+            as the representative artifact — the finding is about the hidden
+            process, not the individual connection, so one contradiction per
+            PID avoids drowning triage in near-duplicate rows.
+        """
+        pslist_pids = {p.pid for p in pslist}
+        psscan_pids = {p.pid for p in (psscan or [])}
+
+        contradictions: List[Contradiction] = []
+        seen_pids: set[int] = set()
+
+        for row in netscan:
+            pid = row.pid
+            # Unowned sockets are MemoryDetector's responsibility, not ours.
+            if pid is None:
+                continue
+            if pid in pslist_pids:
+                continue
+            if pid in seen_pids:
+                continue
+            seen_pids.add(pid)
+
+            corroborated = pid in psscan_pids
+            owner = (row.owner or "").strip() or "unknown"
+            contradictions.append(
+                Contradiction(
+                    type=ContradictionType.MEMORY_PRESENCE_MISMATCH,
+                    severity=Severity.HIGH,
+                    description=(
+                        f"netscan reports an {row.state or 'ESTABLISHED'} socket "
+                        f"owned by PID {pid} ({owner}) to "
+                        f"{row.foreign_addr}:{row.foreign_port}, but PID {pid} is "
+                        "absent from pslist — a hidden-process (DKOM) signal."
+                    ),
+                    confidence_impact=-0.50,
+                    artifacts=[row],
+                    details={
+                        "pid": pid,
+                        "owner": owner,
+                        "foreign_addr": row.foreign_addr,
+                        "foreign_port": row.foreign_port,
+                        "state": row.state,
+                        "corroborated_by_psscan": corroborated,
+                    },
+                )
+            )
 
         return contradictions
 

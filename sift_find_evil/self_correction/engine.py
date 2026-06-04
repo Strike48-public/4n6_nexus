@@ -23,6 +23,7 @@ _CATEGORY_BY_CONTRADICTION: dict[ContradictionType, FindingCategory] = {
     ContradictionType.TIMESTOMPING: FindingCategory.TIMELINE_TAMPERING,
     ContradictionType.TEMPORAL_MISMATCH: FindingCategory.TIMELINE_TAMPERING,
     ContradictionType.MISSING_ARTIFACT: FindingCategory.ANTI_FORENSICS,
+    ContradictionType.MEMORY_PRESENCE_MISMATCH: FindingCategory.PROCESS_INJECTION,
 }
 
 
@@ -36,6 +37,8 @@ def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
         _CATEGORY_BY_CONTRADICTION.get(c.type, FindingCategory.UNKNOWN)
         for c in contradictions
     }
+    if FindingCategory.PROCESS_INJECTION in categories:
+        return FindingCategory.PROCESS_INJECTION
     if FindingCategory.ANTI_FORENSICS in categories:
         return FindingCategory.ANTI_FORENSICS
     if FindingCategory.TIMELINE_TAMPERING in categories:
@@ -81,6 +84,9 @@ class SelfCorrectionEngine:
         event_log_entries: List[Any],
         content_reader: Optional[Callable[[Any], bytes]] = None,
         emails: Optional[List[Any]] = None,
+        netscan: Optional[List[Any]] = None,
+        pslist: Optional[List[Any]] = None,
+        psscan: Optional[List[Any]] = None,
     ) -> List[Finding]:
         """Run full self-correction analysis.
 
@@ -94,6 +100,12 @@ class SelfCorrectionEngine:
                            can compute on-disk file hashes for correlation.
             emails: Optional list of EmailMessage objects from PST parser. When provided,
                    EXFIL_CORRELATION detector runs to find file-save-then-email patterns.
+            netscan: Optional list of NetworkRow objects (windows.netscan). When
+                    provided with ``pslist``, the MEMORY_PRESENCE_MISMATCH detector
+                    runs to find sockets owned by hidden processes (SFE-11v).
+            pslist: Optional list of ProcessRow objects (windows.pslist).
+            psscan: Optional list of ProcessRow objects (windows.psscan), used as a
+                   tiebreaker to resolve memory presence mismatches.
 
         Returns:
             List of Finding objects with confidence and reasoning
@@ -127,6 +139,15 @@ class SelfCorrectionEngine:
             for contradiction in exfil_contradictions:
                 finding = self._generate_exfil_finding(contradiction)
                 findings.append(finding)
+
+        # Detect memory presence mismatches (netscan socket owner absent from
+        # pslist), resolved via psscan tiebreaker when available (SFE-11v).
+        if netscan is not None and pslist is not None:
+            memory_contradictions = self.detector.detect_memory_presence_mismatch(
+                netscan=netscan, pslist=pslist, psscan=psscan
+            )
+            for contradiction in memory_contradictions:
+                findings.append(self._generate_memory_finding(contradiction))
 
         # Detect attack patterns in Event Log command lines
         attack_findings = self._detect_attack_patterns(event_log_entries)
@@ -356,6 +377,94 @@ class SelfCorrectionEngine:
                 ),
             },
             artifact_sources=["MFT", "PST"],
+        )
+
+    def _generate_memory_finding(self, contradiction: Contradiction) -> Finding:
+        """Generate a finding for a MEMORY_PRESENCE_MISMATCH (SFE-11v).
+
+        Mirrors the disk/timeline self-correction loop: the contradiction
+        starts at a base confidence, the presence mismatch applies its
+        penalty, and a psscan tiebreaker (when the hidden PID also appears in
+        psscan) recovers confidence — corroborating that the unlink is a
+        genuine DKOM event rather than a transient netscan artifact.
+
+        Args:
+            contradiction: A MEMORY_PRESENCE_MISMATCH contradiction.
+
+        Returns:
+            Finding with PROCESS_INJECTION category, confidence, and reasoning.
+        """
+        details = contradiction.details
+        pid = details.get("pid")
+        owner = details.get("owner", "unknown")
+        corroborated = bool(details.get("corroborated_by_psscan"))
+
+        artifact_types = ["netscan", "pslist"]
+        resolutions: List[Resolution] = []
+        reasoning_chain = [
+            f"netscan socket owned by PID {pid} ({owner}) to "
+            f"{details.get('foreign_addr')}:{details.get('foreign_port')}.",
+            f"PID {pid} is absent from pslist — possible DKOM-hidden process "
+            "(MITRE T1014).",
+            f"Detected {contradiction.type.value}: {contradiction.description} "
+            f"(impact: {contradiction.confidence_impact:.2f})",
+        ]
+
+        if corroborated:
+            artifact_types.append("psscan")
+            resolutions.append(
+                Resolution(
+                    contradiction_type=contradiction.type.value,
+                    resolution_method="psscan_confirms_unlinked_process",
+                    confidence_recovery=0.30,
+                    evidence={
+                        "pid": pid,
+                        "source": "psscan",
+                        "note": (
+                            "Hidden socket owner also present in psscan; the "
+                            "unlink from pslist is corroborated by a second "
+                            "memory source."
+                        ),
+                    },
+                )
+            )
+            reasoning_chain.append(
+                "Resolved via psscan: PID also present in psscan "
+                "(recovery: +0.30) — genuine unlinked process, not a "
+                "netscan artifact."
+            )
+
+        final_confidence, calc_details = self.scorer.calculate_final_confidence(
+            len(artifact_types), artifact_types, [contradiction], resolutions
+        )
+
+        reasoning_chain.append(
+            f"Final confidence: {final_confidence:.2f} "
+            f"({self.scorer.get_confidence_label(final_confidence)})"
+        )
+
+        return Finding(
+            title=f"Hidden process with live socket: PID {pid} ({owner})",
+            description=contradiction.description,
+            finding_type="behavior",
+            severity=contradiction.severity.value,
+            category=FindingCategory.PROCESS_INJECTION,
+            evidence={
+                "pid": pid,
+                "process": owner,
+                "foreign_addr": details.get("foreign_addr"),
+                "foreign_port": details.get("foreign_port"),
+                "state": details.get("state"),
+                "corroborated_by_psscan": corroborated,
+                "mitre_attack": ["T1014"],
+            },
+            confidence=final_confidence,
+            confidence_label=self.scorer.get_confidence_label(final_confidence),
+            reasoning_chain=reasoning_chain,
+            contradictions=[contradiction],
+            resolutions=resolutions,
+            confidence_calculation=calc_details,
+            artifact_sources=artifact_types,
         )
 
     def _resolve_causality_violation(
