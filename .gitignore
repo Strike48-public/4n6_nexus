@@ -54,6 +54,7 @@ evidence/*
 # Scenario harness outputs (regenerated on every run)
 analysis/scenario_*.json
 analysis/demo_*.json
+analysis/demo_run/
 
 # Scenario analysis outputs (derived from evidence, not shipped)
 analysis/*/extracted/
