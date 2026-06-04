@@ -247,6 +247,7 @@ class AuditLogger:
         related_tool_ids: set[str] = set()
         verification_entries: list[AuditEntry] = []
 
+        related_message_ids: set[str] = set()
         for e in entries:
             details = e.details or {}
             if (
@@ -255,24 +256,31 @@ class AuditLogger:
             ):
                 finding_entry = e
                 related_tool_ids.update(details.get("source_tool_invocations", []))
+                if details.get("source_message_id"):
+                    related_message_ids.add(details["source_message_id"])
             elif e.action == "verification" and details.get("finding_id") == finding_id:
                 verification_entries.append(e)
                 related_tool_ids.update(details.get("tiebreaker_tool_invocations", []))
+                if details.get("challenge_message_id"):
+                    related_message_ids.add(details["challenge_message_id"])
 
         if finding_entry is None:
             return []
 
-        correlation_id = finding_entry.correlation_id
-
-        # Gather: the finding, all referenced tool invocations, verifications, and
-        # any other entries sharing the correlation thread -- in file order.
+        # Gather ONLY the entries that belong to THIS finding's lineage: the
+        # finding itself, the exact tool invocations it cites, its verification(s)
+        # and their tiebreaker tools, and the messages that produced/challenged it.
+        # We deliberately do NOT return every entry sharing the correlation_id --
+        # that would dump the whole investigation and defeat "trace ANY finding to
+        # the specific tool execution that produced IT" when a case has several
+        # findings on one thread.
         thread: list[AuditEntry] = []
         for e in entries:
             include = (
                 e is finding_entry
                 or e in verification_entries
                 or (e.entry_id is not None and e.entry_id in related_tool_ids)
-                or (correlation_id is not None and e.correlation_id == correlation_id)
+                or (e.entry_id is not None and e.entry_id in related_message_ids)
             )
             if include:
                 thread.append(e)

@@ -329,3 +329,74 @@ def test_log_tool_invocation_returns_entry_id(logger):
 
 def test_trace_unknown_finding_returns_empty(logger):
     assert logger.trace("F-does-not-exist") == []
+
+
+def test_trace_is_finding_specific_across_multiple_findings(logger):
+    """trace(F) returns ONLY F's lineage, not every finding on the thread.
+
+    Regression for the demo's headline claim: with several findings on one
+    correlation thread, tracing one must surface that finding's own tool
+    executions, not the whole investigation.
+    """
+    corr = "corr-multi"
+
+    # Two findings on the SAME correlation thread, each from a different tool.
+    disk_tool = logger.log_tool_invocation(
+        tool="mftecmd",
+        command="mftecmd -f $MFT --csv out",
+        exit_code=0,
+        correlation_id=corr,
+        agent="disk_analyst",
+    )
+    net_tool = logger.log_tool_invocation(
+        tool="tshark",
+        command="tshark -r capture.pcap",
+        exit_code=0,
+        correlation_id=corr,
+        agent="network_analyst",
+    )
+    logger.log_finding(
+        FindingEmitted(
+            finding_id="F-001",
+            category="timeline_tampering",
+            severity="high",
+            confidence=0.95,
+            produced_by="disk_analyst",
+            source_tool_invocations=[disk_tool],
+            artifact_refs=[],
+        ),
+        correlation_id=corr,
+        agent="disk_analyst",
+    )
+    logger.log_finding(
+        FindingEmitted(
+            finding_id="F-002",
+            category="command_and_control",
+            severity="high",
+            confidence=0.90,
+            produced_by="network_analyst",
+            source_tool_invocations=[net_tool],
+            artifact_refs=[],
+        ),
+        correlation_id=corr,
+        agent="network_analyst",
+    )
+
+    disk_trace = logger.trace("F-001")
+    net_trace = logger.trace("F-002")
+
+    # Each trace surfaces only its own finding.
+    disk_fids = {
+        e.details.get("finding_id") for e in disk_trace if e.action == "finding_emitted"
+    }
+    net_fids = {
+        e.details.get("finding_id") for e in net_trace if e.action == "finding_emitted"
+    }
+    assert disk_fids == {"F-001"}
+    assert net_fids == {"F-002"}
+
+    # Each trace cites only its own tool execution, not the other domain's.
+    disk_tools = {e.entry_id for e in disk_trace if e.action == "tool_invocation"}
+    net_tools = {e.entry_id for e in net_trace if e.action == "tool_invocation"}
+    assert disk_tool in disk_tools and net_tool not in disk_tools
+    assert net_tool in net_tools and disk_tool not in net_tools
