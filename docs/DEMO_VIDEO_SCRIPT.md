@@ -1,5 +1,12 @@
 # FIND EVIL! Hackathon Demo Video Script
 
+> ⚠️ **DO NOT NARRATE UNVERIFIED NUMBERS (SFE-3sc).** Any "1,071 findings /
+> 247 self-corrections / 155,452 MFT entries / 11-minute" `insider_threat_2022`
+> figures in this script are **projections, not measured results** — that
+> dataset has not been run. Do not state them as fact on camera. Use only
+> verified results from [ACCURACY_REPORT.md](ACCURACY_REPORT.md): 14 synthetic
+> scenarios (57 findings, F1=1.00) and the `circl-2023-wiped` / `m57-jean` runs.
+
 **Duration:** 5 minutes
 **Format:** Live terminal screencast with audio narration
 **Evidence:** insider_threat_2022/Narcos-CCleaner.E01 (7.7GB, real forensic image)

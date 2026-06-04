@@ -1,6 +1,12 @@
 Veritas - Demo Video Voiceover Script (REVISED)
 ================================================
 
+!! DO NOT NARRATE UNVERIFIED NUMBERS (SFE-3sc) !!
+The "1,071 findings / 247 self-correction" insider_threat_2022 lines below are
+projections, NOT a measured run (that dataset has not been run). Do not state
+them as fact on camera. Use only verified results from docs/ACCURACY_REPORT.md.
+
+
 PROJECT NAME: Veritas (replacing "SIFT Find Evil")
 Tagline: Autonomous DFIR with Architectural Self-Correction
 

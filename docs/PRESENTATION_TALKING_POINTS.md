@@ -1,5 +1,10 @@
 # Presentation Talking Points & Demo Script
 
+> ⚠️ **DO NOT PRESENT UNVERIFIED NUMBERS (SFE-3sc).** The "11 minutes for 155K
+> MFT entries" `insider_threat_2022` claim here is a projection, not a measured
+> run (that dataset has not been run). Use only verified results from
+> [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
+
 **Purpose:** What to say to judges, stakeholders, and in the demo video.
 
 **Core Message:** We're the first DFIR system to achieve perfect accuracy at machine speed, with full transparency about how we prove our claims.

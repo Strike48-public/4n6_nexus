@@ -1,5 +1,10 @@
 # Demo Video Storyboard - Visual Preview
 
+> ⚠️ **DO NOT RECORD UNVERIFIED NUMBERS (SFE-3sc).** The "1,071 findings /
+> 247 self-corrections / 155,452 MFT entries" `insider_threat_2022` figures in
+> this storyboard are projections, not a measured run. Use only verified results
+> from [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
+
 This shows exactly what viewers will see on screen during each segment.
 
 ---

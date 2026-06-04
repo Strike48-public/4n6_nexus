@@ -1,5 +1,10 @@
 # Demo Runbook - Live Execution Guide
 
+> ⚠️ **DO NOT STATE UNVERIFIED NUMBERS ON CAMERA (SFE-3sc).** The
+> "1,071 findings / 247 self-corrections / 155K-entry `insider_threat_2022`"
+> figures here are projections, not a measured run (that dataset has not been
+> run). Use only verified results from [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
+
 **Purpose:** Step-by-step guide for delivering the 5-minute live demo with confidence.
 
 **Target audience:** Competition judges, technical stakeholders, potential users

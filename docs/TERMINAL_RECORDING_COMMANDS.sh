@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Terminal Recording Commands for Demo Video
 # Run these commands during screen recording to show live execution
+#
+# !! DO NOT RECORD UNVERIFIED NUMBERS (SFE-3sc) !!
+# The "1,071 findings / 155,452 MFT entries" insider_threat_2022 narration/echo
+# lines below are projections, NOT a measured run (that dataset has not been
+# run). Do not present them as fact. Use only verified results from
+# docs/ACCURACY_REPORT.md (14 synthetic scenarios @ F1=1.00; circl-2023-wiped
+# and m57-jean real runs).
 
 set -euo pipefail
 

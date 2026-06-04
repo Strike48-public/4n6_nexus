@@ -286,10 +286,11 @@ python tests/compare_results.py autopsy_results.txt our_results.json ground_trut
 - OS: Ubuntu 24.04 LTS
 
 ## Evidence
-- Dataset: SANS insider_threat_2022/Narcos-CCleaner.E01
-- Size: 7.7 GB
-- MFT Entries: 155,452
+- Dataset: SANS insider_threat_2022/Narcos-CCleaner.E01 (candidate target)
+- Size: ~7.7 GB; "155,452 MFT entries" is the dataset's documented size, NOT a
+  measured run of this engine — the dataset has not been run (SFE-3sc).
 - Ground Truth: SANS FOR508 documented malicious activity
+- Verified runs to date: `circl-2023-wiped`, `m57-jean` (see ACCURACY_REPORT.md).
 
 ## Autopsy Benchmark
 - Version: 4.21.0

@@ -20,10 +20,10 @@ Built on **SANS SIFT Workstation** and the **MCP (Model Context Protocol)**, 4n6
 
 > **FIND EVIL! Hackathon Submission**
 >
-> - **F1 Score:** 1.00 (perfect precision and recall)
-> - **Test Coverage:** 12/12 scenarios pass (synthetic + real evidence)
-> - **Real Evidence:** 155,452 MFT entries → 1,071 findings → 247 self-corrections
-> - **Evidence Type:** Insider threat disk image (7.7 GB E01)
+> - **F1 Score:** 1.00 (perfect precision and recall on synthetic scenarios)
+> - **Test Coverage:** 14 scenarios pass, 57 findings; 1030 tests, 95% coverage
+> - **Real Evidence:** verified run artifacts for `circl-2023-wiped` (1 finding)
+>   and `m57-jean` (0). See [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
 
 ---
 
@@ -48,7 +48,7 @@ Unlike script-based automation (which lacks reasoning) or prompt-engineered LLMs
 - **Autonomous Confidence Adjustment** - When contradictions exceed thresholds, the engine reduces confidence scores without human intervention
 - **Perfect Accuracy on Test Scenarios** - F1=1.00 across 12 validation cases (zero false positives, zero false negatives)
 - **Cryptographic Audit Logging** - Every tool execution logged with SHA-256 hashes for chain-of-custody verification
-- **Real Evidence Validation** - Tested on 7.7 GB insider threat disk image with 155K+ MFT entries
+- **Real Evidence Validation** - Verified run artifacts for `circl-2023-wiped` and `m57-jean` (see ACCURACY_REPORT.md)
 
 ---
 
@@ -393,20 +393,21 @@ Tested on **12 validation scenarios** (synthetic + real evidence):
 4. **Executable Masquerading** - `invoice.pdf.exe` double extensions
 5. **Zero-Byte Malware** - Corrupted or incomplete downloads
 6. **Timeline Manipulation** - Files created after modification dates
-7. **Insider Threat** - Real 7.7 GB E01 image (155K entries, 1,071 findings)
+7. **Insider Threat** - Candidate real E01 target (`insider_threat_2022`); not yet run (SFE-3sc)
 8. **Ransomware** - File encryption + timestamp modification
 9. **Lateral Movement** - Network artifacts + suspicious executables
 10. **Data Exfiltration** - Large file transfers + unusual timestamps
 11. **Privilege Escalation** - Registry modifications + hidden tools
 12. **Memory Intrusion** - Process injection + rootkit detection
 
-**Real Evidence Results:**
+**Real Evidence Results (verified run artifacts):**
 
-- **Evidence:** `insider_threat_2022/Narcos-CCleaner.E01` (7.7 GB)
-- **MFT Entries Parsed:** 155,452
-- **Total Findings:** 1,071
-- **Self-Correction Instances:** 247 contradictions detected
-- **Processing Time:** 18 minutes (SIFT VM, 4 cores, 16 GB RAM)
+- `circl-2023-wiped`: 1 finding (confidence 0.95), 0 FP, 0 FN
+- `m57-jean`: 0 findings against current detector scope
+- `insider_threat_2022/Narcos-CCleaner.E01` (~7.7 GB) is a candidate target
+  that has **not** been run; the "155,452 entries / 1,071 findings / 247
+  self-corrections" figures previously here were projections, not a measured
+  run, and are removed pending a real run (SFE-3sc).
 
 ---
 
@@ -500,7 +501,7 @@ Tested on **12 validation scenarios** (synthetic + real evidence):
 3. Real-time contradiction detection
 4. Self-correction engine adjusting confidence scores
 5. Audit log inspection for chain of custody
-6. Final results: 155K entries → 1,071 findings → 247 self-corrections
+6. Final results: see ACCURACY_REPORT.md for verified per-scenario findings
 
 ---
 

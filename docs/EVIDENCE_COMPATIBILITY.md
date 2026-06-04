@@ -57,15 +57,17 @@
 
 ## What We've Tested
 
-### Windows Evidence (Tested ✅)
+### Windows Evidence
 
-**Test Evidence:**
-- **insider_threat_2022/Narcos-CCleaner.E01** (7.7 GB)
-  - OS: Windows 10
-  - Filesystem: NTFS
-  - Size: 155,452 MFT entries
-  - Results: 1,071 findings, 247 self-corrections
-  - Status: ✅ Perfect F1=1.00
+**Candidate target (NOT yet run):**
+- **insider_threat_2022/Narcos-CCleaner.E01** (~7.7 GB, Windows 10 / NTFS)
+  - Status: candidate real-evidence target; not staged or run in this repo.
+    The previously listed "155,452 entries / 1,071 findings / 247
+    self-corrections / F1=1.00" figures were projections, not a measured run,
+    and are removed pending a real run (SFE-3sc).
+
+**Verified real-evidence runs:** see [ACCURACY_REPORT.md](ACCURACY_REPORT.md)
+(`circl-2023-wiped`: 1 finding @0.95; `m57-jean`: 0).
 
 **Synthetic Scenarios (12 total):**
 1. Clean Windows baseline - ✅ Tested
@@ -270,8 +272,8 @@ sudo mount -o ro /path/to/macos.dmg /mnt/evidence
 ### What Judges Will See (Community Edition)
 
 **Evidence analyzed:**
-- 1 real Windows E01 image (7.7 GB, 155K entries)
-- 12 synthetic Windows scenarios
+- 2 real datasets with verified run artifacts (`circl-2023-wiped`, `m57-jean`)
+- 14 synthetic scenarios (57 findings, F1=1.00)
 
 **What this demonstrates:**
 - ✅ Perfect accuracy (F1=1.00) on Windows forensics

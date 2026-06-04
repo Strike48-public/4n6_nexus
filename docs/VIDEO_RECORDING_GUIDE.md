@@ -1,5 +1,10 @@
 # Demo Video Recording Guide
 
+> ⚠️ **DO NOT RECORD UNVERIFIED NUMBERS (SFE-3sc).** The "1,071 findings /
+> 247 contradictions / 155,452 MFT entries" `insider_threat_2022` figures here
+> are projections, not a measured run. Use only verified results from
+> [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
+
 Complete guide for recording both **Option A (AI Voice)** and **Option B (Your Voice)** versions.
 
 ---

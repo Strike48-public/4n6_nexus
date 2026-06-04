@@ -90,13 +90,15 @@
 - **Self-correction eliminates noise:** Confidence adjustment before analyst review
 - **Instant report:** Findings ready for immediate action
 
-**Measured Performance (Real Evidence - insider_threat_2022):**
-- Total MFT entries: 155,452
-- Total findings: 1,071
-- Self-corrections: 247 (23% of findings adjusted)
-- False positives: 0
-- False negatives: 0 (verified against ground truth)
-- Total runtime: **11 minutes** (on standard laptop: i7-10th gen, 16GB RAM)
+**Projected Performance (insider_threat_2022 — NOT YET MEASURED):**
+
+> ⚠️ The figures previously listed here (155,452 MFT entries, 1,071 findings,
+> 247 self-corrections, 11-minute runtime) were **projections, not a measured
+> run**. No run artifact substantiates them and the dataset is not currently
+> staged in the repo. They have been removed to avoid presenting estimates as
+> measurements. See [ACCURACY_REPORT.md](ACCURACY_REPORT.md) for the datasets
+> that *do* have verified run artifacts (`circl-2023-wiped`, `m57-jean`).
+> Substantiating a real `insider_threat_2022` run is tracked in SFE-3sc.
 
 ---
 
@@ -180,20 +182,20 @@
 
 ### Our Self-Correction Engine Accuracy
 
-**Synthetic Scenarios (12 scenarios, perfect control):**
+**Synthetic Scenarios (14 scenarios, perfect control):**
 - Precision: **1.00** (100% of findings are true positives)
 - Recall: **1.00** (100% of malicious activity detected)
 - F1 Score: **1.00**
 - False Positive Rate: **0%**
+- See [ACCURACY_REPORT.md](ACCURACY_REPORT.md) for the per-scenario table
+  (14 scenarios, 57 findings).
 
-**Real Evidence (insider_threat_2022, 155K entries):**
-- Total findings: 1,071
-- Self-corrections: 247 (confidence adjustments based on contradictions)
-- False positives: **0** (verified against SANS ground truth)
-- False negatives: **0** (all known malicious activity detected)
-- Precision: **1.00**
-- Recall: **1.00**
-- F1 Score: **1.00**
+**Real Evidence (verified run artifacts):**
+- `circl-2023-wiped`: 1 finding (confidence 0.95), 0 FP, 0 FN
+- `m57-jean`: 0 findings (clean against current detector scope)
+- The previously listed `insider_threat_2022` numbers (1,071 findings /
+  247 self-corrections) were projections, not a measured run, and have been
+  removed (SFE-3sc).
 
 **Why We Achieve Perfect Accuracy:**
 1. **Multi-artifact correlation:** Cross-validates findings across MFT, Prefetch, Registry, Event Logs
@@ -327,14 +329,16 @@
 
 ### Test Data
 
-**Real Evidence:**
-- Dataset: SANS FOR508 insider_threat_2022/Narcos-CCleaner.E01
-- Size: 7.7 GB (155,452 MFT entries)
-- Ground truth: Known malicious activity documented by SANS
+**Real Evidence (verified run artifacts):**
+- `circl-2023-wiped` (anti-forensics / wiped disk): 1 finding @0.95
+- `m57-jean` (corporate-espionage corpus): 0 findings against current scope
+- `insider_threat_2022/Narcos-CCleaner.E01` (SANS FOR508) is a *candidate*
+  target (~7.7 GB) but has **not** been run; any 155K-entry / 1,071-finding
+  figures elsewhere are projections, not measurements (SFE-3sc).
 
 **Synthetic Scenarios:**
-- 21 scenarios covering anti-forensics, malware, intrusion, data exfiltration
-- Controlled ground truth for perfect F1=1.00 validation
+- 14 scenarios run by the harness (anti-forensics, malware, intrusion, data
+  exfiltration, memory), 57 findings at F1=1.00. See ACCURACY_REPORT.md.
 
 ### Timing Methodology
 

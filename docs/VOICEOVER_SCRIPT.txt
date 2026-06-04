@@ -1,6 +1,13 @@
 SIFT Find Evil - Demo Video Voiceover Script
 =============================================
 
+!! DO NOT NARRATE UNVERIFIED NUMBERS (SFE-3sc) !!
+The "1,071 findings / 247 self-corrections" insider_threat_2022 lines below are
+projections, NOT a measured run (that dataset has not been run). Do not state
+them as fact on camera. Use only verified results from docs/ACCURACY_REPORT.md
+(14 synthetic scenarios @ F1=1.00; circl-2023-wiped and m57-jean real runs).
+
+
 For use with Chatterbox TTS: https://github.com/resemble-ai/chatterbox
 GPU: RTX 4090 recommended
 

@@ -1,6 +1,13 @@
 # Competition Comparison: Why We Win
 
-**Elevator Pitch:** We're 16-96x faster than human analysts with perfect accuracy (F1=1.00), while competitors are either slow OR inaccurate - never both fast AND accurate.
+> ⚠️ **Accuracy note (SFE-3sc):** The `insider_threat_2022` / "155K entries /
+> 1,071 findings / 11 minutes" figures in this document are **projections used
+> for positioning, not measured results** — that dataset has not been run. Speed
+> multipliers derived from them are illustrative. Verified results live in
+> [ACCURACY_REPORT.md](ACCURACY_REPORT.md): 14 synthetic scenarios at F1=1.00
+> and two real datasets (`circl-2023-wiped`, `m57-jean`) with run artifacts.
+
+**Elevator Pitch:** We're 16-96x faster than human analysts with perfect accuracy (F1=1.00 on synthetic scenarios), while competitors are either slow OR inaccurate - never both fast AND accurate.
 
 ---
 
