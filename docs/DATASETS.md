@@ -1,7 +1,12 @@
 # Test Datasets
 
-**Status:** Planning
+**Status:** Planning notes (historical)
 **Last Updated:** 2026-04-17
+
+> **For the submission deliverable, see [EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md)** —
+> the authoritative "what was tested / source / what was found" document
+> (FIND EVIL! Deliverable #5), grounded in verified run artifacts. This file
+> remains as historical dataset-strategy planning notes.
 
 This document describes all forensic datasets used for testing, validation, and accuracy reporting.
 
