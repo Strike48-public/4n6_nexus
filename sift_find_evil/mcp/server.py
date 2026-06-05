@@ -211,6 +211,11 @@ def build_fastmcp(server: EvidenceMCPServer):
     Imported lazily so the unit-testable core has no hard dependency on the
     transport stack (starlette/uvicorn). Each MCP tool simply delegates to
     ``server.run_tool`` -- the guardrails and audit logging are unavoidable.
+
+    Every tool with a read-only policy in ``default_policies`` is exposed here,
+    so an analyst agent never references a forensic tool the boundary does not
+    expose. The argument shapes mirror each tool's ``ToolPolicy`` (only the
+    flags it declares are reachable; anything else is rejected by ``ToolGuard``).
     """
     from mcp.server.fastmcp import FastMCP
 
@@ -240,6 +245,73 @@ def build_fastmcp(server: EvidenceMCPServer):
         return server.run_tool(
             "mftecmd",
             ["-f", mft_file, "--csv", output_dir],
+            agent=agent,
+            correlation_id=correlation_id,
+        )
+
+    @mcp.tool()
+    def pecmd(
+        prefetch_dir: str,
+        output_dir: str,
+        correlation_id: str,
+        agent: str = "disk_analyst",
+    ) -> dict:
+        """Parse a Prefetch directory to CSV with PECmd (read-only on evidence)."""
+        return server.run_tool(
+            "pecmd",
+            ["-d", prefetch_dir, "--csv", output_dir],
+            agent=agent,
+            correlation_id=correlation_id,
+        )
+
+    @mcp.tool()
+    def evtxecmd(
+        evtx_file: str,
+        output_dir: str,
+        correlation_id: str,
+        agent: str = "disk_analyst",
+    ) -> dict:
+        """Parse a Windows Event Log to CSV with EvtxECmd (read-only on evidence)."""
+        return server.run_tool(
+            "evtxecmd",
+            ["-f", evtx_file, "--csv", output_dir],
+            agent=agent,
+            correlation_id=correlation_id,
+        )
+
+    @mcp.tool()
+    def recmd(
+        hive_file: str,
+        output_dir: str,
+        correlation_id: str,
+        agent: str = "disk_analyst",
+    ) -> dict:
+        """Parse a registry hive to CSV with RECmd (read-only on evidence)."""
+        return server.run_tool(
+            "recmd",
+            ["-f", hive_file, "--csv", output_dir],
+            agent=agent,
+            correlation_id=correlation_id,
+        )
+
+    @mcp.tool()
+    def sleuthkit(
+        offset: str,
+        correlation_id: str,
+        recurse: bool = True,
+        agent: str = "disk_analyst",
+    ) -> dict:
+        """Run a read-only Sleuth Kit listing at a partition offset.
+
+        Only the read-only flags declared in the tool policy (``-r`` recurse,
+        ``-o`` offset) are reachable; the guardrail rejects anything else.
+        """
+        args = ["-o", offset]
+        if recurse:
+            args.insert(0, "-r")
+        return server.run_tool(
+            "sleuthkit",
+            args,
             agent=agent,
             correlation_id=correlation_id,
         )
