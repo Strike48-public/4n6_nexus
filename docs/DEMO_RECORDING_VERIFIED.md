@@ -33,14 +33,21 @@ Clear the scrollback, set a legible font size, and start the screen recorder.
 
 ## Timing breakdown
 
+> **Why the timing has slack:** the commands themselves complete in seconds — the
+> minutes are *narration*. Each segment has a "talking points" block below; lean
+> on them so the screen has time to breathe and you're never racing the terminal.
+> The two **[OPTIONAL]** beats (nitroba second source, adversarial framing) are
+> stretch — include them if comfortably under time, cut first if not.
+
 | Segment | Time | Content |
 |---------|------|---------|
-| 1. Problem | 0:00-0:30 | Adversary speed vs. manual IR |
-| 2. The system | 0:30-1:00 | Extension of Protocol SIFT; Claude Code + Custom MCP on the SIFT box |
-| 3. Real evidence | 1:00-2:15 | Agent analyzes a REAL CIRCL wiped disk → CRITICAL finding |
-| 4. Multi-agent + self-correction | 2:15-3:45 | Orchestrator → analysts → verifier; contradiction resolved |
-| 5. Architectural guardrail | 3:45-4:30 | Live agent BLOCKED on out-of-bounds read; `tool_blocked` audited |
-| 6. Close | 4:30-5:00 | Traceability + F1=1.00 |
+| 1. Problem | 0:00-0:40 | Adversary speed vs. manual IR; why autonomy + integrity |
+| 2. The system | 0:40-1:20 | Extension of Protocol SIFT; Claude Code + Custom MCP; no-shell agents |
+| 3. Real evidence | 1:20-2:30 | Agent analyzes a REAL CIRCL wiped disk → CRITICAL (+ optional nitroba) |
+| 4. Multi-agent + self-correction | 2:30-3:40 | Orchestrator → analysts → verifier; contradiction resolved, one held |
+| 5. Architectural guardrail | 3:40-4:20 | Live agent BLOCKED on out-of-bounds read; `tool_blocked` audited |
+| 6. Traceability + accuracy | 4:20-4:40 | Trace any finding to its tools; F1=1.00 |
+| 7. The report | 4:40-5:00 | The synthesized investigation report — Mermaid A2A + finding-flow diagrams |
 
 ---
 
@@ -208,8 +215,52 @@ PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL
 
 > "Every finding traces to the tool execution that produced it. The detection
 > engine holds F1 of 1.00 across 14 scenarios - zero false positives, zero false
-> negatives. Autonomous speed, architectural integrity, full auditability. That's
-> SIFT Find Evil."
+> negatives."
+
+---
+
+## SEGMENT 7 - The report (4:40-5:00)
+
+**[Screen: generate the investigation report and open it — ideally rendered on
+GitHub or a Markdown preview so the Mermaid diagrams display as graphics.]**
+
+Pre-staged once before recording (a case with the CIRCL finding + an A2A log):
+
+```bash
+# (pre-flight, off camera) build the demo case once:
+CR=~/demo_cases
+python -m sift_find_evil.cli case init --case-id DEMO-001 --name "CIRCL Wiped Disk" \
+  --examiner "Jonathan Tomek" --case-root $CR
+python -m sift_find_evil.cli analyze \
+  --image scenarios/real/circl-2023-wiped/evidence/wiped_disk.E01 \
+  --output $CR/DEMO-001/findings.json
+PYTHONPATH=. python3 -m sift_find_evil.orchestration --output-dir /tmp/orch
+cp /tmp/orch/audit.jsonl $CR/DEMO-001/audit.jsonl
+```
+
+On camera — generate and show the report:
+
+```bash
+python -m sift_find_evil.cli report --case-id DEMO-001 \
+  --output $CR/DEMO-001/report.md --format markdown --all-findings --case-root $CR
+```
+
+Then open `report.md` (GitHub / VS Code preview renders the Mermaid):
+
+> "And this is what the analyst actually receives - a court-style investigation
+> report the agent wrote itself. Case metadata, the CRITICAL finding with its
+> evidence and SHA-256 hashes, the IOCs. But look at the Visual Summary: this
+> agent-to-agent sequence diagram is the *real execution record* - orchestrator
+> dispatching triage and the three analysts, the verifier challenging every
+> finding - reconstructed straight from the audit log. And the finding flow shows
+> each finding's confidence transition and verdict at a glance. Nothing here is
+> hand-drawn; the system generated all of it from the investigation it just ran.
+> That's autonomous DFIR you can hand to a court."
+
+**Expected (real):** a Markdown report whose **Visual Summary** contains two
+```mermaid``` blocks — a `sequenceDiagram` (orchestrator → triage → disk/memory/
+network analysts → verifier, with six verifier challenges) and a `flowchart` of
+the findings with their verdicts. Verified live on the VM 2026-06-05.
 
 ---
 

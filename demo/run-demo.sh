@@ -108,11 +108,22 @@ note "attacker-controlled input; injection/poisoning can target the responder's"
 note "agent. Architectural answer: injection can't reach a destructive tool. We"
 note "don't claim to SOLVE injection - we decouple it from impact. (See script.)"
 
-# --- segment 6: close -------------------------------------------------------
-say "SEGMENT 6 - Traceability + F1 (4:30-5:00)"
+# --- segment 6: traceability + accuracy -------------------------------------
+say "SEGMENT 6 - Traceability + F1 (4:20-4:40)"
 note "Any finding traces to the exact tool executions that produced it:"
 run "python3 -c \"from sift_find_evil.audit.logger import AuditLogger; [print(e.entry_id, e.action) for e in AuditLogger('analysis/demo_run/audit.jsonl').trace('F-001')]\""
 note "Deterministic regression gate — expect: TOTAL 57 0 0 1.00 1.00 1.00"
 run 'PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL'
+
+# --- segment 7: the report (finale) -----------------------------------------
+say "SEGMENT 7 - The investigation report (4:40-5:00)"
+note "PRE-STAGE the case ONCE before recording (off camera): see DEMO_RECORDING_VERIFIED.md"
+note "Generate the report the analyst actually receives, with Mermaid A2A +"
+note "finding-flow diagrams the agent built from its own run:"
+CR="${SFE_DEMO_CASE_ROOT:-$HOME/demo_cases}"
+run "python -m sift_find_evil.cli report --case-id DEMO-001 --output '$CR/DEMO-001/report.md' --format markdown --all-findings --case-root '$CR'"
+note "Open $CR/DEMO-001/report.md in a Markdown/GitHub preview so the Mermaid renders."
+note "Talking point: the A2A sequence diagram IS the execution record, reconstructed"
+note "from the audit log — orchestrator -> analysts -> verifier. Nothing hand-drawn."
 
 say "Demo complete. Stop the recorder."
