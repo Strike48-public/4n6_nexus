@@ -1,4 +1,4 @@
-"""SIFT Find Evil - Autonomous DFIR Agent with Self-Correction.
+"""4n6 Nexus (SIFT Find Evil) - Autonomous DFIR Agent with Self-Correction.
 
 A Claude Code + Protocol SIFT integration that demonstrates architectural
 self-correction through cross-artifact validation.

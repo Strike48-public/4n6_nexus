@@ -419,7 +419,7 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="SIFT Find Evil - reproducible multi-agent investigation harness"
+        description="4n6 Nexus (SIFT Find Evil) - reproducible multi-agent investigation harness"
     )
     parser.add_argument("--case-id", default="INC-2026-001")
     parser.add_argument("--output-dir", default="./analysis/demo_run")

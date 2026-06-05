@@ -1629,7 +1629,7 @@ def cmd_report(args):
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="SIFT Find Evil - Autonomous DFIR Agent with Self-Correction",
+        description="4n6 Nexus (SIFT Find Evil) - Autonomous DFIR Agent with Self-Correction",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

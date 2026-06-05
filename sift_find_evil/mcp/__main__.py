@@ -51,7 +51,7 @@ def build_app(
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="python -m sift_find_evil.mcp",
-        description="SIFT Find Evil - Custom MCP server (stdio) for Claude Code",
+        description="4n6 Nexus (SIFT Find Evil) - Custom MCP server (stdio) for Claude Code",
     )
     parser.add_argument(
         "--case-id",
