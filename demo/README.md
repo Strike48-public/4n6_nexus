@@ -11,7 +11,8 @@ This folder contains all materials for delivering the 5-minute competition demo.
 | **QUICK_REFERENCE.md** | Print and tape next to laptop - essential commands and talking points |
 | **commands.sh** | All demo commands in executable script format |
 | **findings_sample.json** | Backup findings file (use if live extraction fails) |
-| **audit_sample.jsonl** | Backup audit log (use if live extraction fails) |
+| **audit_sample.jsonl** | Single real `tool_invocation` entry (MFTECmd output example) |
+| **a2a_investigation_log.jsonl** | **Deliverable #8 sample.** Full multi-agent A2A log from a real run (37 entries: agent_message, tool_invocation, finding_emitted, verification, tool_blocked). Trace any finding to its tool executions, e.g. `AuditLogger('demo/a2a_investigation_log.jsonl').trace('F-001')`. |
 
 ---
 
