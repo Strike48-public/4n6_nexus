@@ -248,6 +248,12 @@ class ReportGenerator:
         lines.append(report.executive_summary or "No summary available.")
         lines.append("")
 
+        # Visual summary (Mermaid — GitHub renders these natively)
+        visual = self._visual_summary(report, case)
+        if visual:
+            lines.append(visual)
+            lines.append("")
+
         # Evidence summary
         lines.append("## Evidence Summary")
         lines.append("")
@@ -366,6 +372,65 @@ class ReportGenerator:
         )
 
         return "\n".join(lines)
+
+    def _visual_summary(self, report: Report, case) -> str:
+        """Build the Mermaid 'Visual Summary' section, or '' if nothing to show.
+
+        Two diagrams: a finding flow (from report.findings) and, when the case
+        has an audit log, an A2A sequence diagram reconstructed from it. Failures
+        to read/parse the audit log degrade gracefully to just the finding flow —
+        a report must never fail to generate because a diagram couldn't be built.
+        """
+        from .mermaid import mermaid_a2a_sequence, mermaid_finding_flow
+
+        blocks: list[str] = []
+
+        if report.findings:
+            # Reduce the approval-shaped finding dicts to the flat rows the
+            # diagram expects (id, label, verdict, confidence transition).
+            rows = [self._finding_flow_row(item) for item in report.findings]
+            blocks.append("### Findings and verifier verdicts")
+            blocks.append("")
+            blocks.append(mermaid_finding_flow(rows))
+
+        a2a = self._read_audit_entries(case)
+        if a2a:
+            blocks.append("")
+            blocks.append("### Agent-to-agent investigation flow")
+            blocks.append("")
+            blocks.append(mermaid_a2a_sequence(a2a))
+
+        if not blocks:
+            return ""
+        return "## Visual Summary\n\n" + "\n".join(blocks)
+
+    @staticmethod
+    def _finding_flow_row(item: dict) -> dict:
+        """Flatten an approval-shaped finding dict into a diagram row."""
+        finding = item.get("finding", {}) if "finding" in item else item
+        return {
+            "finding_id": item.get("finding_id") or finding.get("finding_id"),
+            "label": finding.get("title") or item.get("label"),
+            "verdict": finding.get("verdict") or item.get("verdict") or "reported",
+            "confidence_before": item.get("confidence_before"),
+            "confidence_after": item.get("confidence_after"),
+            "confidence": finding.get("confidence"),
+        }
+
+    def _read_audit_entries(self, case) -> list[dict]:
+        """Best-effort load of the case's A2A audit log (empty list on any issue)."""
+        try:
+            audit_path = self.case_manager.case_root / case.case_id / "audit.jsonl"
+            if not audit_path.is_file():
+                return []
+            entries = []
+            for line in audit_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    entries.append(json.loads(line))
+            return entries
+        except (OSError, ValueError):
+            return []
 
     def _generate_html(self, report: Report, case) -> str:
         """Generate HTML report.
