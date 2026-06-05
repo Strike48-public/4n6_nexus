@@ -14,13 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-and-test:
-    name: ruff + pytest (Python ${{ matrix.python-version }})
+  test:
+    # Two dependency tiers:
+    #   core     — requirements-dev.txt (pure-Python + scapy). Runs lint, format,
+    #              and the coverage gate. This is the authoritative gate.
+    #   forensic — additionally installs requirements-forensic.txt (pyewf/pytsk3/
+    #              pypff/rbloom native bindings) so the ~27 forensic-extra tests
+    #              that auto-skip without those modules actually execute. Guards
+    #              the real-evidence path (E01/PST/disk-image readers).
+    name: ${{ matrix.tier }} (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.12"]
+        tier: [core, forensic]
 
     steps:
       - uses: actions/checkout@v4
@@ -43,8 +51,9 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
+            requirements-forensic.txt
 
-      - name: Install Python deps
+      - name: Install Python deps (core)
         # requirements-dev.txt adds scapy so the PCAP-parser tests actually run
         # in CI instead of skipping silently (they synthesize .pcap fixtures).
         run: |
@@ -52,7 +61,15 @@ jobs:
           pip install -r requirements-dev.txt
           pip install ruff 'black==25.9.0'
 
+      - name: Install forensic extras (forensic tier only)
+        # Native bindings (pyewf/pytsk3/pypff/rbloom). System libs installed above.
+        # On the forensic leg this turns the importorskip'd tests from SKIP to RUN.
+        if: matrix.tier == 'forensic'
+        run: pip install -r requirements-forensic.txt
+
       - name: ruff check
+        # Lint/format identical on both tiers — cheap, and catches tier-specific
+        # import issues. (Could be core-only; kept on both for defence in depth.)
         run: ruff check .
 
       - name: black --check
@@ -60,11 +77,11 @@ jobs:
         # local pre-commit and CI never disagree on formatting.
         run: black --check sift_find_evil tests
 
-      - name: pytest (with coverage gate)
-        # Coverage threshold starts at 85% (current: 87% after excluding
-        # cli.py/__main__.py, which are exercised E2E rather than by unit
-        # tests — see [tool.coverage.run] omit in pyproject.toml). Bump this
-        # when coverage rises; never lower it to accommodate new code.
+      - name: pytest (core — with coverage gate)
+        # Coverage threshold is the authoritative gate and runs on the CORE tier,
+        # where the test set matches the [tool.coverage.run] omit config. Never
+        # lower it to accommodate new code; raise it as coverage rises.
+        if: matrix.tier == 'core'
         run: |
           pytest -q \
             --cov=sift_find_evil \
@@ -72,8 +89,15 @@ jobs:
             --cov-report=xml \
             --cov-fail-under=85
 
+      - name: pytest (forensic — extras must pass, no coverage gate)
+        # The forensic leg exists to EXECUTE the pyewf/pytsk3/pypff/rbloom tests
+        # that skip on core. No coverage gate here: the test set differs, so a
+        # coverage number would not be comparable to the core threshold.
+        if: matrix.tier == 'forensic'
+        run: pytest -q
+
       - name: Upload coverage.xml artifact
-        if: always()
+        if: always() && matrix.tier == 'core'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
