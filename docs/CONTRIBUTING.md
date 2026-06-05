@@ -375,6 +375,75 @@ def test_my_parser():
     assert artifacts[0].field1 == "expected_value"
 ```
 
+### Adding a Forensic Tool (MCP Extension)
+
+**This is how you extend the agent's capabilities — by adding a tool at the MCP
+boundary, not by giving an agent a shell.** A tool added here automatically
+inherits the architectural guardrails (read-only allowlist, evidence-path
+containment, circuit breaker, audit logging), and the analyst agents pick it up
+for free because their `tools:` allowlist uses the `mcp__sift-find-evil__*`
+wildcard. No agent edits required.
+
+> **Why not just give an agent `Bash`?** That would let it run any command and
+> bypass the guardrails — reopening the exact hole the architecture exists to
+> close (the "architectural, not prompt-based" guarantee). The MCP server *is*
+> the extension point. Add tools here and the guarantee holds.
+
+**1. Declare a read-only policy** in `default_policies()`
+(`sift_find_evil/mcp/server.py`). List the *complete* set of flags the tool may
+run with — deny-by-default means anything you don't list is rejected, so simply
+omit any write/modify flag:
+
+```python
+"tshark": ToolPolicy(
+    allowed_flags={"-r", "-Y", "-T", "-e", "-E", "-q", "-z", "fields"},
+    path_flags={"-r"},                 # -r's value is an INPUT path: contained to evidence root
+    value_flags={"-Y", "-T", "-e", "-E", "-z"},  # consume a value, not allowlist-checked
+),
+# Note: tshark's capture-WRITE flag (-w) is simply not listed -> unreachable.
+```
+
+`path_flags` are containment-checked (must resolve inside the evidence root);
+`value_flags` consume their following token without checking it (formats, field
+names, output dirs). A flag in neither set is a bare switch.
+
+**2. Register it as a typed MCP tool** in `build_fastmcp()` (same file). Each tool
+delegates to `server.run_tool`, so the guardrails and audit are unavoidable:
+
+```python
+@mcp.tool()
+def tshark(pcap_file: str, correlation_id: str, display_filter: str = "",
+           agent: str = "network_analyst") -> dict:
+    """Extract read-only fields from a PCAP (no capture write)."""
+    args = ["-r", pcap_file]
+    if display_filter:
+        args += ["-Y", display_filter]
+    args += ["-T", "fields", "-e", "ip.src", "-e", "ip.dst"]
+    return server.run_tool("tshark", args, agent=agent, correlation_id=correlation_id)
+```
+
+**3. That's it for wiring.** The agents already reach it via the wildcard. To grant
+it to a *new* agent, add `mcp__sift-find-evil__<tool>` (or `mcp__sift-find-evil__*`)
+to that agent's `tools:` list — never add `Bash`/`Write`/`Edit`.
+
+**4. Test the guardrail inheritance** (the contract that makes this safe):
+
+```python
+# A read-only call inside the evidence root succeeds;
+# the write flag (-w) is rejected with GuardrailViolation — no extra code needed.
+def test_added_tool_inherits_readonly_guardrail(server, evidence_root, monkeypatch):
+    ...  # see tests/test_mcp_server.py::test_added_tool_inherits_readonly_guardrail
+```
+
+`tests/test_mcp_fastmcp.py::test_registered_tools_match_default_policies` also
+enforces that every policy has a registered tool and vice versa, so the two seams
+can't drift apart.
+
+> **On output/write paths:** the guardrail forbids modifying *evidence*, not all
+> writes. Only `path_flags` (input paths) are containment-checked; an output flag
+> like `--csv /out` is allowed (see `mftecmd`). A tool that carves files or writes
+> a CSV report is fine — it just cannot write back into the evidence root.
+
 ### Adding a New Scenario
 
 **1. Create scenario directory:**

@@ -102,6 +102,7 @@ graph TB
             RECMD[RECmd]
             VOL[Volatility 3]
             TSK[Sleuth Kit]
+            TSHARK[tshark]
         end
     end
 
@@ -303,7 +304,8 @@ correlated A2A log. The contradiction types are implemented in
   transport-independent dispatch core; `build_fastmcp()` registers it as real MCP
   tools over the official SDK for live agent use.
 - `guardrails.py` `ToolGuard` — the three architectural controls.
-- `server.py` `default_policies()` — six read-only tool policies.
+- `server.py` `default_policies()` — seven read-only tool policies (MFTECmd,
+  PECmd, EvtxECmd, RECmd, Volatility 3, Sleuth Kit, tshark).
 
 ### Detection + self-correction engine (`sift_find_evil/`)
 
@@ -328,7 +330,7 @@ correlated A2A log. The contradiction types are implemented in
 |---|---|
 | Agent framework | Claude Code subagents (orchestrator + 5 specialists) |
 | Tool boundary | Custom MCP server (`EvidenceMCPServer`) + official MCP SDK (`build_fastmcp`) |
-| Forensic tools | MFTECmd, PECmd, EvtxECmd, RECmd, Volatility 3, Sleuth Kit (read-only policies) |
+| Forensic tools | MFTECmd, PECmd, EvtxECmd, RECmd, Volatility 3, Sleuth Kit, tshark (read-only policies) |
 | Platform | SANS SIFT Workstation (Linux terminal) |
 | Language | Python 3.12 |
 | Audit | Append-only JSONL, UTC, per-investigation `correlation_id` |

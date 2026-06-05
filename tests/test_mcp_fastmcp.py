@@ -30,6 +30,7 @@ EXPECTED_TOOLS = {
     "evtxecmd",
     "recmd",
     "sleuthkit",
+    "tshark",
 }
 
 

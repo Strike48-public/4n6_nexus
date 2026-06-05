@@ -131,5 +131,45 @@ def test_failure_trips_circuit_breaker_after_threshold(
 def test_default_policies_cover_core_forensic_tools(server):
     # The server ships sane read-only policies for the bundled tool wrappers.
     assert set(server.guard.policies).issuperset(
-        {"volatility", "mftecmd", "pecmd", "evtxecmd"}
+        {"volatility", "mftecmd", "pecmd", "evtxecmd", "tshark"}
     )
+
+
+def test_added_tool_inherits_readonly_guardrail(server, evidence_root, monkeypatch):
+    """A newly added tool (tshark) gets read-only enforcement for free.
+
+    This is the extension-path contract: registering a tool at the MCP boundary
+    means it inherits the allowlist. tshark's write flag (-w, save a capture) is
+    not on its allowlist, so it is rejected by construction -- no extra code.
+    """
+
+    def fake_exec(tool, args):
+        return {
+            "success": True,
+            "stdout": "",
+            "stderr": "",
+            "exit_code": 0,
+            "duration_ms": 1,
+        }
+
+    monkeypatch.setattr(server, "_execute", fake_exec)
+    pcap = evidence_root / "capture.pcap"
+    pcap.write_bytes(b"fake pcap")
+
+    # Read-only field extraction inside the evidence root is allowed.
+    ok = server.run_tool(
+        tool="tshark",
+        args=["-r", str(pcap), "-T", "fields", "-e", "ip.src"],
+        agent="network_analyst",
+        correlation_id="corr-x",
+    )
+    assert ok["success"] is True
+
+    # Attempting to WRITE a capture (-w) is rejected: not on the allowlist.
+    with pytest.raises(GuardrailViolation):
+        server.run_tool(
+            tool="tshark",
+            args=["-r", str(pcap), "-w", "/tmp/exfil.pcap"],
+            agent="network_analyst",
+            correlation_id="corr-x",
+        )

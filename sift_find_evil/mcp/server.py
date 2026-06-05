@@ -68,6 +68,15 @@ def default_policies() -> dict[str, ToolPolicy]:
             path_flags=set(),
             value_flags={"-o"},
         ),
+        # Network capture analysis (read-only). -r reads an input capture; the
+        # field/format flags below only shape output. The capture-WRITE flag
+        # (-w) is deliberately absent, so tshark cannot create or alter a capture
+        # at this boundary -- read-only by construction, like every tool here.
+        "tshark": ToolPolicy(
+            allowed_flags={"-r", "-Y", "-T", "-e", "-E", "-q", "-z", "fields"},
+            path_flags={"-r"},
+            value_flags={"-Y", "-T", "-e", "-E", "-z"},
+        ),
     }
 
 
@@ -311,6 +320,29 @@ def build_fastmcp(server: EvidenceMCPServer):
             args.insert(0, "-r")
         return server.run_tool(
             "sleuthkit",
+            args,
+            agent=agent,
+            correlation_id=correlation_id,
+        )
+
+    @mcp.tool()
+    def tshark(
+        pcap_file: str,
+        correlation_id: str,
+        display_filter: str = "",
+        agent: str = "network_analyst",
+    ) -> dict:
+        """Extract read-only fields from a PCAP with tshark (no capture write).
+
+        Reads ``pcap_file`` (must resolve inside the evidence root) and emits
+        field output; the capture-write flag is not reachable at the boundary.
+        """
+        args = ["-r", pcap_file]
+        if display_filter:
+            args += ["-Y", display_filter]
+        args += ["-T", "fields", "-e", "ip.src", "-e", "ip.dst"]
+        return server.run_tool(
+            "tshark",
             args,
             agent=agent,
             correlation_id=correlation_id,

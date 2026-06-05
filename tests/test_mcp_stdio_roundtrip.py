@@ -28,7 +28,15 @@ mcp_client = pytest.importorskip("mcp.client.stdio")
 from mcp import ClientSession, StdioServerParameters  # noqa: E402
 from mcp.client.stdio import stdio_client  # noqa: E402
 
-EXPECTED_TOOLS = {"volatility", "mftecmd", "pecmd", "evtxecmd", "recmd", "sleuthkit"}
+EXPECTED_TOOLS = {
+    "volatility",
+    "mftecmd",
+    "pecmd",
+    "evtxecmd",
+    "recmd",
+    "sleuthkit",
+    "tshark",
+}
 
 
 def _server_params(evidence_root: Path, audit_path: Path) -> StdioServerParameters:
