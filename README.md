@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![SANS FIND EVIL! Hackathon](https://img.shields.io/badge/SANS-FIND%20EVIL!%20Hackathon-blue)](https://www.sans.org)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Detection Accuracy](https://img.shields.io/badge/F1%20Score-1.00-brightgreen)](docs/ACCURACY_REPORT.md)
 
 **Autonomous AI agent for Digital Forensics and Incident Response (DFIR) with architectural self-correction**
@@ -15,38 +15,40 @@ Built for the SANS FIND EVIL! Hackathon with production-grade architecture desig
 
 ---
 
-## Detection Accuracy: 12/12 Scenarios @ F1=1.00
+## Detection Accuracy: 14 Scenarios @ F1=1.00
 
-**Perfect precision and recall across all test scenarios:**
+**Perfect precision and recall across all scored scenarios:**
 
-| Scenario | Findings | False Positives | False Negatives | Precision | Recall | F1 Score |
-|----------|----------|-----------------|-----------------|-----------|--------|----------|
-| **Synthetic Scenarios** | | | | | | |
-| 01_clean_baseline | 0 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 02_ransomware | 5 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 03_timestomping | 2 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 04_edge_cases | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 05_missing_prefetch | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 06_webmail_exfiltration | 1 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 07_cloud_upload | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 08_persistence_run_keys | 5 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 09_shimcache_only | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 10_timestomping_with_bam | 6 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 11_yara_malware | 3 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| 12_memory_intrusion | 4 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| **Real Scenarios** | | | | | | |
-| circl-2023-wiped | 1 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| nitroba | 0 | 0 | 0 | 1.00 | 1.00 | **1.00** |
-| **TOTAL** | **41** | **0** | **0** | **1.00** | **1.00** | **1.00** |
+| Scenario | Findings (TP) | FP | FN | F1 |
+|----------|---------------|----|----|-----|
+| 01_clean_baseline | 0 | 0 | 0 | **1.00** |
+| 02_ransomware | 3 | 0 | 0 | **1.00** |
+| 03_timestomping | 2 | 0 | 0 | **1.00** |
+| 04_edge_cases | 2 | 0 | 0 | **1.00** |
+| 05_missing_prefetch | 3 | 0 | 0 | **1.00** |
+| 06_webmail_exfiltration | 1 | 0 | 0 | **1.00** |
+| 07_cloud_upload | 1 | 0 | 0 | **1.00** |
+| 08_persistence_run_keys | 2 | 0 | 0 | **1.00** |
+| 09_shimcache_only | 2 | 0 | 0 | **1.00** |
+| 10_timestomping_with_bam | 3 | 0 | 0 | **1.00** |
+| 11_yara_malware | 1 | 0 | 0 | **1.00** |
+| 12_memory_intrusion | 27 | 0 | 0 | **1.00** |
+| 16_powershell_obfuscated | 5 | 0 | 0 | **1.00** |
+| 19_credential_dumping | 5 | 0 | 0 | **1.00** |
+| **TOTAL** | **57** | **0** | **0** | **1.00** |
 
-**Validation method:** Automated scenario harness with ground-truth expected findings. All scenarios run in CI/CD on every commit.
+**Validation method:** Automated scenario harness with ground-truth expected
+findings, backed by 1,000+ tests. All scenarios run in CI/CD on every commit.
+Verified real-evidence runs (CIRCL wiped-disk, M57-Jean, Nitroba) are documented
+separately in the accuracy report.
 
 ```bash
 # Run validation harness yourself
 PYTHONPATH=. python3 tests/scenario_harness.py
 ```
 
-See [ACCURACY_REPORT.md](docs/ACCURACY_REPORT.md) for detailed methodology and per-scenario breakdowns.
+See [ACCURACY_REPORT.md](docs/ACCURACY_REPORT.md) for the full methodology,
+real-evidence results, and an honest list of detection gaps.
 
 ---
 
@@ -126,6 +128,10 @@ python -m sift_find_evil.cli list --findings findings.json --status approved
 
 Structured case lifecycle with evidence registry and integrity verification.
 
+> **Note:** case commands default to `--case-root /cases`, which is root-owned on
+> most systems. Pass a writable path (e.g. `--case-root ./cases`) when running as
+> a normal user. The examples below show `/cases` for brevity.
+
 ```bash
 # Create new case
 python -m sift_find_evil.cli case init \
@@ -176,7 +182,7 @@ python -m sift_find_evil.cli case status --case-id INC-2026-001
 # Examiner: John Doe
 # Created: 2026-04-23T22:05:00Z
 # Evidence files: 1
-# Findings: 47
+# Findings: 6
 # Audit entries: 23
 ```
 
@@ -337,46 +343,38 @@ Mass file encryption detected across 1,247 files...
 
 ## Architecture Overview
 
+**Pattern: a Multi-Agent Framework over a Custom MCP Server.** A lead
+orchestrator dispatches a triage agent and three domain analysts (disk, memory,
+network); each analyst reaches forensic tools *only* through a Custom MCP server
+where the architectural guardrails live; a verifier challenges every finding via
+the self-correction engine. One correlated A2A audit log records it all.
+
 ```mermaid
 graph TD
-    A[Evidence Files] -->|SHA-256 Hash| B[Case Manager]
-    B --> C[Evidence Registry]
-    C --> D[Forensic Tool Parsers]
-    D --> E[Detection Engine]
-    E --> F[Self-Correction Engine]
-    F -->|Contradictions Detected| G[Resolution Strategies]
-    G -->|Tiebreaker Query| D
-    G --> H[Findings with Confidence]
-    H --> I[Approval Manager]
-    I -->|DRAFT → APPROVED/REJECTED| J[Report Generator]
-    J --> K[Markdown/HTML/PDF Reports]
-    
-    L[Audit Logger] -.->|Logs All Actions| B
-    L -.-> D
-    L -.-> I
-    
-    style E fill:#bbf,stroke:#333
-    style F fill:#f9f,stroke:#333
-    style I fill:#bfb,stroke:#333
-    style L fill:#ffb,stroke:#333
+    ORCH[Orchestrator] --> TRIAGE[Triage]
+    ORCH --> DA[Disk Analyst]
+    ORCH --> MA[Memory Analyst]
+    ORCH --> NA[Network Analyst]
+    ORCH --> VER[Verifier]
+
+    DA & MA & NA -->|run_tool ONLY via MCP| MCP[Custom MCP Server<br/>allowlist · path containment · circuit breaker]
+    MCP --> TOOLS[SIFT tools: MFTECmd, PECmd, EvtxECmd, Volatility, tshark]
+    TOOLS --> ENGINE[Detection + Self-Correction Engine]
+    VER -->|challenge / resolve| ENGINE
+    ENGINE --> FIND[Findings + confidence + reasoning]
+    MCP -.->|every call + every block| AUDIT[(A2A audit.jsonl)]
+    FIND --> AUDIT
+
+    style MCP fill:#c0392b,color:#fff,stroke:#7b241c,stroke-width:2px
+    style ENGINE fill:#1e8449,color:#fff,stroke:#145a32
+    style AUDIT fill:#b7950b,color:#fff,stroke:#7d6608
 ```
 
-### Component Overview
-
-**Core Detection Pipeline:**
-1. **Case Manager** - Case lifecycle, evidence registry, SHA-256 verification
-2. **Forensic Tool Parsers** - MFT, Prefetch, Event Logs, Registry, Memory, Network
-3. **Detection Engine** - Cross-artifact correlation, MITRE ATT&CK mapping
-4. **Self-Correction Engine** - Contradiction detection, resolution strategies
-5. **Approval Manager** - Human-in-the-loop workflow (DRAFT → APPROVED/REJECTED)
-6. **Report Generator** - Markdown/HTML output with approved findings
-
-**Supporting Infrastructure:**
-- **Audit Logger** - Append-only JSONL for chain-of-custody
-- **Evidence Registry** - SHA-256 hash tracking and verification
-- **Confidence Scoring** - Bayesian confidence adjustment based on contradictions
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component design.
+The MCP server (red) is a hard trust boundary: agents hold no tool binaries and
+no write path to evidence, so read-only and path-containment are enforced in
+code, not by prompt. See **[docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md)**
+for the full diagram, the architectural-vs-prompt guardrail taxonomy, and the
+A2A trace sequence.
 
 ---
 
@@ -426,40 +424,79 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component design.
 
 ## Quick Start
 
+> **Judges / first-time operators:** the single most representative command is
+> the multi-agent investigation in step 2 below. For the full, beat-by-beat
+> walkthrough with expected output, see **[docs/TRY_IT_OUT.md](docs/TRY_IT_OUT.md)**
+> and **[docs/DEMO_RECORDING_SCRIPT.md](docs/DEMO_RECORDING_SCRIPT.md)**.
+
 ### Prerequisites
 
-- **Python 3.10+** (tested on 3.12.2)
+- **Python 3.12** (the version CI runs and the engine is tested against)
 - **Git**
-- **Optional:** SANS SIFT Workstation OVA (for real evidence processing)
+- **Optional:** native forensic libraries for real disk/memory/PST evidence
+  (see step 3 below). Not needed for the demo or the validation harness.
 
-### Installation
+### 1. Install
 
 ```bash
-# Clone repository
 git clone https://github.com/Strike48/sift_find_evil.git
 cd sift_find_evil
 
-# Create and activate a virtual environment
-python3 -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
-# Install core dependencies (pure-Python, installs on any platform).
-# This is sufficient for the demo, the validation harness, the TUI, and all
-# detectors running against the synthetic fixtures.
+# Core dependencies — pure-Python, install on any platform. Sufficient for the
+# demo, the validation harness, and every detector against synthetic fixtures.
 pip install -r requirements.txt
 
-# Verify installation
-python -m sift_find_evil.cli --help
+python -m sift_find_evil.cli --help   # verify it loads
 ```
 
-**Processing real evidence (optional).** Disk images (E01/raw), PST email, and
-memory dumps require native forensic libraries (Sleuth Kit, libewf, libpff,
-YARA). These need a compiler and system headers, so they are kept separate:
+### 2. Run the multi-agent investigation (the main demo)
+
+This is the centerpiece: an orchestrator dispatches a triage agent and three
+domain analysts (disk, memory, network) over a Custom MCP boundary; a verifier
+challenges every finding and resolves contradictions; one correlated
+agent-to-agent (A2A) audit log is written.
 
 ```bash
-# Debian/Ubuntu/SIFT: install the underlying system libraries first
-sudo apt-get install libtsk-dev libewf-dev libpff-dev libyara-dev
+PYTHONPATH=. python3 -m sift_find_evil.orchestration --output-dir analysis/demo_run
+```
 
+Expected output:
+
+```
+Case INC-2026-001 -- 6 findings
+  F-001 [disk_timeline] ransom_note.exe    contradiction_resolved   confidence 0.95 -> 0.75
+  F-002 [disk_timeline] crypt_engine.exe   contradiction_resolved   confidence 0.95 -> 0.75
+  F-003 [disk_timeline] persist.exe        contradiction_resolved   confidence 0.95 -> 0.75
+  F-004 [memory       ] crypt_engine.exe   contradiction_resolved   confidence 0.95 -> 0.75
+  F-005 [network      ] 203.0.113.66       contradiction_detected   confidence 0.9 -> 0.45
+  F-006 [network      ] 1.1.1.1            contradiction_resolved   confidence 0.9 -> 0.75
+```
+
+Trace any finding back to the exact tool executions that produced it:
+
+```bash
+PYTHONPATH=. python3 -c "from sift_find_evil.audit.logger import AuditLogger; \
+[print(e.entry_id, e.action) for e in AuditLogger('analysis/demo_run/audit.jsonl').trace('F-005')]"
+```
+
+Show the architectural guardrail blocking an out-of-bounds read:
+
+```bash
+PYTHONPATH=. python3 -m sift_find_evil.orchestration --bypass-demo --output-dir analysis/bypass_run
+grep tool_blocked analysis/bypass_run/audit.jsonl
+```
+
+### 3. (Optional) Forensic extras for real evidence
+
+Disk images (E01/raw), PST email, and memory dumps require native libraries
+(Sleuth Kit, libewf, libpff, YARA). These need a compiler, so they are separate:
+
+```bash
+# Debian/Ubuntu/SIFT: system libraries first
+sudo apt-get install libtsk-dev libewf-dev libpff-dev libyara-dev
 # Then the Python bindings + Volatility 3
 pip install -r requirements-forensic.txt
 ```
@@ -467,9 +504,9 @@ pip install -r requirements-forensic.txt
 The application loads and runs without these; code paths that need them raise a
 clear, install-oriented error rather than failing at startup.
 
-### Demo Mode (Try It Now!)
+### 4. Single-domain self-correction demo (quickest sanity check)
 
-Run the self-correction engine with synthetic test data:
+A 30-second check that runs on bundled synthetic data, no arguments:
 
 ```bash
 python -m sift_find_evil.cli demo
@@ -790,21 +827,22 @@ sift_find_evil/
 │   │   └── synthetic_evtx.csv
 │   ├── scenario_harness.py       # Automated validation
 │   └── unit/                     # Unit tests
+├── orchestration.py             # Multi-agent investigation harness (demo entry)
+├── mcp/                         # Custom MCP server + architectural guardrails
+│   ├── server.py                # EvidenceMCPServer (the tool boundary)
+│   └── guardrails.py            # ToolGuard: allowlist, path containment, breaker
 ├── scenarios/
-│   ├── synthetic/                # Synthetic test scenarios
-│   │   ├── 01_timestomping/
-│   │   ├── 02_ransomware/
-│   │   ├── 03_insider_threat/
-│   │   ├── 04_cloud_exfiltration/
-│   │   ├── 05_persistence/
-│   │   ├── 06_credential_theft/
-│   │   ├── 07_webmail_exfil/
-│   │   ├── 08_lateral_movement/
-│   │   ├── 09_registry_persistence/
-│   │   └── 12_memory_intrusion/
+│   ├── synthetic/                # 21 scenario dirs; 14 have scenario.yaml + run
+│   │   ├── 01_clean_baseline/ ... 12_memory_intrusion/
+│   │   ├── 16_powershell_obfuscated/
+│   │   ├── 19_credential_dumping/
+│   │   │                         # (13-15,17-18,20-21 are spec stubs, not run)
+│   │   └── 02_ransomware/        # also carries memory_/network_fixtures for the demo
 │   └── real/                     # Real evidence scenarios
-│       ├── circl_2023_wiped/
-│       └── nitroba_network/
+│       ├── circl-2023-wiped/
+│       ├── m57-jean/
+│       ├── nitroba/
+│       └── apt_attack_2015/
 ├── docs/
 │   ├── ARCHITECTURE.md           # Component architecture
 │   ├── CONTRIBUTING.md           # Development guide
@@ -862,13 +900,13 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 | Metric | Result |
 |--------|--------|
-| **Detection Accuracy (F1)** | 1.00 (12/12 scenarios) |
+| **Detection Accuracy (F1)** | 1.00 (14 scenarios) |
 | **Precision** | 1.00 (0 false positives) |
 | **Recall** | 1.00 (0 false negatives) |
-| **Total Findings** | 47 |
-| **Scenario Runtime** | ~2 seconds (synthetic) |
-| **Test Coverage** | 91% core install / 95% with forensic extras (lines) |
-| **CI/CD** | All tests passing |
+| **Total Findings (synthetic harness)** | 57 |
+| **Tests** | 1,000+ passing |
+| **Test Coverage** | ~94% (lines) |
+| **CI/CD** | ruff + pytest, all passing |
 
 ---
 
@@ -887,8 +925,9 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 ## Roadmap
 
 ### ✅ Completed (v1.0 - Hackathon Submission)
-- Core detection engine (12 detectors, 47 findings @ F1=1.00)
-- Self-correction engine (contradiction detection + resolution)
+- Multi-agent system (orchestrator + triage + 3 domain analysts + verifier)
+- Core detection engine (14 scenarios, 57 findings @ F1=1.00)
+- Cross-domain self-correction (disk/timeline, memory, network contradictions)
 - Human-in-the-loop approval workflow (DRAFT → APPROVED/REJECTED)
 - Case management (SHA-256 registry, integrity verification)
 - Audit logging (append-only JSONL, chain-of-custody)

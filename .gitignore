@@ -55,6 +55,7 @@ evidence/*
 analysis/scenario_*.json
 analysis/demo_*.json
 analysis/demo_run/
+analysis/bypass_run/
 
 # Scenario analysis outputs (derived from evidence, not shipped)
 analysis/*/extracted/
