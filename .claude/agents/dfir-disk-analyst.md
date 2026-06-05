@@ -1,7 +1,7 @@
 ---
 name: dfir-disk-analyst
 description: "DFIR disk and filesystem analyst. Analyzes MFT, Prefetch, LNK/JumpLists, registry persistence, shimcache/BAM, timestomping, wiping, and file carving. The deepest domain (largest detector cluster). Emits findings that cite the exact MCP tool executions that produced them. Use for disk-image and Windows-artifact analysis."
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: ["Read", "Grep", "Glob", "mcp__sift-find-evil__*"]
 model: sonnet
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: dfir-network-analyst
 description: "DFIR network and exfiltration analyst. The richest detector domain (8 detectors): asymmetric-byte exfil ratios, C2 beaconing cadence, DNS anomalies, cloud-upload and webmail exfiltration, cleartext protocols, suspicious hosts, and offensive-package installs. Emits findings that cite the exact MCP tool executions. Use for PCAP and network-log analysis."
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: ["Read", "Grep", "Glob", "mcp__sift-find-evil__*"]
 model: sonnet
 ---
 

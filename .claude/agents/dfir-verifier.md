@@ -1,7 +1,7 @@
 ---
 name: dfir-verifier
 description: "DFIR verification agent. Independently challenges the analysts' findings, detects contradictions across artifacts, resolves them with a tiebreaker tool call, and adjusts confidence. Drives the autonomous self-correction loop. Wraps the self_correction engine. Use after analysts emit findings, before reporting."
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: ["Read", "Grep", "Glob", "mcp__sift-find-evil__*"]
 model: opus
 ---
 

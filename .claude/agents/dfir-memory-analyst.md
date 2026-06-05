@@ -1,7 +1,7 @@
 ---
 name: dfir-memory-analyst
 description: "DFIR memory analyst. Runs read-only Volatility 3 plugins (pslist, netscan, malfind, cmdline) against a memory image to find process injection, hidden processes, suspicious network owners, and obfuscated command lines. Emits findings that cite the exact MCP tool executions. Use for memory-capture analysis."
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: ["Read", "Grep", "Glob", "mcp__sift-find-evil__*"]
 model: sonnet
 ---
 

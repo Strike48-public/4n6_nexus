@@ -162,7 +162,7 @@ instructions to the model that *reduce* bad behavior but cannot *prevent* it.
 | Circuit breaker (N consecutive failures opens boundary) | **Architectural** | `mcp/guardrails.py` `circuit_open` / `record_failure` | Yes — unit-tested in `tests/test_mcp_guardrails.py` |
 | Tool allowlist (unknown tool rejected) | **Architectural** | `mcp/guardrails.py` `check()` (`policies.get(tool) is None` → reject) | Yes |
 | Every tool call audited (finding → tool-execution trace) | **Architectural** | `mcp/server.py` `run_tool` always logs via `AuditLogger` | Yes — trace reconstructed by `AuditLogger.trace()` |
-| "Never call binaries directly; report blocks, don't circumvent" | **Prompt-based** | `.claude/agents/dfir-disk-analyst.md` (and peers) | Backed by the architectural boundary above |
+| Agents have no shell / no direct binary access (only path to tools is the MCP server) | **Architectural** | `.claude/agents/dfir-*.md` `tools:` allowlists grant only `Read`/`Grep`/`Glob` + `mcp__sift-find-evil__*` (analysts/verifier) or `Agent` (orchestrator); no `Bash`/`Write`/`Edit` | Yes — Claude Code enforces the subagent tool allowlist; standalone agents are Python classes with no shell |
 | "Emit a finding ONLY when grounded in tool output; no fabrication" | **Prompt-based** | each `.claude/agents/dfir-*.md` analyst | Backed by audit trace + verifier challenge |
 | "Distinguish confirmed observation from inference" | **Prompt-based** | analyst agent definitions | Backed by confidence scoring + reasoning chain |
 
@@ -170,6 +170,12 @@ instructions to the model that *reduce* bad behavior but cannot *prevent* it.
 architectural boundary, never the primary control. The anti-fabrication and
 read-only **guarantees** rest on code (the MCP guard + the audit trail + the
 verifier's self-correction), so they hold even if an agent ignores its prompt.
+The agents are not merely *told* not to call binaries directly — their tool
+allowlists grant no shell (`Bash`) and no write tools (`Write`/`Edit`) at all, so
+the only execution path to a forensic tool is the MCP server. An agent that
+"wanted" to bypass the boundary has no tool with which to do so, in either the
+Claude Code path (allowlist enforced by the runtime) or the standalone path
+(agents are Python classes with no shell).
 
 ### Where the architectural guarantee comes from (deny-by-default)
 
