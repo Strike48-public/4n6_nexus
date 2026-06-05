@@ -23,6 +23,16 @@ the second thing — and to make its safety guarantees real, not promised.
 
 ## What it does
 
+The hackathon's goal is to *make Protocol SIFT a fully autonomous incident
+response agent*. 4n6 Nexus does that by teaching the agent how a **senior analyst
+thinks** — not just how to run tools. A senior analyst sequences their approach
+(triage first, scope the domains, then go deep where the evidence is), recognizes
+when something doesn't add up (two artifacts disagree), and adjusts (pull a third
+source, lower confidence, or hold the finding). Our system encodes that loop: the
+orchestrator sequences, the analysts go deep per domain, and the verifier is the
+"that doesn't add up" instinct made architectural — it challenges every finding
+and resolves or holds it before anything is reported.
+
 **4n6 Nexus** (submitted as *SIFT Find Evil*) is an autonomous multi-agent DFIR
 system that extends Protocol SIFT. A lead orchestrator opens a case, dispatches a
 triage agent and three domain analysts (disk/timeline, memory, network), and a

@@ -148,12 +148,36 @@ expression of that distinction.
 
 ---
 
-## 5. Evidence-integrity / guardrail bypass test
+## 5. Evidence-integrity / spoliation testing
 
 This is the criterion-#4 proof: the read-only / evidence-containment guarantees
 are **architectural** (enforced in code at the MCP boundary), so they hold even
 when an agent ignores its prompt. We test that the boundary actually blocks
 abuse.
+
+**How does the architecture prevent original data from being modified?** Agents
+never touch a forensic binary directly — every tool call crosses
+`EvidenceMCPServer.run_tool()` → `ToolGuard.check()`, which enforces a per-tool
+**read-only allowlist** (no write/modify flag is reachable because none is
+listed) and **evidence-path containment** (inputs must canonicalise inside the
+evidence root). The agents' own tool allowlists grant no shell (`Bash`) and no
+file-write tools (`Write`/`Edit`), so there is no path to mutate evidence even if
+the model tries.
+
+**Did we test for spoliation? Yes.** We actively attempt to write to / modify /
+read outside the evidence and assert the boundary refuses. Results below.
+
+**Is any protection prompt-based rather than architectural?** No — for evidence
+integrity. Prompts add defense-in-depth (analysts are *told* not to circumvent
+blocks), but the *guarantee* is architectural: the controls below are enforced in
+code at a chokepoint the agent cannot route around. Prompt-only restrictions
+would require documenting "what happens when the model ignores them" — we don't
+rely on them for integrity, so that failure mode does not apply here.
+
+**Failure modes found (signal, not weakness):** the two detection gaps in §2
+(IPv6 network policy, DLL-only timestomping) are *analytical* limits, not
+integrity failures — no test produced evidence modification or an out-of-bounds
+read that the guardrail failed to block.
 
 ### Automated bypass tests (17 passing)
 
