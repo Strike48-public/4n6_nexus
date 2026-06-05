@@ -116,6 +116,59 @@ is aspirational.
 are enforced in code and demonstrated against real evidence, then told you exactly
 where the boundary of our claims is. That last part is the forensic standard.
 
+## Threat model: the analyzing agent is itself an attack surface
+
+This competition exists because of **GTG-1002** — a nation-state actor that
+weaponized an autonomous AI agent for offense. The mirror-image risk is the one
+most DFIR-agent projects ignore: **the evidence is attacker-controlled input, and
+the agent analyzing it is a new attack surface.** A sophisticated adversary who
+expects an AI to triage their intrusion can target *the triage agent* — not just
+hide from it. We designed 4n6 Nexus with that adversary in mind. Honestly, about
+what we contain and what stays open:
+
+- **Evidence spoliation (attacker makes the agent destroy its own case).**
+  *Contained, architecturally.* Even a fully compromised or jailbroken agent has
+  no tool that writes to evidence — `ToolGuard` is deny-by-default, so the
+  capability doesn't exist to be abused. This is the one we prove on camera.
+
+- **Context-exhaustion / token-wasting (attacker plants a multi-GB file or a
+  pathological artifact to blow the context window or run up cost).** *Mitigated
+  structurally.* The Custom MCP server parses raw tool output into typed rows
+  before anything reaches the model — the LLM never ingests a raw multi-GB dump.
+  The multi-agent split means no single context holds all evidence. And a circuit
+  breaker halts the tool boundary after N consecutive failures, so a poisoned
+  artifact that reliably crashes a tool can't drive an unbounded retry-and-burn
+  loop. Not a complete defense against a determined cost attack — but the blast
+  radius is bounded by design, not by a prompt asking the model to be careful.
+
+- **Prompt injection / LLM poisoning via evidence content (a crafted filename,
+  registry value, or log line carries instructions to the analyzing model).**
+  *Partially mitigated — and we will not claim more.* This is an open research
+  problem industry-wide; we don't solve it. What our architecture does is
+  **decouple injection from impact**: even if injected text persuades an agent to
+  *try* something harmful, the agent still has no path to a destructive or
+  out-of-bounds tool call — the guardrail rejects it in code and logs the attempt.
+  We add friction on the analytical side too (findings must cite
+  `source_tool_invocations`; the verifier independently challenges every finding;
+  reasoning chains separate observation from inference, so an injected *claim*
+  with no tool-execution behind it stands out). The honest boundary: a clever
+  injection could still skew *what the agent says*; it cannot make the agent
+  *act* against the evidence. We document this as a known limitation rather than
+  paper over it — which is the same standard the Accuracy Report holds for
+  spoliation testing.
+
+- **Tampering with our own conclusions.** *Contained.* The audit trail is
+  append-only JSONL and approved findings carry a SHA-256 signature, so a finding
+  or its chain of custody can't be silently altered after the fact.
+
+Why this matters beyond enterprise IR: at **nation-state** scale, the adversary
+is sophisticated enough to poison the responder's tooling, and fast enough
+(GTG-1002 ran at "physically impossible" request rates) that a human can't be the
+backstop. An autonomous DFIR agent is only trustworthy at that tier if its safety
+is *structural* — true even when the model is wrong, jailbroken, or fed hostile
+input. That is the property we built for, and the property we're honest about the
+edges of.
+
 ## How we built it
 
 **Architecture: a Multi-Agent Framework over a Custom MCP Server.** The agent
@@ -216,7 +269,22 @@ both are prevented by structure, not by good intentions.
   USB/cloud/timeline triage runs against them, not just the disk-image wipe path.
 - **N-way adversarial verification.** Today the verifier makes one
   self-correction pass per finding; a panel of independent skeptics would catch
-  failure modes a single pass misses.
+  failure modes a single pass misses — and would harden the system against
+  evidence-borne prompt injection, since an injected claim would have to fool
+  several independent reviewers, not one.
+- **Injection-resilience hardening.** Treat evidence-derived text as untrusted by
+  construction: structurally separate tool *output data* from any instruction
+  channel, and flag findings whose narrative isn't anchored to a
+  `source_tool_invocation` as suspected injection rather than analysis.
+- **Cost/DoS bounds as first-class controls.** Promote the implicit
+  context-exhaustion mitigations (output parsing, the circuit breaker) into
+  explicit per-case token and wall-clock budgets with graceful degradation — the
+  `--max-iterations` discipline the brief's persistent-loop idea calls for, aimed
+  at adversarial cost attacks rather than just runaway loops.
+- **Live triage (the starter idea we deliberately deferred).** An MCP connector to
+  a remote endpoint or SIEM would extend the same architectural guardrails to live
+  data — valuable, but only worth building once the read-only boundary is proven,
+  which it now is.
 - **IPv6 network policy** and **DLL-only timestomping**, the two detection gaps
   the Accuracy Report names honestly.
 
