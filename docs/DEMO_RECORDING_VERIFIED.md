@@ -2,9 +2,9 @@
 
 > **Every command and every number in this script was executed live on the SIFT
 > Workstation (`sift-dfir`, Claude Code 2.1.165 on AWS Bedrock) on 2026-06-05.**
-> Nothing here is a projection. This supersedes the older `DEMO_VIDEO_SCRIPT.md`
-> (which referenced unverified `insider_threat_2022` figures and an evidence file
-> not deployed to the VM). Record against THIS document.
+> Nothing here is a projection. This is the single authoritative recording script;
+> earlier demo drafts that carried unverified projections have been removed.
+> Record against THIS document.
 
 **Duration target:** 5 minutes. **Format:** live terminal screencast + narration.
 **Host:** SIFT Workstation VM, Claude Code → Bedrock, our Custom MCP server.

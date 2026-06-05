@@ -53,7 +53,7 @@ cat README.md | grep -A 10 "Installation"
 - Show self-correction examples from 1,071 findings
 - No third-party trademarks or copyrighted music
 
-**Script:** `docs/DEMO_VIDEO_SCRIPT.md`
+**Script:** `docs/DEMO_RECORDING_VERIFIED.md`
 
 **Recording Checklist:**
 - [ ] SIFT VM running with evidence mounted

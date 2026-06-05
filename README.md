@@ -484,7 +484,7 @@ A2A trace sequence.
 > **Judges / first-time operators:** the single most representative command is
 > the multi-agent investigation in step 2 below. For the full, beat-by-beat
 > walkthrough with expected output, see **[docs/TRY_IT_OUT.md](docs/TRY_IT_OUT.md)**
-> and **[docs/DEMO_RECORDING_SCRIPT.md](docs/DEMO_RECORDING_SCRIPT.md)**.
+> and **[docs/DEMO_RECORDING_VERIFIED.md](docs/DEMO_RECORDING_VERIFIED.md)**.
 
 ### Prerequisites
 

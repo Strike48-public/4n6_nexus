@@ -253,8 +253,7 @@ sift_find_evil/
 
 | Document | Description |
 |----------|-------------|
-| [DEMO_VIDEO_SCRIPT.md](DEMO_VIDEO_SCRIPT.md) | Demo video script (5 minutes) |
-| [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) | Live execution guide |
+| [DEMO_RECORDING_VERIFIED.md](DEMO_RECORDING_VERIFIED.md) | Demo video script (5 min) - the verified, record-ready script (commands + numbers run live on the SIFT VM) |
 | [../SUBMISSION_CHECKLIST.md](../SUBMISSION_CHECKLIST.md) | Hackathon checklist |
 
 ---
