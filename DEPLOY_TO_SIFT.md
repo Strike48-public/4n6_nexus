@@ -1,94 +1,92 @@
-# Deploy sift_find_evil to SIFT OVA
+# Deploy sift_find_evil to the SIFT Workstation
 
-Manual deployment steps for transferring detection engine to SIFT OVA environment.
+Deployment steps for installing the detection engine on a SANS SIFT Workstation
+(Protocol SIFT) and wiring it into Claude Code.
 
 ## Prerequisites
 
-- SIFT OVA running at 192.168.122.76
-- SSH access: `sansforensics@192.168.122.76` (password: forensics)
-- Protocol SIFT MCP server already configured
+- A running SIFT Workstation (the forensic tool foundation: MFTECmd, PECmd,
+  EvtxECmd, RECmd, Volatility 3, Sleuth Kit, tshark).
+- SSH access to the host.
+- Python 3.10+ (3.12 recommended — the version CI runs against).
+- For the Claude Code path: the `claude` CLI installed and authenticated on the
+  SIFT host (Protocol SIFT already ships this).
 
-## Deployment Steps
+> **Why SIFT is required:** on real evidence, our MCP server shells out to the
+> forensic binaries above. They live on the SIFT Workstation. The synthetic
+> harness runs anywhere (pure Python), but real-evidence analysis needs SIFT.
 
-### 1. Create deployment package
+## Deployment (git clone — reproducible)
 
-```bash
-cd /home/jtomek/Code/sift_find_evil
-
-# Create tarball excluding large files
-tar czf /tmp/sift_find_evil.tar.gz \
-  --exclude='.git' \
-  --exclude='__pycache__' \
-  --exclude='*.pyc' \
-  --exclude='.pytest_cache' \
-  --exclude='sift-*.ova' \
-  --exclude='scenarios/*/evidence/*' \
-  --exclude='.beads' \
-  --exclude='.claude' \
-  --exclude='htmlcov' \
-  --exclude='.coverage' \
-  .
-```
-
-### 2. Copy to SIFT OVA
+### 1. Clone the repo on the SIFT host
 
 ```bash
-# Copy tarball
-scp /tmp/sift_find_evil.tar.gz sansforensics@192.168.122.76:/tmp/
-# Password: forensics
-```
+ssh sansforensics@<sift-host>        # SIFT OVA default password: forensics
 
-### 3. SSH into SIFT OVA
-
-```bash
-ssh sansforensics@192.168.122.76
-# Password: forensics
-```
-
-### 4. Extract and setup (run on SIFT OVA)
-
-```bash
-# Extract
 cd ~
-rm -rf sift_find_evil
-mkdir -p sift_find_evil
+git clone https://github.com/Strike48/sift_find_evil.git
 cd sift_find_evil
-tar xzf /tmp/sift_find_evil.tar.gz
-rm /tmp/sift_find_evil.tar.gz
+```
 
-# Create virtual environment
+### 2. Install (core, pure-Python)
+
+```bash
 python3 -m venv venv
 source venv/bin/activate
-
-# Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Verify installation
+# Verify it loads
 python -m sift_find_evil.cli --help
 ```
 
-### 5. Validate deployment
+For real disk/memory/PST evidence, also install the forensic extras (need a
+compiler + system libs — see README step 3):
 
 ```bash
-# Still on SIFT OVA, with venv activated
-cd ~/sift_find_evil
-source venv/bin/activate
-
-# Run scenario harness
-PYTHONPATH=. python3 tests/scenario_harness.py
-
-# Expected output: 12/12 scenarios @ F1=1.00
+sudo apt-get install libtsk-dev libewf-dev libpff-dev libyara-dev
+pip install -r requirements-forensic.txt
 ```
 
-## Next Steps: MCP Integration
+### 3. Validate deployment
 
-Once deployed, configure MCP integration:
+```bash
+cd ~/sift_find_evil && source venv/bin/activate
 
-1. **Verify MCP server** - Check Protocol SIFT MCP is running
-2. **Create MCP wrappers** - Add Python clients for forensic tools
-3. **Update detectors** - Wire to MCP instead of fixtures
-4. **Test with real tools** - Run Volatility, TSK, Plaso via MCP
+# Deterministic regression gate (no SIFT tools needed)
+PYTHONPATH=. python3 tests/scenario_harness.py
+# Expected: 14/14 scenarios @ F1=1.00
+
+# Reproducible multi-agent run (standalone path)
+PYTHONPATH=. python3 -m sift_find_evil.orchestration --output-dir analysis/demo_run
+```
+
+## Wire into Claude Code (the interactive / demo path)
+
+The repo ships the dfir-* subagents (`.claude/agents/`) and a project-scope
+`.mcp.json`. To register our Custom MCP server with case-specific evidence paths:
+
+```bash
+cd ~/sift_find_evil && source venv/bin/activate
+
+./install-claude-agents.sh \
+  --case-id INC-2026-001 \
+  --evidence-root /cases/INC-2026-001/evidence \
+  --audit-path    /cases/INC-2026-001/audit.jsonl \
+  --examiner      "Jane Analyst"
+
+claude mcp list          # confirm 'sift-find-evil' is registered
+```
+
+Then run an interactive investigation — the orchestrator subagent dispatches the
+domain analysts, which reach the SIFT tools ONLY through our MCP boundary:
+
+```bash
+claude "Run a full forensic analysis on case INC-2026-001"
+```
+
+> The MCP server can also be launched directly for testing:
+> `python -m sift_find_evil.mcp --evidence-root <dir> --audit-path <file>`
 
 ## Troubleshooting
 

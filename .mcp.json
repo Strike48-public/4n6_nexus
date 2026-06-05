@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "sift-find-evil": {
+      "command": "python",
+      "args": ["-m", "sift_find_evil.mcp"],
+      "env": {
+        "SFE_CASE_ID": "INC-2026-001",
+        "SFE_EVIDENCE_ROOT": "${SFE_EVIDENCE_ROOT}",
+        "SFE_AUDIT_PATH": "${SFE_AUDIT_PATH}",
+        "SFE_EXAMINER": "${SFE_EXAMINER}"
+      }
+    }
+  }
+}
