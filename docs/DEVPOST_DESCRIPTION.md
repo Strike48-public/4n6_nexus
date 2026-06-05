@@ -68,9 +68,53 @@ It delivers the three demonstrations the hackathon asks for:
   so a reviewer sees exactly where evidence ends and interpretation begins.
 
 On the validation harness it holds **F1 = 1.00 across 14 synthetic scenarios
-(57 findings, 0 false positives, 0 false negatives)**, backed by 1,035 tests at
+(57 findings, 0 false positives, 0 false negatives)**, backed by 1,000+ tests at
 ~94% coverage. Against real evidence it has verified runs on the CIRCL wiped-disk
-image (1 CRITICAL finding) and the Digital Corpora M57-Jean and Nitroba cases.
+image (1 CRITICAL finding) and the Digital Corpora M57-Jean and Nitroba cases —
+all executed live on the SANS SIFT Workstation through Claude Code on AWS Bedrock.
+
+## How this goes beyond the starter ideas
+
+The brief offered seven starter ideas and invited submissions to go past them.
+We didn't pick one — we **fused the three hardest into a single system** and
+treat the rest honestly. Every claim below is reproducible with one command; none
+is aspirational.
+
+- **#1 Self-Correcting Triage Agent + #2 Multi-Source Correlation Engine —
+  fused, and extended to three sources.** The starters frame these separately
+  (self-check on a disk image; cross-check disk *vs* memory). We do both at once
+  and add a third domain: the verifier cross-references **disk/timeline, memory,
+  AND network** in one correlated pass — catching a process that's in `psscan`
+  but not `pslist` (memory hiding a disk-invisible process) and a hardcoded-IP C2
+  beacon with no DNS (network contradicting "normal" traffic), not just timeline
+  disagreements. And it **adjusts**: confidence drops, a tiebreaker tool runs, the
+  finding resolves or stays flagged — autonomously, on the record.
+
+- **#6 Purpose-Built MCP Server — implemented as the trust boundary, not a
+  convenience.** The starter's success metric is "zero evidence spoliation risk."
+  We meet it *architecturally*: `ToolGuard` is deny-by-default, so destructive
+  flags aren't blocked — they're **unreachable**. We prove it on camera: a live
+  agent told to read `/etc/shadow` is refused in code and the attempt is audited
+  as `tool_blocked`. The brief calls this "the architecture that would make a
+  practitioner comfortable standing behind the results" — so we built exactly that.
+
+- **#4 Analyst Training Loop and #5 Accuracy Benchmarking — we get these for
+  free.** Every finding ships a `reasoning_chain` that states the observation
+  before the inference (which tool, what it expected, what it found) — the
+  transparency #4 asks for. And `tests/scenario_harness.py` *is* a ground-truth
+  accuracy benchmark (F1 / FP / FN per scenario), the measurement #5 calls for.
+  Both fall out of the core design rather than being bolted on.
+
+- **#3 Live SIEM triage and #7 Persistent learning loop — deliberately not
+  claimed.** We analyze disk, memory, and network *captures*, not live feeds, and
+  we don't iterate-to-convergence across runs. In a forensics tool, claiming a
+  capability we didn't build is the opposite of trustworthy — so we name the line
+  precisely. (Both are on the "What's next" roadmap.)
+
+**The point:** the strongest starter ideas are about *evidence integrity* and
+*genuine self-correction*. We didn't sample them — we built a system where both
+are enforced in code and demonstrated against real evidence, then told you exactly
+where the boundary of our claims is. That last part is the forensic standard.
 
 ## How we built it
 
