@@ -1,15 +1,18 @@
-# SIFT Find Evil - Autonomous DFIR Agent
+# 4n6 Nexus - Autonomous DFIR Agent
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![SANS FIND EVIL! Hackathon](https://img.shields.io/badge/SANS-FIND%20EVIL!%20Hackathon-blue)](https://www.sans.org)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Detection Accuracy](https://img.shields.io/badge/F1%20Score-1.00-brightgreen)](docs/ACCURACY_REPORT.md)
 
-**Autonomous AI agent for Digital Forensics and Incident Response (DFIR) with architectural self-correction**
+**4n6 Nexus** (forensics nexus) is an autonomous AI agent for Digital Forensics and
+Incident Response (DFIR) with architectural self-correction - production-grade
+architecture designed for real-world forensic investigations.
 
-Built for the SANS FIND EVIL! Hackathon with production-grade architecture designed for real-world forensic investigations.
-
-> **Note:** This is the SANS FIND EVIL! Hackathon submission (April 2026). The production product will be named **4n6nexus** (forensics nexus) after the competition.
+> **Naming:** **4n6 Nexus** is the product. It was submitted to the **SANS FIND
+> EVIL! Hackathon** (2026) under the entry name *SIFT Find Evil*; the Python
+> package and CLI remain `sift_find_evil`. The three names refer to the same
+> system - product, competition entry, and code module respectively.
 
 **New here?** See **[docs/START_HERE.md](docs/START_HERE.md)** for documentation navigation guide with visual maps and quick paths by role (judges, users, developers, researchers).
 
@@ -17,7 +20,7 @@ Built for the SANS FIND EVIL! Hackathon with production-grade architecture desig
 
 ## What This Is: An Extension of Protocol SIFT
 
-SIFT Find Evil extends the **SANS SIFT Workstation / Protocol SIFT** environment
+4n6 Nexus extends the **SANS SIFT Workstation / Protocol SIFT** environment
 with an autonomous, self-correcting DFIR agent. The **SIFT Workstation is the
 foundation** and the prerequisite for real investigations: it provides the
 court-vetted forensic tools (MFTECmd, PECmd, EvtxECmd, RECmd, Volatility 3, Sleuth
@@ -108,7 +111,7 @@ real-evidence results, and an honest list of detection gaps.
 
 ## Core Innovation: Architectural Self-Correction
 
-**Unlike prompt-engineered tools that blindly trust outputs, SIFT Find Evil autonomously detects contradictions between evidence sources and triggers re-investigation with full audit trails.**
+**Unlike prompt-engineered tools that blindly trust outputs, 4n6 Nexus autonomously detects contradictions between evidence sources and triggers re-investigation with full audit trails.**
 
 ### Self-Correction Example
 

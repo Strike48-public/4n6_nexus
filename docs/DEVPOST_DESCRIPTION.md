@@ -23,9 +23,10 @@ the second thing — and to make its safety guarantees real, not promised.
 
 ## What it does
 
-**SIFT Find Evil** is an autonomous multi-agent DFIR system that extends
-Protocol SIFT. A lead orchestrator opens a case, dispatches a triage agent and
-three domain analysts (disk/timeline, memory, network), and a verifier
+**4n6 Nexus** (submitted as *SIFT Find Evil*) is an autonomous multi-agent DFIR
+system that extends Protocol SIFT. A lead orchestrator opens a case, dispatches a
+triage agent and three domain analysts (disk/timeline, memory, network), and a
+verifier
 challenges every finding. It runs on the SANS SIFT Workstation / a Linux
 terminal using Claude Code subagents.
 
@@ -165,4 +166,4 @@ both are prevented by structure, not by good intentions.
 - **IPv6 network policy** and **DLL-only timestomping**, the two detection gaps
   the Accuracy Report names honestly.
 
-After the hackathon the project continues as **4n6nexus**.
+After the hackathon the project continues under its product name, **4n6 Nexus**.

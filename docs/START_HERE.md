@@ -1,6 +1,6 @@
 # START HERE - Documentation Navigation Guide
 
-**Welcome to SIFT Find Evil / 4n6nexus!**
+**Welcome to 4n6 Nexus** (submitted to SANS FIND EVIL! as *SIFT Find Evil*; code module `sift_find_evil`)**!**
 
 This repository contains **73 documentation files** organized for different audiences. This guide helps you find what you need quickly.
 
@@ -274,7 +274,7 @@ The repository includes detailed planning for splitting into Community (open sou
 
 **Status:** All strategic decisions finalized. Finding refactor complete (commit 80fb97f). Split execution planned post-demo (May 2026).
 
-**Future branding:** 4n6nexus (forensics nexus)
+**Product name:** 4n6 Nexus (forensics nexus)
 - Community: MPL-2.0 license
 - Enterprise: Proprietary, adds self-correction + MCP
 
