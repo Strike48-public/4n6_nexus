@@ -140,3 +140,22 @@ def test_mermaid_blocks_have_no_unescaped_breaking_chars():
     ):
         body = out.strip().removeprefix("```mermaid").removesuffix("```")
         assert "```" not in body  # no nested fences
+
+
+def test_finding_flow_truncates_long_labels():
+    # A verbose finding title must not produce an unreadably wide node.
+    long_title = "Partition table wiped " * 10  # ~220 chars
+    out = mermaid_finding_flow(
+        [
+            {
+                "finding_id": "F-001",
+                "label": long_title,
+                "verdict": "reported",
+                "confidence": 0.95,
+            }
+        ]
+    )
+    # The label is truncated with an ellipsis marker; no single label line is huge.
+    assert "..." in out
+    longest_line = max((len(line) for line in out.splitlines()), default=0)
+    assert longest_line < 120

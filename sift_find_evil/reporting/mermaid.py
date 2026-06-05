@@ -26,17 +26,20 @@ def _fence(body: str) -> str:
     return f"{_FENCE_OPEN}\n{body.rstrip()}\n{_FENCE_CLOSE}"
 
 
-def _safe(text: Any) -> str:
+def _safe(text: Any, max_len: int = 48) -> str:
     """Sanitise a label for inclusion in a Mermaid diagram.
 
     Strips characters that would break the fenced block (backticks) or the
     diagram parse (newlines, quotes, brackets, the arrow/colon tokens Mermaid
-    treats as syntax). Returns a compact single-line token.
+    treats as syntax), collapses whitespace, and truncates over-long labels so
+    diagram nodes stay readable. Returns a compact single-line token.
     """
     s = str(text) if text is not None else "?"
     for ch in ("`", '"', "\n", "\r", "[", "]", "{", "}", "|", ";", ":", "<", ">"):
         s = s.replace(ch, " ")
     s = " ".join(s.split())  # collapse whitespace
+    if len(s) > max_len:
+        s = s[:max_len].rstrip() + "..."
     return s or "?"
 
 
