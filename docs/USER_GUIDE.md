@@ -340,7 +340,7 @@ cat jean_exfil_findings.json | jq
 - File-to-email correlation confidence: 0.95
 - Time deltas: 30s and 45s (very high confidence)
 
-See [JEAN_EXFILTRATION_REPORT.md](../analysis/m57-jean/JEAN_EXFILTRATION_REPORT.md) for complete analysis.
+See [EVIDENCE_DATASETS.md (m57-jean)](EVIDENCE_DATASETS.md#m57-jean--data-exfiltration--business-email-compromise) for complete analysis.
 
 ### CIRCL Wiped Disk (Real Dataset)
 
@@ -367,7 +367,7 @@ python ../../../scripts/analyze_circl_executables.py --use-nsrl
 - 5 executables carved (4 unknown, 1 NSRL match)
 - Wipe detection confidence: 0.90
 
-See [CIRCL_WIPE_ANALYSIS.md](../analysis/circl-2023-wiped/CIRCL_WIPE_ANALYSIS.md) for complete analysis.
+See [EVIDENCE_DATASETS.md (circl-2023-wiped)](EVIDENCE_DATASETS.md#circl-2023-wiped--wiped-disk-anti-forensics) for complete analysis.
 
 ---
 
@@ -502,7 +502,7 @@ done
 
 - **GitHub Issues**: https://github.com/jtomek-strike48/sift-find-evil/issues
 - **Documentation**: [docs/](.)
-- **API Reference**: [docs/API_REFERENCE.md](API_REFERENCE.md)
+- **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 

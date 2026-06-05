@@ -340,7 +340,7 @@ for case_dir in cases:
 
 - [Timestamp Formats](TIMESTAMP_FORMATS.md) - Understanding Windows timestamp precision
 - [Tool Specifications](../tools/) - MFTECmd, PECmd, EvtxECmd output formats
-- [Test Data](../tests/fixtures/README.md) - Understanding synthetic test scenarios
+- [Test Data](../scenarios/synthetic/README.md) - Understanding synthetic test scenarios
 
 ## Support
 
