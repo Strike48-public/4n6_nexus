@@ -1,6 +1,6 @@
-# 4n6Nexus
+# 4n6 Nexus
 
-![4n6Nexus Banner](docs/logo_banner.svg)
+![4n6 Nexus Banner](docs/logo_banner.svg)
 
 ![CI Status](https://img.shields.io/badge/CI-passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -8,9 +8,9 @@
 ![F1 Score](https://img.shields.io/badge/F1%20Score-1.00-brightgreen.svg)
 ![FIND EVIL!](https://img.shields.io/badge/FIND%20EVIL!-Submission-blue.svg)
 
-**4n6Nexus** turns a DFIR analyst into the orchestrator of an autonomous forensic investigation with architectural self-correction. Instead of manually running dozens of tools and correlating artifacts across disk images, memory dumps, and logs, 4n6Nexus executes forensic workflows autonomously, detects cross-artifact contradictions, and adjusts findings confidence without human intervention.
+**4n6 Nexus** turns a DFIR analyst into the orchestrator of an autonomous forensic investigation with architectural self-correction. Instead of manually running dozens of tools and correlating artifacts across disk images, memory dumps, and logs, 4n6 Nexus executes forensic workflows autonomously, detects cross-artifact contradictions, and adjusts findings confidence without human intervention.
 
-Built on **SANS SIFT Workstation** and the **MCP (Model Context Protocol)**, 4n6Nexus adds three architectural innovations: read-only safety enforcement, cross-artifact contradiction detection, and autonomous confidence adjustment. Tested on real evidence with perfect precision and recall (F1=1.00 across 12 validation scenarios).
+Built on **SANS SIFT Workstation** and the **MCP (Model Context Protocol)**, 4n6 Nexus adds three architectural innovations: read-only safety enforcement, cross-artifact contradiction detection, and autonomous confidence adjustment. Tested on real evidence with perfect precision and recall (F1=1.00 across 12 validation scenarios).
 
 **Quick Links:** [Demo Video](#demo-video) | [Architecture](#architecture) | [Quick Start](#quick-start) | [Documentation](#documentation)
 
@@ -27,17 +27,17 @@ Built on **SANS SIFT Workstation** and the **MCP (Model Context Protocol)**, 4n6
 
 ---
 
-## What is 4n6Nexus?
+## What is 4n6 Nexus?
 
-4n6Nexus is an **autonomous digital forensics and incident response (DFIR) agent** that executes forensic tool chains, correlates artifacts across multiple sources, and self-corrects findings when contradictions are detected.
+4n6 Nexus is an **autonomous digital forensics and incident response (DFIR) agent** that executes forensic tool chains, correlates artifacts across multiple sources, and self-corrects findings when contradictions are detected.
 
-Unlike script-based automation (which lacks reasoning) or prompt-engineered LLMs (which hallucinate without evidence), 4n6Nexus enforces safety and correctness **architecturally** through code, not prompts:
+Unlike script-based automation (which lacks reasoning) or prompt-engineered LLMs (which hallucinate without evidence), 4n6 Nexus enforces safety and correctness **architecturally** through code, not prompts:
 
 - **MCP Safety Layer** wraps forensic tools with read-only enforcement, timeout guards, circuit breakers, and cryptographic audit logging
 - **Self-Correction Engine** detects timestamp contradictions across MFT, Prefetch, Registry, and Event Logs, then adjusts confidence scores
 - **Chain of Custody** logs every tool invocation with timestamps, exit codes, SHA-256 output hashes, and complete reproducibility
 
-4n6Nexus is designed for **court-admissible investigations** where evidence integrity and audit trails are mandatory.
+4n6 Nexus is designed for **court-admissible investigations** where evidence integrity and audit trails are mandatory.
 
 ---
 
@@ -58,7 +58,7 @@ Unlike script-based automation (which lacks reasoning) or prompt-engineered LLMs
 
 ```mermaid
 graph TB
-    subgraph "4n6Nexus Core"
+    subgraph "4n6 Nexus Core"
         CLI[CLI Interface]
         CM[Case Manager]
         MCP[MCP Safety Layer]
@@ -177,7 +177,7 @@ sequenceDiagram
 #### Option 1: Quick Install (Recommended)
 
 ```bash
-# Install 4n6Nexus Community Edition (core platform + 5 basic detectors)
+# Install 4n6 Nexus Community Edition (core platform + 5 basic detectors)
 curl -sSL https://raw.githubusercontent.com/4n6nexus/4n6nexus/main/install.sh | bash
 
 # Verify installation
@@ -492,7 +492,7 @@ Tested on **12 validation scenarios** (synthetic + real evidence):
 
 ## Demo Video
 
-[![4n6Nexus Demo Video](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://youtu.be/VIDEO_ID)
+[![4n6 Nexus Demo Video](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://youtu.be/VIDEO_ID)
 
 **Watch the 5-minute demo** showing:
 
@@ -534,7 +534,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### Evidence Integrity
 
-4n6Nexus is designed for **court-admissible investigations** where evidence integrity is critical:
+4n6 Nexus is designed for **court-admissible investigations** where evidence integrity is critical:
 
 - **Read-Only Enforcement** - All evidence mounts are read-only; write attempts fail immediately
 - **Audit Logging** - Every tool execution logged with cryptographic hashes
@@ -543,7 +543,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### Data Privacy
 
-**WARNING:** 4n6Nexus processes sensitive forensic evidence. Ensure:
+**WARNING:** 4n6 Nexus processes sensitive forensic evidence. Ensure:
 
 - Evidence is stored on encrypted volumes
 - Audit logs contain case metadata (sanitize before sharing)
@@ -552,7 +552,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### Threat Model
 
-4n6Nexus assumes:
+4n6 Nexus assumes:
 
 - **Evidence is untrusted** - May contain malware, rootkits, or anti-forensics tools
 - **Analyst workstation is trusted** - SIFT VM running on secure hardware
@@ -572,17 +572,17 @@ Found a security issue? Email: [security@4n6nexus.dev](mailto:security@4n6nexus.
 
 - Open public GitHub issues for security vulnerabilities
 - Exploit vulnerabilities in production systems
-- Use 4n6Nexus for unauthorized access to systems
+- Use 4n6 Nexus for unauthorized access to systems
 
 ---
 
 ## Acknowledgments
 
-4n6Nexus is built on the shoulders of giants:
+4n6 Nexus is built on the shoulders of giants:
 
 ### SANS Institute
 
-- **SIFT Workstation** - The foundation of 4n6Nexus, providing the forensic toolkit and analysis environment
+- **SIFT Workstation** - The foundation of 4n6 Nexus, providing the forensic toolkit and analysis environment
 - **MCP (Model Context Protocol)** - Safe tool execution framework that enables autonomous forensic workflows
 
 ### FIND EVIL! Hackathon
@@ -622,7 +622,7 @@ Found a security issue? Email: [security@4n6nexus.dev](mailto:security@4n6nexus.
 
 **Commercial Editions (Pro/Enterprise):** Proprietary license
 
-Copyright (c) 2024 4n6Nexus Contributors
+Copyright (c) 2024 4n6 Nexus Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 

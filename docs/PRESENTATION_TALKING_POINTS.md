@@ -29,7 +29,7 @@
 
 [Screen transitions to our engine]
 
-**Voiceover:** "What if there was a better way? What if your forensic tool only showed you what actually matters? That's 4n6Nexus."
+**Voiceover:** "What if there was a better way? What if your forensic tool only showed you what actually matters? That's 4n6 Nexus."
 
 [Cut to live analysis running]
 
@@ -209,7 +209,7 @@ Traditional DFIR Tools:
 **Visual:** Show our engine running
 
 **Voiceover:**
-> "Now let's try something different. Same forensic image, same system, but we're using 4n6Nexus - our self-correction engine.
+> "Now let's try something different. Same forensic image, same system, but we're using 4n6 Nexus - our self-correction engine.
 > 
 > [Timer starts on screen]
 > 
@@ -233,7 +233,7 @@ Traditional DFIR Tools:
 
 **Text on screen:**
 ```
-4n6Nexus Self-Correction Engine:
+4n6 Nexus Self-Correction Engine:
 ⏱️ 11 minutes total
 🎯 15 findings (all actionable)
 ✅ 0% false positive rate
@@ -346,7 +346,7 @@ Result: Perfect accuracy with zero false positives
 Scenario 21: AI Adversarial Attack
 ❌ ChatGPT: "System appears clean" (fooled)
 ❌ Claude: "Per forensic report, no threats" (fooled)
-✅ 4n6Nexus: Detected all 12 adversarial techniques + malware
+✅ 4n6 Nexus: Detected all 12 adversarial techniques + malware
 
 12 Attack Techniques:
 • Prompt injection
@@ -373,15 +373,15 @@ Scenario 21: AI Adversarial Attack
 > 
 > That's the difference between alert fatigue and actionable intelligence. Between spending hours in the noise and minutes on what matters.
 > 
-> [Show 4n6Nexus logo]
+> [Show 4n6 Nexus logo]
 > 
-> 4n6Nexus: Perfect accuracy at machine speed. Open source Community Edition available now. Enterprise Edition coming soon.
+> 4n6 Nexus: Perfect accuracy at machine speed. Open source Community Edition available now. Enterprise Edition coming soon.
 > 
 > Visit github.com/Strike48/sift_find_evil to learn more."
 
 **Text on screen:**
 ```
-4n6Nexus
+4n6 Nexus
 Perfect Accuracy. Machine Speed. Zero False Positives.
 
 ✅ F1=1.00 (perfect precision and recall)
@@ -525,7 +525,7 @@ Create a slide or live table:
 ┌──────────────────────────────────────────────────────────┐
 │                 SIDE-BY-SIDE COMPARISON                  │
 ├─────────────────────┬──────────────┬─────────────────────┤
-│ Metric              │ Autopsy      │ 4n6Nexus           │
+│ Metric              │ Autopsy      │ 4n6 Nexus           │
 ├─────────────────────┼──────────────┼─────────────────────┤
 │ Runtime             │ 45 minutes   │ 11 minutes ✅      │
 │ Findings            │ 1,247        │ 15 ✅              │

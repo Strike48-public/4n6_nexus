@@ -1,4 +1,4 @@
-# 4n6Nexus Product Tiers
+# 4n6 Nexus Product Tiers
 
 **Version:** 1.0
 **Date:** 2026-04-24
@@ -6,7 +6,7 @@
 
 ## Overview
 
-4n6Nexus is offered in **two editions**: Community (open source) and Enterprise (commercial). This document defines exactly what features belong in each tier.
+4n6 Nexus is offered in **two editions**: Community (open source) and Enterprise (commercial). This document defines exactly what features belong in each tier.
 
 ## Design Principles
 
