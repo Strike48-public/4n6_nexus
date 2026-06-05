@@ -1,5 +1,10 @@
 # FIND EVIL! Hackathon Demo Video Script
 
+> **SUPERSEDED for recording -> use [DEMO_RECORDING_VERIFIED.md](DEMO_RECORDING_VERIFIED.md).**
+> That script contains only commands and numbers executed live on the SIFT VM
+> (Claude Code + Bedrock, 2026-06-05). This file is kept for narrative/story
+> reference only; its projected figures must NOT be narrated as fact.
+
 > ⚠️ **DO NOT NARRATE UNVERIFIED NUMBERS (SFE-3sc).** Any "1,071 findings /
 > 247 self-corrections / 155,452 MFT entries / 11-minute" `insider_threat_2022`
 > figures in this script are **projections, not measured results** — that
