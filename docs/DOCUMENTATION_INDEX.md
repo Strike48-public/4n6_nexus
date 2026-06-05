@@ -15,8 +15,7 @@
 | [REPOSITORY_MANAGEMENT.md](#repository-management) | How to manage split repositories | Before creating community repo |
 | [README_COMMUNITY.md](#readme-community) | Public-facing Community Edition README | Before releasing to public |
 | [ARCHITECTURE_DIAGRAM.md](#architecture-diagram) | System architecture (Mermaid diagrams) | Understanding system design |
-| [VOICEOVER_SCRIPT_REVISED.txt](#voiceover-script) | Demo video narration (4n6Nexus branded) | Before recording demo |
-| [VIDEO_RECORDING_GUIDE.md](#video-recording-guide) | Complete video recording instructions | When recording demo |
+| [DEMO_RECORDING_VERIFIED.md](DEMO_RECORDING_VERIFIED.md) | Verified, record-ready demo script (commands + numbers run live on the SIFT VM) | Before/when recording the demo |
 | [EVIDENCE_COMPATIBILITY.md](#evidence-compatibility) | What evidence can be analyzed (Windows/Linux/macOS) | When planning tests or answering capability questions |
 | [COPYRIGHT_HEADERS.md](#copyright-headers) | How to add copyright headers (not full license) | When creating new files |
 
@@ -182,101 +181,27 @@
 
 ---
 
-### VOICEOVER_SCRIPT_REVISED.txt
+### DEMO_RECORDING_VERIFIED.md
 
-**Path:** `docs/VOICEOVER_SCRIPT_REVISED.txt`
-**Status:** ✅ Revised with 4n6Nexus branding + SANS attribution
-**Owner:** Core Team
-
-**What It Contains:**
-- Complete narration for 5-minute demo video
-- 6 segments matching video timing
-- Jargon removed (timestomping → timestamp manipulation)
-- SANS attribution added ("Built on SANS's SIFT Workstation and MCP protocol, we added...")
-- 4n6Nexus branding (was "Veritas", then "SIFT Find Evil")
-- Pronunciation guidance for Chatterbox TTS
-- Word count and timing estimates (~670 words, ~4:20-5:00)
-
-**Key Changes from Original:**
-- Project name: "SIFT Find Evil" → "4n6Nexus"
-- Attribution: "Our solution combines..." → "Built on SANS's SIFT Workstation and MCP protocol, we added..."
-- Jargon: "Timestomping" → "timestamp manipulation"
-- Jargon: "Prefetch artifact" → "Windows execution trace"
-- Jargon: "MFT $STANDARD_INFORMATION vs $FILE_NAME" → "Windows stores two timestamps for each file"
-- Jargon: "SHA-256 hashing" → "cryptographic fingerprinting"
-
-**When to Reference:**
-- Recording AI voiceover with Chatterbox (on RTX 4090 system)
-- Recording live narration (your voice)
-- Writing marketing copy (same messaging)
-
----
-
-### VIDEO_RECORDING_GUIDE.md
-
-**Path:** `docs/VIDEO_RECORDING_GUIDE.md`
-**Status:** ✅ Complete
-**Owner:** Core Team
+**Path:** `docs/DEMO_RECORDING_VERIFIED.md`
+**Status:** ✅ The single authoritative recording script
 
 **What It Contains:**
-- Complete instructions for recording demo video
-- Option A: AI voiceover (Chatterbox TTS on RTX 4090)
-- Option B: Live narration (your voice)
-- Pre-recording checklist (hardware, software, test run)
-- Recording process (OBS Studio or FFmpeg)
-- Post-production editing (combining video + audio)
-- Title cards (intro/outro)
-- Upload instructions (YouTube/Vimeo)
-- Troubleshooting common issues
+- Every command and number verified live on the SIFT Workstation
+  (Claude Code on AWS Bedrock, 2026-06-05) — no projections
+- Pre-flight steps (SSO re-auth, `claude mcp list` check, evidence hash verify)
+- 6 timed segments (5 min): Protocol SIFT framing → real CIRCL wiped-disk
+  analysis → multi-agent orchestration + self-correction → live guardrail block
+  → traceability + F1=1.00
+- Both real data sources (CIRCL wipe + nitroba beaconing) and a "real numbers" table
 
 **When to Reference:**
-- Before recording demo video
-- When setting up recording equipment
-- When editing video
-- When troubleshooting recording issues
+- Recording the demo video (record against this, top to bottom)
+- Any time a narrated figure needs a verified source
 
----
-
-### TERMINAL_RECORDING_COMMANDS.sh
-
-**Path:** `docs/TERMINAL_RECORDING_COMMANDS.sh`
-**Status:** ✅ Complete
-**Owner:** Core Team
-
-**What It Is:**
-- Executable bash script with all commands for demo video
-- Segment-by-segment commands matching video timing
-- Pre-recording setup (VM start, SSH test, font scaling)
-- Evidence mounting workflow (E01 → partition → NTFS mount)
-- MCP execution demonstration
-- Self-correction example display
-- Post-recording cleanup
-
-**When to Reference:**
-- Recording terminal session for demo video
-- Testing demo workflow before recording
-- Troubleshooting evidence mounting
-
----
-
-### VIDEO_STORYBOARD.md
-
-**Path:** `docs/VIDEO_STORYBOARD.md`
-**Status:** ✅ Complete (not in this conversation, but may exist)
-**Owner:** Core Team
-
-**What It Contains:**
-- Frame-by-frame description of what viewers will see
-- ASCII art representations of title cards
-- Terminal output examples
-- JSON finding examples
-- Audit log display format
-- Split-screen layout specification
-
-**When to Reference:**
-- Planning video recording
-- Understanding visual flow of demo
-- Designing title cards
+> Earlier demo drafts (voiceover scripts, storyboard, recording-command shells)
+> were removed in the 2026-06-05 prune — they carried unverified projections.
+> This is now the only recording document.
 
 ---
 
@@ -383,10 +308,9 @@ Reference this before submitting to FIND EVIL! Hackathon:
 **Goal:** Complete the only remaining competition deliverable
 
 **Tasks:**
-1. Generate AI voiceover using Chatterbox (on RTX 4090 system)
-2. Record terminal session (bash docs/TERMINAL_RECORDING_COMMANDS.sh)
-3. Combine video + audio (Option A) or record live (Option B)
-4. Edit video (add title cards, trim mistakes)
+1. Follow `docs/DEMO_RECORDING_VERIFIED.md` (pre-flight + 6 segments)
+2. Record the live terminal session on the SIFT VM with narration
+3. Edit video (add title cards, trim mistakes)
 5. Export final video (H.264, 1080p, <5 minutes)
 6. Upload to YouTube/Vimeo
 7. Update README_COMMUNITY.md with video URL
