@@ -33,15 +33,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system deps for pytsk3 + libewf-python + libpff-python
-        # These are sdist-only on PyPI and compile against system headers.
+      - name: Install system deps for pytsk3 + libewf-python + libpff-python + tshark
+        # libewf/libpff/libtsk are sdist-only on PyPI and compile against system
+        # headers. tshark is the binary the PCAP parser shells out to — without
+        # it, the scapy-driven PCAP tests fail (FileNotFoundError) instead of
+        # exercising real tshark output parsing.
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             libewf-dev \
             libpff-dev \
             libtsk-dev \
-            pkg-config
+            pkg-config \
+            tshark
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

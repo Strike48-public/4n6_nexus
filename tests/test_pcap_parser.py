@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,15 @@ import pytest
 # Skip this module cleanly when scapy is not installed (core, non-forensic env)
 # rather than failing collection.
 scapy_all = pytest.importorskip("scapy.all")
+
+# The parser invokes the real `tshark` binary. Skip the whole module when it is
+# absent (e.g. a dev box or a CI runner without Wireshark) rather than failing
+# with FileNotFoundError — the tests exercise tshark output parsing, which is
+# meaningless without tshark present. CI installs it so these actually run.
+if shutil.which("tshark") is None and not Path("/usr/bin/tshark").exists():
+    pytest.skip(
+        "tshark not installed; PCAP parser tests require it", allow_module_level=True
+    )
 IP = scapy_all.IP
 TCP = scapy_all.TCP
 UDP = scapy_all.UDP
