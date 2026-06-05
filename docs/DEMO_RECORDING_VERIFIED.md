@@ -102,6 +102,25 @@ python3 -c "import json; f=json.load(open('analysis/circl-2023-wiped/findings.js
 > intact - an asymmetry no normal OS action produces. A deliberate anti-forensic
 > wipe. Confidence 0.95, and every byte it cites is in the evidence."
 
+**[OPTIONAL second source - include if pacing allows (~20s). Different domain:
+network. Keeps the demo from looking single-trick.]**
+
+```bash
+python -m sift_find_evil.cli analyze \
+  --pcap scenarios/real/nitroba/evidence/nitroba.pcap \
+  --output analysis/nitroba/findings.json
+```
+
+**Expected (real, exit 0):** a beaconing finding to `image.weather.com` from
+`192.168.15.4`, confidence 0.95, with the reasoning chain:
+`7 events, mean interval 899.5s, coefficient of variation 0.002 (below 0.15) ->
+uniform cadence consistent with automated/beaconing traffic`.
+
+> "Different evidence, different domain - the Nitroba network capture, also
+> hash-verified. Same agent finds command-and-control beaconing: seven callbacks
+> at a near-perfect 15-minute cadence - a coefficient of variation of 0.002. It
+> doesn't just flag it; it shows the math behind the call."
+
 ---
 
 ## SEGMENT 4 - Multi-agent + self-correction (2:15-3:45)
@@ -186,6 +205,8 @@ PYTHONPATH=. python3 tests/scenario_harness.py | tail -1
 |-------|----------------|
 | CIRCL E01 SHA-256 | `c4a8145b...4f4ef15` (matches pinned hash) |
 | CIRCL analysis result | 1 CRITICAL, exit 0, wiped primary GPT |
+| nitroba PCAP SHA-256 | `2b77a9ea...53ec2fb` (matches pinned hash) |
+| nitroba analysis result | beaconing to image.weather.com, 0.95, CoV 0.002 over 7 events |
 | Orchestration | 6 findings; F-005 stays detected (0.9→0.45), rest resolved (→0.75) |
 | Audit log (demo_run) | 37 entries: 16 agent_message, 8 tool_invocation, 6 finding_emitted, 6 verification, 1 tool_blocked |
 | Guardrail block | mftecmd /etc/shadow → GuardrailViolation, logged tool_blocked |
