@@ -188,7 +188,7 @@ grep tool_blocked analysis/live_demo/audit.jsonl | tail -1 | python3 -m json.too
 python3 -c "from sift_find_evil.audit.logger import AuditLogger; [print(e.entry_id, e.action) for e in AuditLogger('analysis/demo_run/audit.jsonl').trace('F-001')]"
 
 # And the deterministic regression gate:
-PYTHONPATH=. python3 tests/scenario_harness.py | tail -1
+PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL
 ```
 **Expected (real):** `TOTAL  57  0  0  1.00  1.00  1.00`
 

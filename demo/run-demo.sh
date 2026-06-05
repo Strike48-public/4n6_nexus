@@ -109,6 +109,6 @@ say "SEGMENT 6 - Traceability + F1 (4:30-5:00)"
 note "Any finding traces to the exact tool executions that produced it:"
 run "python3 -c \"from sift_find_evil.audit.logger import AuditLogger; [print(e.entry_id, e.action) for e in AuditLogger('analysis/demo_run/audit.jsonl').trace('F-001')]\""
 note "Deterministic regression gate — expect: TOTAL 57 0 0 1.00 1.00 1.00"
-run 'PYTHONPATH=. python3 tests/scenario_harness.py | tail -1'
+run 'PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL'
 
 say "Demo complete. Stop the recorder."
