@@ -15,6 +15,48 @@ Built for the SANS FIND EVIL! Hackathon with production-grade architecture desig
 
 ---
 
+## What This Is: An Extension of Protocol SIFT
+
+SIFT Find Evil extends the **SANS SIFT Workstation / Protocol SIFT** environment
+with an autonomous, self-correcting DFIR agent. It runs on the same SIFT host and
+drives the same court-vetted forensic tools (MFTECmd, PECmd, EvtxECmd, Volatility 3,
+tshark), but adds a multi-agent reasoning layer, cross-artifact self-correction, and
+**architectural** (not prompt-based) evidence-integrity guardrails.
+
+It implements **two of the four supported FIND EVIL! architectural approaches**:
+
+- **Approach #2 - Custom MCP Server.** Every forensic tool is reached through a
+  purpose-built MCP server (`sift_find_evil/mcp/server.py`) that exposes typed,
+  read-only functions instead of a generic shell. The agent *physically cannot* run
+  destructive commands because the server does not expose them; an allowlist, path
+  containment, and a circuit breaker are enforced in code. The server parses raw tool
+  output before it reaches the model, preventing context-window overload.
+- **Approach #3 - Multi-Agent Framework.** A lead orchestrator dispatches a triage
+  agent and three domain analysts (disk, memory, network); a verifier challenges every
+  finding. No single agent holds all raw evidence in its context, and every
+  agent-to-agent message and tool execution is logged with timestamps to one correlated
+  audit trail.
+
+These two are the competition's most architecturally sound approaches - guardrails are
+enforced at the boundary, not by trusting a prompt. See
+**[docs/ARCHITECTURAL_APPROACHES.md](docs/ARCHITECTURAL_APPROACHES.md)** for the full
+mapping to the competition rules, with code references.
+
+### Two ways to run it (dual-path)
+
+| Path | Runtime | When to use |
+|------|---------|-------------|
+| **Standalone Python** (primary) | In-process orchestrator + analysts over the same MCP boundary | Judges' reproducible path, CI/CD, air-gapped or automated pipelines. **No Claude Code or Protocol SIFT install required** - pure Python. |
+| **Claude Code agents** | The same agents as Claude Code subagents (`.claude/agents/dfir-*.md`) on a Protocol SIFT host | Interactive forensics inside the Protocol SIFT / Claude Code environment. |
+
+Both paths share the **exact same core**: the MCP server (`EvidenceMCPServer`), the
+self-correction engine (`SelfCorrectionEngine`), the guardrails (`ToolGuard`), and the
+A2A audit trail. The standalone path is the centerpiece of the demo and the most
+reproducible for judges; see [Quick Start](#quick-start) below and
+[docs/DUAL_PATH_STRATEGY.md](docs/DUAL_PATH_STRATEGY.md).
+
+---
+
 ## Detection Accuracy: 14 Scenarios @ F1=1.00
 
 **Perfect precision and recall across all scored scenarios:**
@@ -937,8 +979,9 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 - CI/CD (GitHub Actions, ruff + pytest)
 
 ### 🚧 In Progress (Post-Hackathon)
+- Claude Code path packaging (`install-claude-agents.sh` convenience installer;
+  the agent definitions themselves ship in `.claude/agents/dfir-*.md`)
 - SIFT OVA deployment and integration testing
-- Protocol SIFT MCP server integration
 - Real evidence processing (M57-Patents, National Gallery)
 - PDF report generation
 - Demo video production
