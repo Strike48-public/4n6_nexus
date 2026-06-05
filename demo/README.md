@@ -11,6 +11,7 @@ Supporting artifacts for the 5-minute competition demo.
 
 | File | Purpose |
 |------|---------|
+| `run-demo.sh` | **Interactive step-through** of the verified recording commands. Run on the SIFT VM (`./demo/run-demo.sh`); it pauses at each segment so you narrate, then runs the command on Enter. `--preflight` runs only the checks; `--auto` runs without pauses (rehearsal). Mirrors `docs/DEMO_RECORDING_VERIFIED.md` exactly — that doc stays the narrative source of truth. |
 | `a2a_investigation_log.jsonl` | **Deliverable #8 sample.** Full multi-agent A2A log from a real run (37 entries: `agent_message`, `tool_invocation`, `finding_emitted`, `verification`, `tool_blocked`). Trace any finding to its tool executions: `AuditLogger('demo/a2a_investigation_log.jsonl').trace('F-001')`. |
 | `findings_sample.json` | A sample findings file (structure reference / live-failure backup). |
 | `audit_sample.jsonl` | A single real `tool_invocation` entry (raw MFTECmd output example). |
