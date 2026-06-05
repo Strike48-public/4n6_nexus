@@ -23,6 +23,41 @@ These two named approaches (from the hackathon's "Architecture Approaches" list)
 are composed: the multi-agent framework is the execution engine; the Custom MCP
 server is the enforcement boundary beneath it.
 
+## Foundation: Protocol SIFT / SIFT Workstation
+
+This system is an **extension of Protocol SIFT**, not a replacement. Everything
+above runs *on top of* the SANS SIFT Workstation environment and drives its
+court-vetted forensic tool library. The layering, bottom to top:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  SIFT Find Evil (this submission)                                  │
+│    Multi-Agent Framework  ─ orchestrator + triage + 3 analysts +   │
+│                             verifier (self-correction)             │
+│    Custom MCP Server      ─ EvidenceMCPServer + ToolGuard          │
+│                             (architectural evidence-integrity)     │
+├──────────────────────────────────────────────────────────────────┤
+│  Protocol SIFT / SANS SIFT Workstation (foundation)                │
+│    Forensic tool library  ─ MFTECmd, PECmd, EvtxECmd, RECmd,       │
+│                             Volatility 3, Sleuth Kit, …            │
+│    Linux host + evidence mounts (read-only)                        │
+│    [Claude Code agent loop — used by the interactive path]         │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**What Protocol SIFT provides (foundation):** the SIFT Workstation host, the
+forensic tool binaries, evidence mounts, and — for the interactive path — the
+Claude Code agent loop our subagents plug into.
+
+**What SIFT Find Evil adds (this submission):** the multi-agent decomposition,
+the self-correction engine, confidence scoring with reasoning chains, and the
+Custom MCP server that turns "the agent *should not* spoliate evidence" (a SIFT
+operator convention) into "the agent *cannot*" (a code-enforced boundary).
+
+The Custom MCP server sits *between* the agents and the SIFT tools precisely so
+that the evidence-integrity guarantee does not depend on the foundation's
+permission model or on prompt discipline — it is enforced in our boundary code.
+
 ---
 
 ## System architecture
@@ -59,13 +94,15 @@ graph TB
         EXEC --> ALOG
     end
 
-    subgraph TOOLS["SIFT Forensic Tools (read-only policies)"]
-        MFTE[MFTECmd]
-        PEC[PECmd]
-        EVTX[EvtxECmd]
-        RECMD[RECmd]
-        VOL[Volatility 3]
-        TSK[Sleuth Kit]
+    subgraph FOUND["Protocol SIFT / SANS SIFT Workstation (foundation host)"]
+        subgraph TOOLS["SIFT Forensic Tools (read-only policies)"]
+            MFTE[MFTECmd]
+            PEC[PECmd]
+            EVTX[EvtxECmd]
+            RECMD[RECmd]
+            VOL[Volatility 3]
+            TSK[Sleuth Kit]
+        end
     end
 
     subgraph ENGINE["Detection + Self-Correction Engine"]
@@ -95,7 +132,13 @@ graph TB
     style ALOG fill:#b7950b,color:#fff,stroke:#7d6608,stroke-width:2px
     style SC fill:#1e8449,color:#fff,stroke:#145a32,stroke-width:2px
     style BOUNDARY fill:#fdedec,stroke:#c0392b,stroke-width:2px
+    style FOUND fill:#eaf2f8,stroke:#2471a3,stroke-width:2px
 ```
+
+**Foundation (blue).** The `Protocol SIFT / SANS SIFT Workstation` subgraph is the
+host environment this submission extends: it supplies the forensic tool binaries
+and read-only evidence mounts. SIFT Find Evil's agent layer and MCP boundary sit
+above it; the MCP server is the only path from the agents down into the SIFT tools.
 
 **Trust boundary (red).** The MCP server is a hard trust boundary. Agents hold
 no tool binaries and no filesystem write path to evidence; their *only* way to
