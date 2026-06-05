@@ -18,10 +18,14 @@ Built for the SANS FIND EVIL! Hackathon with production-grade architecture desig
 ## What This Is: An Extension of Protocol SIFT
 
 SIFT Find Evil extends the **SANS SIFT Workstation / Protocol SIFT** environment
-with an autonomous, self-correcting DFIR agent. It runs on the same SIFT host and
-drives the same court-vetted forensic tools (MFTECmd, PECmd, EvtxECmd, Volatility 3,
-tshark), but adds a multi-agent reasoning layer, cross-artifact self-correction, and
-**architectural** (not prompt-based) evidence-integrity guardrails.
+with an autonomous, self-correcting DFIR agent. The **SIFT Workstation is the
+foundation** and the prerequisite for real investigations: it provides the
+court-vetted forensic tools (MFTECmd, PECmd, EvtxECmd, RECmd, Volatility 3, Sleuth
+Kit, tshark) that our agents actually drive. On real evidence, our MCP server shells
+out to those binaries, so **you install Protocol SIFT first, then this on top of it**
+(see [DEPLOY_TO_SIFT.md](DEPLOY_TO_SIFT.md)). What we add above that foundation is a
+multi-agent reasoning layer, cross-artifact self-correction, and **architectural**
+(not prompt-based) evidence-integrity guardrails.
 
 It implements **two of the four supported FIND EVIL! architectural approaches**:
 
@@ -44,16 +48,24 @@ mapping to the competition rules, with code references.
 
 ### Two ways to run it (dual-path)
 
+Both run on the SIFT Workstation foundation; they differ in what drives the agents.
+
 | Path | Runtime | When to use |
 |------|---------|-------------|
-| **Standalone Python** (primary) | In-process orchestrator + analysts over the same MCP boundary | Judges' reproducible path, CI/CD, air-gapped or automated pipelines. **No Claude Code or Protocol SIFT install required** - pure Python. |
-| **Claude Code agents** | The same agents as Claude Code subagents (`.claude/agents/dfir-*.md`) on a Protocol SIFT host | Interactive forensics inside the Protocol SIFT / Claude Code environment. |
+| **Claude Code agents** | The dfir-* agents as Claude Code subagents (`.claude/agents/dfir-*.md`) driving SIFT tools through our MCP server | Interactive forensics on a Protocol SIFT host; the live, on-narrative demo. Install with `./install-claude-agents.sh`. |
+| **Standalone Python** | In-process orchestrator + analysts over the same MCP boundary | The deterministic, judge-reproducible artifact (try-it-out + audit logs); CI/CD and automation. |
 
 Both paths share the **exact same core**: the MCP server (`EvidenceMCPServer`), the
 self-correction engine (`SelfCorrectionEngine`), the guardrails (`ToolGuard`), and the
-A2A audit trail. The standalone path is the centerpiece of the demo and the most
-reproducible for judges; see [Quick Start](#quick-start) below and
+A2A audit trail. The standalone path produces an identical-every-time audit log (its
+strength for reproducibility); the Claude Code path is the authentic Protocol SIFT
+extension for the live demo. See [Quick Start](#quick-start) below and
 [docs/DUAL_PATH_STRATEGY.md](docs/DUAL_PATH_STRATEGY.md).
+
+> **On "runs without SIFT":** the synthetic validation harness and the standalone
+> self-correction demo run on pure-Python synthetic fixtures (no SIFT tools needed),
+> which is what makes them CI-friendly. That is a *testing* convenience, not the
+> deployment model - **real evidence analysis requires the SIFT Workstation tools.**
 
 ---
 
@@ -475,8 +487,10 @@ A2A trace sequence.
 
 - **Python 3.12** (the version CI runs and the engine is tested against)
 - **Git**
-- **Optional:** native forensic libraries for real disk/memory/PST evidence
-  (see step 3 below). Not needed for the demo or the validation harness.
+- **For real evidence:** the **SIFT Workstation** (the forensic tool foundation)
+  plus native libraries — see step 3 and [DEPLOY_TO_SIFT.md](DEPLOY_TO_SIFT.md).
+  The reproducible demo below runs on bundled synthetic fixtures and needs neither,
+  which is what makes it CI-friendly; real investigations need SIFT.
 
 ### 1. Install
 
@@ -488,18 +502,22 @@ python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
 # Core dependencies — pure-Python, install on any platform. Sufficient for the
-# demo, the validation harness, and every detector against synthetic fixtures.
+# reproducible demo, the validation harness, and every detector against synthetic
+# fixtures. Real evidence additionally needs the SIFT tools (step 3 + DEPLOY_TO_SIFT.md).
 pip install -r requirements.txt
 
 python -m sift_find_evil.cli --help   # verify it loads
 ```
 
-### 2. Run the multi-agent investigation (the main demo)
+### 2. Run the multi-agent investigation (the reproducible demo)
 
-This is the centerpiece: an orchestrator dispatches a triage agent and three
-domain analysts (disk, memory, network) over a Custom MCP boundary; a verifier
-challenges every finding and resolves contradictions; one correlated
-agent-to-agent (A2A) audit log is written.
+This is the deterministic, judge-reproducible artifact: an orchestrator dispatches
+a triage agent and three domain analysts (disk, memory, network) over a Custom MCP
+boundary; a verifier challenges every finding and resolves contradictions; one
+correlated agent-to-agent (A2A) audit log is written — identical every run.
+
+> For the **interactive Claude Code path on a SIFT host** (the on-narrative
+> Protocol SIFT extension), see step 5 and [DEPLOY_TO_SIFT.md](DEPLOY_TO_SIFT.md).
 
 ```bash
 PYTHONPATH=. python3 -m sift_find_evil.orchestration --output-dir analysis/demo_run
@@ -596,6 +614,27 @@ This demonstrates:
     - resolutions_applied: 1
     - artifact_types: ['MFT', 'Prefetch', 'EventLog']
 ```
+
+### 5. Run via Claude Code on a SIFT host (interactive / demo path)
+
+On a SIFT Workstation with the `claude` CLI, register our Custom MCP server and
+let the dfir-* subagents drive the real forensic tools through the architectural
+boundary:
+
+```bash
+# After git clone + pip install on the SIFT host:
+./install-claude-agents.sh \
+  --case-id INC-2026-001 \
+  --evidence-root /cases/INC-2026-001/evidence \
+  --audit-path    /cases/INC-2026-001/audit.jsonl
+
+claude mcp list                                   # confirm 'sift-find-evil'
+claude "Run a full forensic analysis on case INC-2026-001"
+```
+
+The repo ships the agent definitions (`.claude/agents/dfir-*.md`) and a
+project-scope `.mcp.json`. See [DEPLOY_TO_SIFT.md](DEPLOY_TO_SIFT.md) for the full
+SIFT deployment walkthrough.
 
 ### Analyze Real Evidence
 
@@ -979,9 +1018,9 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 - CI/CD (GitHub Actions, ruff + pytest)
 
 ### 🚧 In Progress (Post-Hackathon)
-- Claude Code path packaging (`install-claude-agents.sh` convenience installer;
-  the agent definitions themselves ship in `.claude/agents/dfir-*.md`)
-- SIFT OVA deployment and integration testing
+- Live SIFT OVA verification of the Claude Code path (the stdio MCP server,
+  `.mcp.json`, and `install-claude-agents.sh` all ship; end-to-end run on the
+  OVA against real evidence is the remaining validation step)
 - Real evidence processing (M57-Patents, National Gallery)
 - PDF report generation
 - Demo video production
