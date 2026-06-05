@@ -12,6 +12,45 @@ This document describes all forensic datasets used for testing, validation, and 
 
 ---
 
+## Why this matters: the speed problem
+
+The datasets below are not chosen to chase a benchmark score — they exist to prove
+an agent can investigate at the pace modern threats demand.
+
+In November 2025, Anthropic's security team published findings on **GTG-1002**, a
+Chinese state-sponsored operation in which attackers drove **Claude Code** to run
+autonomous reconnaissance, exploitation, and lateral movement at **80-90% autonomy**,
+at request rates Anthropic described as **"physically impossible"** for human
+operators. That is the offensive side of agentic AI; the SANS SIFT Workstation and
+Protocol SIFT are the defensive platform, and FIND EVIL! exists to close the gap.
+
+The gap is one of velocity. Manual command-line incident response cannot keep up
+with autonomous agents executing thousands of requests:
+
+| Signal | Figure | Source |
+|--------|--------|--------|
+| Fastest observed eCrime breakout time | **2 minutes 7 seconds** | CrowdStrike 2024 Threat Hunting Report |
+| Average eCrime breakout time | **62 minutes** | CrowdStrike 2024 |
+| Autonomous AI recon-to-exploit cycles | minutes, unattended | Horizon3 / industry red-team reporting |
+| AI-augmented adversary speed multiplier | up to **~47x** faster than manual | MIT / academic red-team studies |
+
+Breakout time is the window between initial foothold and lateral movement — the
+minutes a defender has to detect, triage, and contain before the intrusion spreads.
+When that window is measured in single-digit minutes, a human looking up
+command-line flags has already lost.
+
+**This drives our dataset strategy.** We test against (a) deterministic synthetic
+fixtures that prove the detection logic is correct and regression-locked at machine
+speed (F1 = 1.00 in CI, seconds per run), and (b) real, independently-sourced
+evidence (CIRCL, Digital Corpora) that proves the same logic holds on genuine
+artifacts. The agent's job is to do the senior-analyst reasoning — sequence the
+approach, notice when artifacts disagree, self-correct — fast enough to matter
+inside the breakout window. The authoritative results live in
+[EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md); speed is measured in
+[PERFORMANCE_BENCHMARK.md](PERFORMANCE_BENCHMARK.md).
+
+---
+
 ## Dataset Strategy
 
 **Hybrid approach:**
