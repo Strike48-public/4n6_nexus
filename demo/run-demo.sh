@@ -103,6 +103,10 @@ note "(Reads the MCP server's audit path; find it if the default location differ
 AUDIT_FILE="${SFE_AUDIT_PATH:-analysis/live_demo/audit.jsonl}"
 [ -f "$AUDIT_FILE" ] || AUDIT_FILE="$(find analysis -name audit.jsonl -newer "$CIRCL_E01" 2>/dev/null | head -1)"
 run "grep tool_blocked '${AUDIT_FILE:-analysis/live_demo/audit.jsonl}' | tail -1 | python3 -m json.tool"
+note "OPTIONAL adversarial framing (~15s, cut first if over time): evidence is"
+note "attacker-controlled input; injection/poisoning can target the responder's"
+note "agent. Architectural answer: injection can't reach a destructive tool. We"
+note "don't claim to SOLVE injection - we decouple it from impact. (See script.)"
 
 # --- segment 6: close -------------------------------------------------------
 say "SEGMENT 6 - Traceability + F1 (4:30-5:00)"

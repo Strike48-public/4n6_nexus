@@ -179,6 +179,20 @@ grep tool_blocked analysis/live_demo/audit.jsonl | tail -1 | python3 -m json.too
 > "And the blocked attempt is logged - which agent, what it tried, why it was
 > denied. A bypass attempt isn't just stopped; it's evidence."
 
+**[OPTIONAL — adversarial framing, ~15s. Say it over the audit JSON if pacing
+allows; it elevates the block from a feature to a threat-model answer. Cut first
+if over time.]**
+
+> "This matters because the evidence is attacker-controlled input. A sophisticated
+> adversary - the kind this competition was built around - can target the
+> responder's agent: poison it with a crafted artifact, or bury it in a giant file
+> to exhaust its context. Our answer is architectural. Even if a prompt injection
+> hidden in the evidence convinces the agent to *try* something, it still can't
+> reach a destructive tool - the boundary rejects it in code. We don't claim to
+> solve prompt injection; nobody has. But we decouple the injection from the
+> impact. The agent can be fooled in what it says - it cannot act against the
+> evidence."
+
 ---
 
 ## SEGMENT 6 - Close (4:30-5:00)

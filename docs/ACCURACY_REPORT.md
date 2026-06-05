@@ -222,6 +222,37 @@ because anything not on the per-tool allowlist is rejected.
 
 ---
 
+## 6. Adversarial resilience (the agent as an attack surface)
+
+The evidence an autonomous DFIR agent ingests is **attacker-controlled input**. A
+sophisticated adversary (the GTG-1002 threat class this competition was created
+around) can target the *responder's* agent, not just evade it. We assess that
+explicitly, with the same contained / mitigated / open honesty we apply to
+detection accuracy.
+
+| Agent-targeted attack | Posture | Why |
+|---|---|---|
+| **Evidence spoliation** (make the agent destroy/alter its own case) | **Contained (architectural)** | No tool writes to evidence; the capability does not exist at the boundary. Bypass-tested (§5). |
+| **Context-exhaustion / token-wasting** (multi-GB or pathological artifact to blow the context window / run up cost) | **Mitigated (structural)** | MCP parses tool output into typed rows before the model sees it (no raw dump enters context); multi-agent split means no single context holds all evidence; the circuit breaker halts the boundary after N consecutive failures, bounding retry-and-burn loops. Not a complete DoS defense. |
+| **Prompt injection / LLM poisoning via evidence content** (a crafted filename, registry value, or log line carrying instructions to the model) | **Partially mitigated — NOT solved** | Open research problem industry-wide. Our architecture *decouples injection from impact*: injected text cannot reach a destructive or out-of-bounds tool call (the guardrail rejects it in code). Analytical friction added: findings must cite `source_tool_invocations`, the verifier independently challenges each finding, and reasoning chains separate observation from inference — so an injected *claim* with no tool execution behind it is anomalous. **Honest boundary: a clever injection could still skew what the agent *says*; it cannot make the agent *act* against the evidence.** |
+| **Tampering with our own conclusions** (alter a finding or its chain of custody after the fact) | **Contained** | Append-only JSONL audit trail; approved findings carry a SHA-256 signature hash for tamper detection. |
+
+**What we did and did not test.** Spoliation and out-of-bounds access are
+actively bypass-tested (§5, 17 passing tests + the live demo). Context-exhaustion
+mitigations are structural properties of the design, not yet driven by a
+purpose-built adversarial fixture. Prompt-injection resilience is **reasoned, not
+empirically tested** — we have not run a corpus of injection-laden evidence
+against the agent. We state this as a known gap rather than imply coverage we
+don't have; injection-resilience testing is on the roadmap.
+
+The design principle: an autonomous DFIR agent is only trustworthy at the
+nation-state tier if its safety holds **even when the model is wrong, jailbroken,
+or fed hostile input** — i.e. when safety is structural, not prompt-based. That is
+the property §5 proves for evidence integrity, and the bar the items above are
+measured against.
+
+---
+
 ## Caveats (honest limitations)
 
 - **Synthetic fixtures.** Scenarios are hand-authored CSV/JSON that mirror real
