@@ -60,12 +60,28 @@ Two real datasets were run end-to-end through the engine (artifacts in
 |---|---|---|---|---|---|
 | `circl-2023-wiped` | real | 1 | 0 | 0 | Anti-forensics / wiped disk; one high-confidence finding (0.95). |
 | `m57-jean` | real | 0 | 0 | 0 | Ran clean against the engine's current detector scope. |
+| `nitroba` | real | 1 beaconing + 0 DNS | 1 (FP-audit) | — | Network FP-validation run (SFE-fqn) via tshark; see note below. |
 
-These two are the *only* real datasets with verified run artifacts. Other
-datasets named in `scenarios/` (e.g. `insider_threat_2022`, `nitroba`,
-`apt_attack_2015`) are **downloaded/staged but not yet validated** — they appear
-as unchecked items in `scenarios/VALIDATION.md` and have no run output. We do not
-report numbers for them.
+These are the real datasets with verified run artifacts. Other datasets named
+in `scenarios/` (e.g. `insider_threat_2022`, `apt_attack_2015`) are
+**downloaded/staged but not yet validated** — they appear as unchecked items in
+`scenarios/VALIDATION.md` and have no run output. We do not report numbers for
+them.
+
+> **Network FP validation (SFE-fqn).** The Nitroba campus capture (4,850 HTTP
+> requests, 1,488 DNS queries) was run through the network detectors as a
+> false-positive audit (`analysis/fp_validate_nitroba.py`). Two findings of
+> note: (1) `BeaconingDetector` fired on a benign `image.weather.com` widget (7
+> polls, ~900s interval, CoV=0.0016) — a true false positive in the sense that
+> the host is not malicious, but a *correct* triage signal (regular automated
+> cadence). Cadence alone cannot distinguish a benign timer from C2, so its
+> confidence is now **capped at Medium (0.70)** rather than presented as a
+> high-confidence verdict. (2) `DNSAnomalyDetector` produced **zero** findings;
+> the longest real DNS label was 26 chars, well under the 40-char trigger, so
+> the audit's "CDN suppression list incomplete" hypothesis did **not** reproduce
+> and the list was left unchanged. The remaining FP-audit candidates
+> (memory/Linux-image detectors) require evidence not yet available and are
+> tracked as follow-up tickets.
 
 > **Correction (authoritative).** Earlier docs across this repo — including the
 > top-level README and `PERFORMANCE_BENCHMARK.md` — cite a "1,071 findings /
