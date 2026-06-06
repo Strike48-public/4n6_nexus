@@ -392,3 +392,63 @@ def test_max_findings_per_file_limit(tmp_path: Path) -> None:
     # Top 2 are HIGH + MEDIUM, LOW dropped.
     rules = {f.evidence["rule"] for f in findings}
     assert "benign_low" not in rules
+
+
+# -- low-quality rule confidence floor (SFE-box) ---------------------------
+# Community rulesets include broad, low-severity rules that fire on benign
+# files. An opt-in min_confidence floor lets callers drop matches that land
+# below a quality threshold WITHOUT changing the default behavior (the floor
+# defaults to 0.0, so existing scenarios and callers are unaffected).
+
+
+def test_min_confidence_defaults_to_no_floor(
+    scanner_multi: YaraScanner, both_file: Path
+) -> None:
+    # Default construction keeps every match (back-compat: scenario 11 etc.).
+    detector = YaraDetector(scanner=scanner_multi)
+    findings = detector.analyze_file(both_file)
+    assert len(findings) >= 2
+
+
+def test_min_confidence_floor_drops_low_severity_match(tmp_path: Path) -> None:
+    # A broad severity=low rule (base conf 0.50) lands below a 0.60 floor and
+    # is dropped, while a HIGH-severity hit on the same file survives.
+    (tmp_path / "mz.yar").write_text(_MZ_HIGH_RULE)
+    (tmp_path / "benign.yar").write_text(_BENIGN_LOW_RULE)
+    scanner = YaraScanner.compile_from_directory(tmp_path)
+    target = tmp_path / "mixed.bin"
+    target.write_bytes(b"MZ\x90\x00 contains BENIGN marker")
+    detector = YaraDetector(scanner=scanner, min_confidence=0.60)
+    findings = detector.analyze_file(target)
+    rules = {f.evidence["rule"] for f in findings}
+    assert "mz_header_high" in rules
+    assert "benign_low" not in rules
+
+
+def test_min_confidence_floor_applies_in_directory_scan(tmp_path: Path) -> None:
+    (tmp_path / "benign.yar").write_text(_BENIGN_LOW_RULE)
+    scanner = YaraScanner.compile_from_directory(tmp_path)
+    sample = tmp_path / "doc.txt"
+    sample.write_text("this file is BENIGN")
+    detector = YaraDetector(scanner=scanner, min_confidence=0.60)
+    assert detector.analyze_directory(tmp_path) == []
+
+
+def test_min_confidence_floor_keeps_eicar_grade_match(tmp_path: Path) -> None:
+    # The EICAR rule (high + family + mitre -> 0.95) must survive any sane floor:
+    # scenario 11 stays F1=1.00 even if a deployment opts into a floor.
+    (tmp_path / "mz.yar").write_text(_MZ_HIGH_RULE)
+    scanner = YaraScanner.compile_from_directory(tmp_path)
+    target = tmp_path / "sample.bin"
+    target.write_bytes(b"MZ\x90\x00")
+    detector = YaraDetector(scanner=scanner, min_confidence=0.85)
+    findings = detector.analyze_file(target)
+    assert len(findings) == 1
+    assert findings[0].evidence["rule"] == "mz_header_high"
+
+
+def test_invalid_min_confidence_raises(scanner_high: YaraScanner) -> None:
+    with pytest.raises(ValueError, match="min_confidence"):
+        YaraDetector(scanner=scanner_high, min_confidence=-0.1)
+    with pytest.raises(ValueError, match="min_confidence"):
+        YaraDetector(scanner=scanner_high, min_confidence=1.5)

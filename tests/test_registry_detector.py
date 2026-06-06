@@ -356,3 +356,80 @@ def test_launcher_basename_malformed_quotes():
     # Missing closing quote - should return None
     result = RegistryDetector._launcher_basename('"C:\\test.exe')
     assert result is None
+
+
+# --- benign-autostart suppression (SFE-box) ---------------------------------
+# Real workstations run OneDrive/Teams/Spotify/Dropbox/GPU-driver helpers that
+# auto-start from user-writable directories (AppData\Roaming, AppData\Local).
+# A *path-only* Run-key signal on a known-good vendor path is noise, not
+# persistence. Suppress those while keeping every true positive: any second
+# signal (LOLBAS host, hidden flags, double extension) re-escalates, and an
+# unknown binary in a user-writable path stays a Low finding.
+
+
+def test_run_key_path_only_benign_onedrive_appdata_suppressed():
+    # OneDrive legitimately auto-starts from AppData\Local\Microsoft\OneDrive.
+    # Path-only on a known vendor sub-path -> no finding.
+    entry = _run_key(
+        value_name="OneDrive",
+        command='"C:\\Users\\alice\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe" /background',
+    )
+    assert RegistryDetector().analyze(run_keys=[entry]) == []
+
+
+def test_run_key_path_only_benign_spotify_roaming_suppressed():
+    # Spotify auto-starts from AppData\Roaming\Spotify.
+    entry = _run_key(
+        value_name="Spotify",
+        command="C:\\Users\\alice\\AppData\\Roaming\\Spotify\\Spotify.exe --autostart",
+    )
+    assert RegistryDetector().analyze(run_keys=[entry]) == []
+
+
+def test_run_key_path_only_benign_teams_appdata_suppressed():
+    entry = _run_key(
+        value_name="com.squirrel.Teams.Teams",
+        command='C:\\Users\\alice\\AppData\\Local\\Microsoft\\Teams\\Update.exe --processStart "Teams.exe"',
+    )
+    assert RegistryDetector().analyze(run_keys=[entry]) == []
+
+
+def test_run_key_unknown_binary_in_userwritable_still_low_finding():
+    # An UNKNOWN binary in a user-writable path is NOT on the allowlist and
+    # must still surface as a Low path-only finding (no over-suppression).
+    entry = _run_key(
+        command="C:\\Users\\alice\\AppData\\Roaming\\totally_legit\\helper.exe",
+    )
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+    assert findings[0].confidence == 0.50
+    assert findings[0].confidence_label == "Low"
+
+
+def test_run_key_vendor_path_with_second_signal_not_suppressed():
+    # A vendor-name path that ALSO carries a strong signal (hidden PowerShell
+    # flags) is an adversary masquerading under a trusted path — must NOT be
+    # suppressed by the allowlist.
+    entry = _run_key(
+        value_name="OneDrive",
+        command=(
+            "powershell.exe -nop -w hidden -ep bypass -File "
+            "C:\\Users\\alice\\AppData\\Local\\Microsoft\\OneDrive\\update.ps1"
+        ),
+    )
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+    # Multiple strong signals -> High, never suppressed.
+    assert findings[0].confidence_label == "High"
+
+
+def test_scenario08_beacon_run_key_still_flagged():
+    # Guard the protected invariant directly: scenario 08's Run key
+    # (powershell -enc against C:\Users\Public\beacon.ps1) must stay flagged.
+    entry = _run_key(
+        value_name="WindowsDefenderUpdate",
+        command="powershell.exe -nop -w hidden -ep bypass -File C:\\Users\\Public\\beacon.ps1",
+    )
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+    assert findings[0].confidence == 0.80

@@ -52,6 +52,31 @@ _SUSPICIOUS_PATH_FRAGMENTS: tuple[str, ...] = (
     "\\perflogs\\",
 )
 
+# Vendor sub-paths that legitimately auto-start from user-writable directories
+# on a normal workstation (OneDrive, Teams, Spotify, Dropbox, ...). A Run key
+# whose ONLY signal is "lives under a user-writable directory" and whose command
+# points at one of these vendor paths is autostart noise, not persistence.
+# Matched case-insensitively against the full command. Mirrors the LNK detector's
+# _STARTUP_SIGNED_TARGET_FRAGMENTS allowlist. An adversary can drop a binary into
+# one of these directories, but a name match plus the full vendor sub-path is
+# strong evidence of legitimate software — and ANY second signal (LOLBAS host,
+# hidden flags, double extension) re-escalates past this allowlist. (SFE-box)
+_BENIGN_AUTOSTART_PATH_FRAGMENTS: tuple[str, ...] = (
+    "\\appdata\\roaming\\spotify\\",
+    "\\appdata\\local\\microsoft\\onedrive\\",
+    "\\appdata\\roaming\\microsoft\\onedrive\\",
+    "\\appdata\\local\\microsoft\\teams\\",
+    "\\appdata\\roaming\\dropbox\\",
+    "\\appdata\\local\\dropbox\\",
+    "\\appdata\\roaming\\zoom\\",
+    "\\appdata\\local\\slack\\",
+    "\\appdata\\roaming\\slack\\",
+    "\\appdata\\local\\google\\chrome\\",
+    "\\appdata\\local\\google\\update\\",
+    "\\appdata\\local\\discord\\",
+    "\\appdata\\roaming\\discord\\",
+)
+
 _LOLBAS_LAUNCHERS: frozenset[str] = frozenset(
     {
         "powershell.exe",
@@ -200,8 +225,24 @@ class RegistryDetector:
             reasons = self._run_key_reasons(entry)
             if not reasons:
                 continue
+            if self._is_benign_autostart(entry.command, reasons):
+                continue
             findings.append(self._build_run_key_finding(entry, reasons))
         return findings
+
+    @staticmethod
+    def _is_benign_autostart(command: str, reasons: list[str]) -> bool:
+        """True when the ONLY signal is a path match on a known-good autostart app.
+
+        A single path-only reason ("lives under ...") on a recognised vendor
+        sub-path is autostart noise. Any additional signal (LOLBAS host, hidden
+        flags, double extension) means ``len(reasons) > 1`` and re-escalates,
+        so this never suppresses a multi-signal finding.
+        """
+        if len(reasons) != 1 or "lives under" not in reasons[0].lower():
+            return False
+        lowered = command.lower()
+        return any(fragment in lowered for fragment in _BENIGN_AUTOSTART_PATH_FRAGMENTS)
 
     def _run_key_reasons(self, entry: RunKeyEntry) -> list[str]:
         """Return one reason string per suspicious signal in a Run key."""

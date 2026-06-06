@@ -73,11 +73,19 @@ class YaraDetector:
         *,
         scanner: YaraScanner,
         max_findings_per_file: int = _DEFAULT_MAX_FINDINGS_PER_FILE,
+        min_confidence: float = 0.0,
     ):
         if max_findings_per_file <= 0:
             raise ValueError("max_findings_per_file must be positive")
+        if not 0.0 <= min_confidence <= 1.0:
+            raise ValueError("min_confidence must be between 0.0 and 1.0")
         self._scanner = scanner
         self._max_findings_per_file = max_findings_per_file
+        # Opt-in quality floor: drop matches below this confidence. Defaults to
+        # 0.0 (no floor) so existing callers and scenarios are unaffected. Lets
+        # a deployment suppress broad, low-severity community-rule hits without
+        # rewriting confidence logic. (SFE-box)
+        self._min_confidence = min_confidence
 
     def analyze_file(self, target: Path) -> list[Finding]:
         """Scan one file and return its findings (highest-confidence first)."""
@@ -108,7 +116,8 @@ class YaraDetector:
         return findings
 
     def _rank_and_cap(self, findings_iter: Iterable[Finding]) -> list[Finding]:
-        ranked = sorted(findings_iter, key=lambda f: f.confidence, reverse=True)
+        floored = (f for f in findings_iter if f.confidence >= self._min_confidence)
+        ranked = sorted(floored, key=lambda f: f.confidence, reverse=True)
         return ranked[: self._max_findings_per_file]
 
     def _match_to_finding(self, match: YaraMatch) -> Finding:
