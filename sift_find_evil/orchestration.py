@@ -291,6 +291,25 @@ class InvestigationOrchestrator:
                 }
                 for fid, f, v in verified
             ],
+            # Rich, case-shaped findings (FindingWithApproval) for report
+            # generation. The verifier's verdict + confidence transition are
+            # folded into the finding dict so the report's finding-flow diagram
+            # and self-correction note have everything they need. Additive: the
+            # flat "findings" key above is unchanged for existing callers.
+            "case_findings": [
+                {
+                    "finding_id": fid,
+                    "finding": {
+                        **f.to_dict(),
+                        "verdict": v.verdict,
+                        "confidence_before": v.confidence_before,
+                        "confidence_after": v.confidence_after,
+                    },
+                    "approval": None,
+                    "created_at": f.detected_at.isoformat(),
+                }
+                for fid, f, v in verified
+            ],
         }
 
     # -- analyst internals ---------------------------------------------------

@@ -496,10 +496,15 @@ class ReportGenerator:
                     out.append(f"- {k}: `{v}`")
                 out.append("")
 
-        # Self-correction note, if the verdict/transition is present on the row.
-        verdict = item.get("verdict")
+        # Self-correction note, if the verdict/transition is present (item level
+        # or folded into the finding dict by the orchestration).
+        verdict = item.get("verdict") or finding.get("verdict")
         before = item.get("confidence_before")
+        if before is None:
+            before = finding.get("confidence_before")
         after = item.get("confidence_after")
+        if after is None:
+            after = finding.get("confidence_after")
         if verdict and before is not None and after is not None:
             out.append(
                 f"*Self-correction:* verifier verdict **{verdict}** "
@@ -529,14 +534,21 @@ class ReportGenerator:
 
     @staticmethod
     def _finding_flow_row(item: dict) -> dict:
-        """Flatten an approval-shaped finding dict into a diagram row."""
+        """Flatten an approval-shaped finding dict into a diagram row.
+
+        Reads verdict / confidence transition from either the item level or the
+        nested ``finding`` dict (the orchestration folds them into ``finding`` so
+        they survive the FindingWithApproval round-trip).
+        """
         finding = item.get("finding", {}) if "finding" in item else item
         return {
             "finding_id": item.get("finding_id") or finding.get("finding_id"),
             "label": finding.get("title") or item.get("label"),
             "verdict": finding.get("verdict") or item.get("verdict") or "reported",
-            "confidence_before": item.get("confidence_before"),
-            "confidence_after": item.get("confidence_after"),
+            "confidence_before": item.get("confidence_before")
+            or finding.get("confidence_before"),
+            "confidence_after": item.get("confidence_after")
+            or finding.get("confidence_after"),
             "confidence": finding.get("confidence"),
         }
 
