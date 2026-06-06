@@ -151,7 +151,7 @@ machine-readable copy is written to `analysis/scenario_report.json`.)
 Run the full test suite too, if you want:
 
 ```bash
-PYTHONPATH=. python3 -m pytest -q          # 1030 tests
+PYTHONPATH=. python3 -m pytest -q          # 1,000+ tests, all passing
 ```
 
 ## 6. (Optional) Run against real evidence

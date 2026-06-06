@@ -21,7 +21,7 @@ Built on **SANS SIFT Workstation** and the **MCP (Model Context Protocol)**, 4n6
 > **FIND EVIL! Hackathon Submission**
 >
 > - **F1 Score:** 1.00 (perfect precision and recall on synthetic scenarios)
-> - **Test Coverage:** 14 scenarios pass, 57 findings; 1030 tests, 95% coverage
+> - **Test Coverage:** 14 scenarios pass, 57 findings; 1,000+ tests, ~94% coverage
 > - **Real Evidence:** verified run artifacts for `circl-2023-wiped` (1 finding)
 >   and `m57-jean` (0). See [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
 

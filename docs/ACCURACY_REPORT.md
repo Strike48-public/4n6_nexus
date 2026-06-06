@@ -49,7 +49,7 @@ Scenario harness run, all figures from the live run that writes
 
 14 scenarios, 57 true-positive findings, **0 false positives, 0 false
 negatives** (micro-averaged F1 = 1.00). The full unit + integration suite is
-**1030 tests** at 95% line coverage.
+**1,000+ tests** at ~94% line coverage (CI gate: 85% minimum).
 
 ### Real evidence
 
