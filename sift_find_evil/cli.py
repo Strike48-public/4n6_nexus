@@ -52,8 +52,8 @@ def print_banner():
     banner = """
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   SIFT FIND EVIL - Find Evil                                 ║
-║   Autonomous DFIR Detection with Self-Correction             ║
+║   4n6 Nexus  (SANS FIND EVIL! entry: SIFT Find Evil)          ║
+║   Autonomous DFIR Detection with Architectural Self-Correction║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
 """
