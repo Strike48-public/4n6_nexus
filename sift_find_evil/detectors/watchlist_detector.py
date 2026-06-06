@@ -65,15 +65,17 @@ _DEFAULT_HOST_CATEGORIES: dict[str, tuple[str, ...]] = {
         "http.kali.org",
         "john.openwall.com",
     ),
+    # Anonymous / abuse-favored file hosts only. Mainstream consumer services
+    # (wetransfer, mega, mediafire, 4shared, sendspace) were removed: they see
+    # heavy legitimate business/personal use, so flagging their hostname alone as
+    # a "suspicious host" is a false positive (the SFE-9nm class -- necessary, not
+    # sufficient). Genuine exfiltration to those services is still caught by the
+    # cloud-upload detector, which requires correlated upload + sensitive-file
+    # signals rather than mere hostname presence.
     "anon_file_hosts": (
         "anonfiles.com",
         "transfer.sh",
         "file.io",
-        "mega.nz",
-        "mediafire.com",
-        "4shared.com",
-        "sendspace.com",
-        "wetransfer.com",
     ),
 }
 
