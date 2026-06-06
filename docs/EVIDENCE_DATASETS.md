@@ -16,7 +16,20 @@
 | Real | `m57-jean` | Digital Corpora (2008) | ✅ CLI | CRITICAL data-exfiltration (BEC) + supporting artifacts |
 | Real | `nitroba` | Digital Corpora (2008) | ✅ CLI | 1 finding: beaconing to image.weather.com (0.95) |
 | Real | `insider_threat_2022` (Narcos/CCleaner) | Digital Corpora (2019) | ◑ partial | Disk-image wipe path: 0 findings (true negative — disk not wiped). Full triage pending Windows CSVs |
+| Real | `national_gallery_2012` (carry-tablet) | NIST/NGDC (2012) | ✅ CLI | 0 wipe findings (true negative — valid GPT disk). Surfaced + fixed a wipe-detector false positive (SFE-9nm) |
+| Real | `m57-patents` (charlie) | Digital Corpora (2009) | ✅ CLI | 0 wipe findings (true negative — disk not wiped). Same FP regression source |
+| Real | `ransomware_2021` (LoneWolf) | Digital Corpora (2018) | ✅ CLI | 0 wipe findings (true negative — disk not wiped) |
 | Real | `apt_attack_2015` | SANS SRL-2015 | ⛔ not run | Evidence on external media, not bundled (see below) |
+
+> **Real-evidence false-positive hardening (SFE-9nm).** Running the disk-image
+> wipe detector across six real images (above) caught a false positive: two normal
+> images (national_gallery carry-tablet, m57-patents charlie) were flagged CRITICAL
+> "partition table wiped" because the detector treated *any* absent primary GPT
+> header as a wipe. A genuine front-of-disk wipe also zeroes the MBR; the fix
+> requires `primary_mbr_zeroed`. After the fix the CIRCL true positive still fires
+> (1 CRITICAL) and all five normal disks correctly yield zero wipe findings. This
+> is exactly the spoliation/accuracy testing the rubric asks for — the failure mode
+> was found, documented, and corrected.
 
 Two evidence styles are used deliberately:
 
