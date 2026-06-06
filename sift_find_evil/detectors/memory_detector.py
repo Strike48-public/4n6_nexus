@@ -215,6 +215,28 @@ _LINUX_LM_PORTS: frozenset[int] = frozenset(
 # whose PPID is not 2 is a masquerade attempt (MITRE T1036).
 _KTHREADD_PID = 2
 
+# TCP states that carry no live remote endpoint. LISTENING sockets are
+# servers waiting for clients; the half-dead states (CLOSE_WAIT, TIME_WAIT,
+# FIN_WAIT*, CLOSING, LAST_ACK) plus CLOSED are torn-down connections that
+# netscan recovered from pool memory. None of these represent a socket
+# actively carrying traffic at snapshot time. SFE-qad: on a real benign
+# baseline (SRL-2018 base-wkstn-01) netscan carved 14 CLOSED unowned
+# sockets whose owning PID had already been reclaimed; without this filter
+# the unowned-socket branch raised 14 false T1014 rootkit findings.
+_INACTIVE_TCP_STATES: frozenset[str] = frozenset(
+    {
+        "LISTENING",
+        "LISTEN",
+        "CLOSED",
+        "CLOSE_WAIT",
+        "TIME_WAIT",
+        "FIN_WAIT1",
+        "FIN_WAIT2",
+        "CLOSING",
+        "LAST_ACK",
+    }
+)
+
 
 class MemoryDetector:
     """Convert Volatility plugin rows into Findings.
@@ -527,8 +549,13 @@ class MemoryDetector:
     def _classify_netscan_row(self, row: NetworkRow) -> Optional[Finding]:
         # Unowned sockets — kernel-side or hidden process — fire first
         # regardless of destination. This is the T1014 adjunct to the
-        # pslist/psscan divergence finding.
+        # pslist/psscan divergence finding. We still require a live remote
+        # endpoint: a CLOSED / half-dead unowned socket is a torn-down
+        # connection netscan carved from freed pool memory (whose PID was
+        # naturally reclaimed), not a hidden live socket (SFE-qad).
         if row.pid is None and not (row.owner or "").strip():
+            if (row.state or "").upper() in _INACTIVE_TCP_STATES:
+                return None
             if row.foreign_addr and not _is_loopback(row.foreign_addr):
                 return self._build_unowned_socket_finding(row)
             return None
@@ -552,17 +579,7 @@ class MemoryDetector:
         # counting the same conversation whose ESTABLISHED half already
         # fired (or was missed, in which case it is lost regardless).
         state = (row.state or "").upper()
-        if state in {
-            "LISTENING",
-            "LISTEN",
-            "CLOSED",
-            "CLOSE_WAIT",
-            "TIME_WAIT",
-            "FIN_WAIT1",
-            "FIN_WAIT2",
-            "CLOSING",
-            "LAST_ACK",
-        }:
+        if state in _INACTIVE_TCP_STATES:
             return None
 
         basename = _normalize_basename(row.owner or "")
@@ -688,7 +705,7 @@ class MemoryDetector:
         ]
         if is_reverse_shell_port:
             reasons.append(
-                f"Destination port {port} is a known reverse-shell / C2 " "default"
+                f"Destination port {port} is a known reverse-shell / C2 default"
             )
             confidence, label, severity = 0.80, "High", "high"
         else:
@@ -867,8 +884,7 @@ class MemoryDetector:
     def _build_linux_kthread_masquerade_finding(self, row: LinuxProcessRow) -> Finding:
         return Finding(
             title=(
-                f"Kernel-worker masquerade: PID {row.pid} ({row.name}) "
-                f"ppid={row.ppid}"
+                f"Kernel-worker masquerade: PID {row.pid} ({row.name}) ppid={row.ppid}"
             ),
             description=(
                 f"Volatility linux.pslist shows PID {row.pid} with COMM "

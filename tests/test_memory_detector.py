@@ -477,6 +477,51 @@ def test_netscan_unowned_socket_fires_hidden() -> None:
     assert "T1014" in findings[0].evidence["mitre_attack"]
 
 
+def test_netscan_unowned_closed_socket_skipped() -> None:
+    """Reproduced FP (SFE-qad): on a real benign baseline (SRL-2018
+    base-wkstn-01, md5 7586e0cd...), windows.netscan recovered 16 CLOSED
+    TCPv4 sockets from freed pool memory whose owning PID had already been
+    reclaimed. The unowned-socket branch flagged every one as a T1014
+    rootkit signal — 14 false highs on a clean host. A CLOSED / half-dead
+    socket with no owner is a torn-down connection netscan carved after the
+    process exited, NOT a hidden live socket. Apply the same half-dead state
+    filter that already guards owned sockets before raising the rootkit
+    finding."""
+    for state in (
+        "CLOSED",
+        "CLOSE_WAIT",
+        "TIME_WAIT",
+        "FIN_WAIT1",
+        "FIN_WAIT2",
+        "CLOSING",
+        "LAST_ACK",
+    ):
+        row = _netscan_row(
+            pid=None,
+            owner=None,
+            foreign_addr="172.16.4.10",
+            foreign_port=8080,
+            state=state,
+        )
+        findings = MemoryDetector().analyze(netscan=[row])
+        assert findings == [], f"unowned state={state} should be skipped"
+
+
+def test_netscan_unowned_established_socket_still_fires() -> None:
+    """The fix must not over-correct: an unowned ESTABLISHED socket to a
+    routable peer is still the canonical T1014 signal and must keep firing.
+    (On the same real baseline, 2 of 18 unowned sockets were ESTABLISHED.)"""
+    row = _netscan_row(
+        pid=None,
+        owner=None,
+        foreign_addr="198.51.100.7",
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(netscan=[row])
+    assert len(findings) == 1
+    assert "T1014" in findings[0].evidence["mitre_attack"]
+
+
 def test_netscan_benign_chrome_does_not_fire() -> None:
     """A browser talking HTTPS is noise — don't flag every outbound 443."""
     row = _netscan_row(
