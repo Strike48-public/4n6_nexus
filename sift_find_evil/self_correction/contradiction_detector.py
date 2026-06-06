@@ -125,7 +125,9 @@ class ContradictionDetector:
 
         # Check for causality violation
         violation_details = self.comparator.detect_causality_violation(
-            mft_modified, prefetch_last_run, tolerance_seconds=300  # 5-minute tolerance
+            mft_modified,
+            prefetch_last_run,
+            tolerance_seconds=300,  # 5-minute tolerance
         )
 
         if violation_details:
@@ -175,7 +177,9 @@ class ContradictionDetector:
 
         # Check for timestomping
         timestomping = self.comparator.detect_timestomping(
-            si_modified, fn_modified, tolerance_seconds=60  # 1-minute tolerance
+            si_modified,
+            fn_modified,
+            tolerance_seconds=60,  # 1-minute tolerance
         )
 
         if timestomping:
@@ -401,9 +405,30 @@ class ContradictionDetector:
             if temporal:
                 contradictions.append(temporal)
 
-        # Check for missing Prefetch artifacts
-        for mft_entry in mft_entries:
-            if mft_entry.file_name.lower().endswith(".exe"):
+        # Check for missing Prefetch artifacts.
+        #
+        # A missing Prefetch is only meaningful *relative to a present Prefetch
+        # corpus*: on an image where Prefetch was never collected (empty
+        # corpus) every .exe would otherwise be flagged, flooding triage with
+        # noise (SFE-jji: 1,117 false positives on the real LoneWolf MFT).
+        # Skip the check entirely when there is no Prefetch evidence to compare
+        # against.
+        #
+        # Dedup by executable name: the same binary can appear many times in
+        # the MFT (multiple paths/hardlinks/instances). Without this guard each
+        # occurrence produced an identical MISSING_ARTIFACT contradiction
+        # (observed 8x for a single exe), stacking confidence penalties down to
+        # 0.00. One contradiction per (exe_name) is the right granularity --
+        # the finding is about the missing artifact, not each MFT row.
+        if prefetch_entries:
+            seen_exes: set[str] = set()
+            for mft_entry in mft_entries:
+                if not mft_entry.file_name.lower().endswith(".exe"):
+                    continue
+                exe_key = mft_entry.file_name.lower()
+                if exe_key in seen_exes:
+                    continue
+                seen_exes.add(exe_key)
                 missing = self.detect_missing_execution_artifact(
                     mft_entry, prefetch_entries, event_log_entries
                 )
