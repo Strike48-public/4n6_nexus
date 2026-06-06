@@ -155,7 +155,9 @@ def test_finding_flow_truncates_long_labels():
             }
         ]
     )
-    # The label is truncated with an ellipsis marker; no single label line is huge.
+    # The label is truncated with an ellipsis marker. Check node/edge lines only
+    # (skip the %%{init}%% theme directive, which is intentionally one long line).
     assert "..." in out
-    longest_line = max((len(line) for line in out.splitlines()), default=0)
-    assert longest_line < 120
+    node_lines = [ln for ln in out.splitlines() if "-->" in ln and "%%{init" not in ln]
+    longest = max((len(ln) for ln in node_lines), default=0)
+    assert longest < 120

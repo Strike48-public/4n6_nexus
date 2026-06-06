@@ -20,6 +20,29 @@ from typing import Any
 _FENCE_OPEN = "```mermaid"
 _FENCE_CLOSE = "```"
 
+# Per-node ``style`` directives (explicit fill + white text) are the most widely
+# supported colouring mechanism — they render correctly on old Mermaid (MarkText)
+# as well as GitHub/VS Code. We deliberately do NOT use a %%{init}%% theme block:
+# older renderers ignore it and leave light text on a white background
+# (white-on-white). Each colour pairs a dark fill with #ffffff text so contrast
+# is guaranteed regardless of the renderer's default theme.
+_STYLE = {
+    "finding": "fill:#2c3e50,stroke:#1b2631,color:#ffffff,stroke-width:1px",
+    "resolved": "fill:#1e8449,stroke:#145a32,color:#ffffff,stroke-width:2px",
+    "flagged": "fill:#c0392b,stroke:#7b241c,color:#ffffff,stroke-width:2px",
+    "neutral": "fill:#566573,stroke:#2c3e50,color:#ffffff,stroke-width:1px",
+}
+
+
+def _verdict_style(verdict: str) -> str:
+    """Map a verifier verdict to a semantic node style key for colouring."""
+    v = (verdict or "").lower()
+    if "resolved" in v or "confirmed" in v:
+        return "resolved"
+    if "detected" in v or "refuted" in v or "flag" in v:
+        return "flagged"
+    return "neutral"
+
 
 def _fence(body: str) -> str:
     """Wrap a diagram body in a ```mermaid fenced block."""
@@ -57,7 +80,7 @@ def mermaid_a2a_sequence(audit_entries: list[dict]) -> str:
     declared in first-seen order so the diagram reads top-to-bottom sensibly.
     An empty log still yields a valid (empty) sequenceDiagram.
     """
-    lines = ["sequenceDiagram"]
+    lines = ["sequenceDiagram", "    autonumber"]
     participants: list[str] = []
     arrows: list[str] = []
 
@@ -88,19 +111,30 @@ def mermaid_finding_flow(findings: list[dict]) -> str:
     An empty finding set still yields a valid (empty) flowchart.
     """
     lines = ["flowchart TD"]
+    styles: list[str] = []
     for f in findings:
-        fid = _safe(f.get("finding_id") or "F-?")
-        label = _safe(f.get("label") or "")
+        fid = _safe(f.get("finding_id") or "F-?", max_len=12)
+        label = _safe(f.get("label") or "", max_len=32)
         verdict = _safe(f.get("verdict") or "reported")
         before = f.get("confidence_before")
         after = f.get("confidence_after")
         node_id = _mid(f.get("finding_id") or "F")
-        # Use a plain arrow glyph (not '-->') so the confidence transition inside
-        # a node label can't be misparsed as a Mermaid edge by strict renderers.
+        verdict_id = f"{node_id}_v"
         if before is not None and after is not None:
-            conf = f"{before} to {after}"
+            conf = f"confidence {before} to {after}"
         else:
-            conf = _safe(f.get("confidence") or "")
-        node_label = " ".join(part for part in (fid, label, conf) if part).strip()
-        lines.append(f'    {node_id}["{node_label}"] --> {node_id}_v["{verdict}"]')
+            c = f.get("confidence")
+            conf = f"confidence {c}" if c is not None else ""
+        # Two-line node label via <br/> (a finding heading + the confidence line)
+        # so nodes have visual breathing room instead of one cramped line.
+        heading = f"{fid}: {label}".strip().rstrip(":")
+        finding_label = f"{heading}<br/>{conf}" if conf else heading
+        # Finding node -> verifier edge -> verdict node. Top-down so multiple
+        # findings stack vertically and read cleanly rather than crushing across.
+        lines.append(
+            f'    {node_id}["{finding_label}"] -->|verifier| {verdict_id}(["{verdict}"])'
+        )
+        styles.append(f"    style {node_id} {_STYLE['finding']}")
+        styles.append(f"    style {verdict_id} {_STYLE[_verdict_style(verdict)]}")
+    lines.extend(styles)
     return _fence("\n".join(lines))
