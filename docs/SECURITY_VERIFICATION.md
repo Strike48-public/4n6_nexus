@@ -1,6 +1,6 @@
 # Security Verification Guide
 
-**Purpose:** How to verify that 4n6Nexus is secured and has not been tampered with
+**Purpose:** How to verify that 4n6 Nexus is secured and has not been tampered with
 **Audience:** Security reviewers, team members, users
 **Last Updated:** 2026-04-24
 
@@ -12,7 +12,7 @@ This document answers: **"How do we verify that the system is secured and not ta
 
 We address four critical security domains:
 1. **Evidence Integrity** - Ensuring analyzed evidence hasn't been modified
-2. **Tool Integrity** - Verifying 4n6Nexus software itself is authentic
+2. **Tool Integrity** - Verifying 4n6 Nexus software itself is authentic
 3. **Audit Trail Integrity** - Proving findings are legitimate and traceable
 4. **Runtime Security** - Protecting the system during execution
 
@@ -433,7 +433,7 @@ class CircuitBreaker:
   - [ ] Chain of custody recorded
   
 - [ ] **Tool integrity verified**
-  - [ ] 4n6Nexus installed from trusted source (PyPI, official GitHub)
+  - [ ] 4n6 Nexus installed from trusted source (PyPI, official GitHub)
   - [ ] Package signature verified (if available)
   - [ ] Dependencies scanned for vulnerabilities
   
@@ -573,7 +573,7 @@ Follows ACPO Good Practice Guide for Digital Evidence:
 
 ## Summary
 
-**4n6Nexus security is verified through:**
+**4n6 Nexus security is verified through:**
 
 1. **Evidence Integrity** - Read-only enforcement + cryptographic hashing
 2. **Tool Integrity** - Open source + package signatures + reproducible builds

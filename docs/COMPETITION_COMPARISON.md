@@ -26,7 +26,7 @@
 
 | Approach | Speed | Accuracy | False Positives | Cost | Scalability |
 |----------|-------|----------|-----------------|------|-------------|
-| **4n6Nexus** | ✅ **Fast (11 min)** | ✅ **Perfect (F1=1.00)** | ✅ **0%** | ✅ **Low ($0.10/image)** | ✅ **Horizontal** |
+| **4n6 Nexus** | ✅ **Fast (11 min)** | ✅ **Perfect (F1=1.00)** | ✅ **0%** | ✅ **Low ($0.10/image)** | ✅ **Horizontal** |
 
 **Competitive Advantage:** We're the ONLY system that achieves perfect accuracy at machine speed.
 
@@ -116,7 +116,7 @@ Analyst reaction after 100th false positive:
 
 **Our Approach:**
 ```
-4n6Nexus scan of 155K entries:
+4n6 Nexus scan of 155K entries:
 ├── 15-30 findings generated
 ├── 0 false positives (0%)
 ├── All findings are actionable
@@ -188,7 +188,7 @@ Analyst reviews findings:
 Judge reaction: 😰 "This is the state of the art?"
 ```
 
-**Our Engine (4n6Nexus):**
+**Our Engine (4n6 Nexus):**
 ```
 [00:00] Start analysis...
 [00:11] Analysis complete ✅

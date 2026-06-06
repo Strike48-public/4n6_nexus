@@ -474,7 +474,7 @@ Result: ✅ SUCCESS - Detected prompt injection + evidence poisoning + underlyin
 > 
 > "Now watch our engine..."
 > 
-> 4n6Nexus: "Prompt injection detected. Evidence poisoning detected. Malware C2 communication proven using immutable forensic sources. Confidence: 0.99"
+> 4n6 Nexus: "Prompt injection detected. Evidence poisoning detected. Malware C2 communication proven using immutable forensic sources. Confidence: 0.99"
 > 
 > **Judges' reaction: 🤯**
 
@@ -500,7 +500,7 @@ Result: ✅ SUCCESS - Detected prompt injection + evidence poisoning + underlyin
 - **Option A:** Flag everything suspicious (high false positive rate, analyst overwhelms)
 - **Option B:** Ignore common patterns (high false negative rate, missed attacks)
 
-### Our Self-Correction Engine (4n6Nexus)
+### Our Self-Correction Engine (4n6 Nexus)
 
 | Scenario | Self-Correction Behavior | Result |
 |----------|--------------------------|--------|

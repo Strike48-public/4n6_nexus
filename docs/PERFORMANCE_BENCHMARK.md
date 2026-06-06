@@ -324,7 +324,7 @@
 
 **Software:**
 - Python 3.12
-- Detection engine: 4n6Nexus v1.0
+- Detection engine: 4n6 Nexus v1.0
 - Comparison tools: Autopsy 4.21, MFTECmd 1.2.2.1
 
 ### Test Data
@@ -407,7 +407,7 @@ Our Engine:         0%      ✅ Zero false positives
 
 2. **Show our engine output:**
    ```
-   4n6Nexus: 15 findings (0% false positives = 0 false alarms)
+   4n6 Nexus: 15 findings (0% false positives = 0 false alarms)
    Runtime: 11 minutes
    Analyst time: 15-30 minutes to review (actionable findings only)
    ```
@@ -415,7 +415,7 @@ Our Engine:         0%      ✅ Zero false positives
 3. **Compare reports:**
    ```
    Autopsy: "Suspicious file found: chrome.exe in Temp" (false positive - legitimate)
-   4n6Nexus: "Credential dumping detected: LSASS dump → exfiltration → lateral movement (confidence: 0.98)"
+   4n6 Nexus: "Credential dumping detected: LSASS dump → exfiltration → lateral movement (confidence: 0.98)"
    ```
 
 **Judge reaction:** "This is the future of DFIR."

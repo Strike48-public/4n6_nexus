@@ -1,6 +1,6 @@
 # Evidence Compatibility Guide
 
-**Purpose:** What forensic evidence can 4n6Nexus analyze?
+**Purpose:** What forensic evidence can 4n6 Nexus analyze?
 **Audience:** Users, team members, competition judges
 **Last Updated:** 2026-04-24
 
@@ -189,7 +189,7 @@ sudo mkdir -p /mnt/evidence
 sudo ewfmount /path/to/windows.E01 /mnt/ewf
 sudo mount -o ro,loop,offset=$((2048*512)) /mnt/ewf/ewf1 /mnt/evidence
 
-# Analyze with 4n6Nexus
+# Analyze with 4n6 Nexus
 4n6nexus analyze --case-id windows-case --mft /mnt/evidence/\$MFT
 ```
 

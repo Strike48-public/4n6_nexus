@@ -1,6 +1,6 @@
-# 4n6Nexus Documentation Index
+# 4n6 Nexus Documentation Index
 
-**Purpose:** This document provides a complete map of all internal documentation for the 4n6Nexus project.
+**Purpose:** This document provides a complete map of all internal documentation for the 4n6 Nexus project.
 **Audience:** Internal team members
 **Last Updated:** 2026-04-24
 
@@ -330,7 +330,7 @@ Reference this before submitting to FIND EVIL! Hackathon:
 **Tasks:**
 1. Go to https://findevil.devpost.com/
 2. Fill out submission form:
-   - Project name: 4n6Nexus
+   - Project name: 4n6 Nexus
    - Tagline: Autonomous DFIR with Architectural Self-Correction
    - Description: Copy from README_COMMUNITY.md
    - Demo video URL: YouTube/Vimeo link
