@@ -34,13 +34,15 @@ def _run_key(
     )
 
 
-def _amcache(path: str, sha1: str = "a" * 40) -> AmcacheEntry:
+def _amcache(
+    path: str, sha1: str = "a" * 40, publisher: str | None = None
+) -> AmcacheEntry:
     return AmcacheEntry(
         file_path=path,
         first_execution=_TS,
         sha1_hash=sha1,
         file_size=1024,
-        publisher=None,
+        publisher=publisher,
     )
 
 
@@ -433,3 +435,76 @@ def test_scenario08_beacon_run_key_still_flagged():
     findings = RegistryDetector().analyze(run_keys=[entry])
     assert len(findings) == 1
     assert findings[0].confidence == 0.80
+
+
+# --- execution path-only suppression for trusted-publisher binaries (SFE-23x)
+# The detector docstring already specs that a path execution finding needs a
+# double-extension OR an *unsigned-publisher* binary. The publisher check was
+# never implemented, so signed Microsoft binaries that legitimately live under
+# ProgramData (Windows Defender platform, VC++ redist) false-positived as
+# "execution from attacker-writable directory". Suppress a PATH-ONLY execution
+# finding (no double-extension) when the Amcache publisher is a trusted vendor.
+# Every scenario true positive carries NO publisher, so they are unaffected.
+
+
+def test_execution_path_only_trusted_publisher_suppressed():
+    # Windows Defender's engine runs from ProgramData and is Microsoft-signed.
+    findings = RegistryDetector().analyze(
+        amcache=[
+            _amcache(
+                "C:\\ProgramData\\Microsoft\\Windows Defender\\platform\\4.18\\MsMpEng.exe",
+                publisher="Microsoft Corporation",
+            )
+        ],
+    )
+    assert findings == []
+
+
+def test_execution_path_only_unsigned_still_flagged():
+    # Same directory, NO publisher -> indistinguishable from a dropped payload,
+    # must stay a finding (this is exactly scenario 09's stage1.exe shape).
+    findings = RegistryDetector().analyze(
+        amcache=[_amcache("C:\\ProgramData\\stage1.exe", publisher=None)],
+    )
+    assert len(findings) == 1
+
+
+def test_execution_trusted_publisher_double_extension_still_flagged():
+    # A trusted publisher string must NOT rescue a double-extension binary —
+    # signing metadata can be spoofed/borrowed; the double extension is the
+    # stronger, independent signal and keeps its HIGH severity.
+    findings = RegistryDetector().analyze(
+        amcache=[
+            _amcache(
+                "C:\\Users\\Public\\invoice.pdf.exe",
+                publisher="Microsoft Corporation",
+            )
+        ],
+    )
+    assert len(findings) == 1
+    assert findings[0].severity == "high"
+
+
+def test_execution_trusted_publisher_does_not_suppress_corroborated_drop():
+    # If the SAME path is also seen via shimcache/bam (no publisher there) the
+    # Amcache trusted-publisher tag still suppresses: a genuinely signed binary
+    # recorded by multiple execution artifacts is normal. Documents the chosen
+    # behavior so a future change is a conscious decision, not drift.
+    path = "C:\\ProgramData\\Package Cache\\vcredist\\vc_redist.x64.exe"
+    findings = RegistryDetector().analyze(
+        amcache=[_amcache(path, publisher="Microsoft Corporation")],
+        bam=[_bam(path)],
+    )
+    assert findings == []
+
+
+def test_scenario08_beacon_exe_execution_still_flagged():
+    # Protected invariant: scenario 08's beacon.exe (Users\Public, EMPTY
+    # publisher, corroborated by amcache+bam) must stay flagged.
+    path = "C:\\Users\\Public\\beacon.exe"
+    findings = RegistryDetector().analyze(
+        amcache=[_amcache(path, publisher="")],
+        bam=[_bam(path)],
+    )
+    assert len(findings) == 1
+    assert findings[0].evidence["executable"] == "beacon.exe"

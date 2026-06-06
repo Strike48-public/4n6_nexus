@@ -116,6 +116,26 @@ _DOUBLE_EXT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Amcache publisher substrings for vendors whose binaries legitimately execute
+# from otherwise-attacker-writable directories (Defender platform under
+# ProgramData, VC++ redist under Package Cache, etc.). The detector docstring
+# already specs that a path-only execution finding requires an *unsigned* binary;
+# this implements that gate. Matched case-insensitively as a substring of the
+# Amcache publisher. A double extension is an independent, stronger signal and
+# is NEVER rescued by a publisher match. (SFE-23x)
+_TRUSTED_EXEC_PUBLISHER_FRAGMENTS: tuple[str, ...] = (
+    "microsoft corporation",
+    "microsoft windows",
+    "google llc",
+    "mozilla corporation",
+    "nvidia corporation",
+    "intel corporation",
+    "advanced micro devices",
+    "dropbox, inc",
+    "adobe inc",
+    "adobe systems",
+)
+
 
 def _basename(path: str) -> str:
     """Return the final path component, handling Windows and POSIX separators."""
@@ -437,7 +457,32 @@ class RegistryDetector:
         return [
             self._build_exec_finding(path, bundle)
             for path, bundle in sorted(grouped.items())
+            if not self._is_trusted_publisher_execution(bundle)
         ]
+
+    @staticmethod
+    def _is_trusted_publisher_execution(bundle: dict) -> bool:
+        """True when a path-only execution finding belongs to a trusted vendor.
+
+        A double-extension finding is an independent strong signal and is never
+        suppressed. Otherwise, if any Amcache detail for this path carries a
+        publisher matching the trusted-vendor list, the path-only signal is
+        autostart/install noise (Defender, VC++ redist, GPU drivers) rather than
+        an attacker drop. Binaries with no publisher (the shape of every scenario
+        true positive: beacon.exe, stage1.exe, ldr.exe) are NOT suppressed.
+        """
+        if any("double-extension" in r for r in bundle["reasons"]):
+            return False
+        for detail in bundle["details"]:
+            publisher = detail.get("publisher")
+            if not publisher:
+                continue
+            lowered = publisher.lower()
+            if any(
+                fragment in lowered for fragment in _TRUSTED_EXEC_PUBLISHER_FRAGMENTS
+            ):
+                return True
+        return False
 
     def _path_reason(self, file_path: str) -> Optional[str]:
         """Decide whether an execution entry is worth flagging, and why."""
