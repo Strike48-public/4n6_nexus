@@ -130,13 +130,25 @@ def detect_wiped_disk(
 ) -> WipedDiskFinding | None:
     """Return a CRITICAL finding if the GPT layout looks wiped, else None.
 
-    The trigger is asymmetry: primary header missing or zeroed, secondary still
-    valid. We do not flag disks where both headers are intact (healthy), nor
-    disks where both are missing (likely not GPT at all).
+    The trigger is a genuine front-of-disk wipe signature: the **primary MBR is
+    zeroed** AND no valid primary GPT header remains, while the secondary
+    (backup) GPT at the end of the disk is still valid. The zeroed MBR is the
+    discriminator (SFE-9nm): a missing/garbled primary GPT header *alone* is
+    common on normal disks (MBR-partitioned disks, or images whose primary
+    header simply did not parse) and is NOT a wipe. A real wipe zeroes the front
+    of the disk, taking the MBR with it.
+
+    We do not flag: disks with an intact MBR (healthy or non-GPT), disks with no
+    valid secondary, or disks where the primary GPT is still readable.
     """
     if not inspection.secondary_valid:
         return None
     if not inspection.primary_wiped:
+        return None
+    # SFE-9nm: require the MBR to actually be zeroed. Without this, any disk
+    # lacking a parseable primary GPT header (normal MBR disks included) is a
+    # false positive. A front-of-disk wipe always takes out the MBR.
+    if not inspection.primary_mbr_zeroed:
         return None
 
     reasoning = _build_reasoning(inspection)

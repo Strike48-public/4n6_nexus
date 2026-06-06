@@ -100,6 +100,44 @@ def test_ignores_disk_with_no_secondary() -> None:
     assert detect_wiped_disk(inspection) is None
 
 
+@pytest.mark.unit
+def test_ignores_real_disk_with_intact_mbr_no_primary_header() -> None:
+    """Regression (SFE-9nm): a normal disk whose primary GPT header didn't parse
+    but whose MBR is NOT zeroed must NOT be flagged as wiped.
+
+    Real false positives found on the TESLADRIVE evidence:
+    - national_gallery carry-tablet (valid GPT): mbr_zeroed=False,
+      header_zeroed=False, primary_header=None, secondary present.
+    A genuine front-of-disk wipe zeroes the MBR; this disk's MBR is intact, so
+    'primary header absent' alone is not a wipe.
+    """
+    inspection = GPTInspection(
+        total_sectors=60407808,
+        primary_mbr_zeroed=False,  # the discriminator: MBR is intact
+        primary_header_zeroed=False,
+        primary_header=None,
+        secondary_header=_make_header(my_lba=60407807),
+        secondary_entries=(_make_entry(),),
+    )
+    assert detect_wiped_disk(inspection) is None
+
+
+@pytest.mark.unit
+def test_ignores_disk_with_zeroed_header_but_intact_mbr() -> None:
+    """Regression (SFE-9nm): m57-patents charlie shape — header parsed as zeroed
+    but MBR intact. Without a zeroed MBR there is no front-of-disk wipe, so this
+    must NOT be flagged."""
+    inspection = GPTInspection(
+        total_sectors=19999728,
+        primary_mbr_zeroed=False,  # MBR intact -> not a wipe
+        primary_header_zeroed=True,
+        primary_header=None,
+        secondary_header=_make_header(my_lba=19999727),
+        secondary_entries=(_make_entry(),),
+    )
+    assert detect_wiped_disk(inspection) is None
+
+
 def _forge_gpt_header_bytes(
     *,
     my_lba: int,
