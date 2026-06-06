@@ -54,6 +54,14 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
+    # Protocol / abstract method stubs carry no executable body.
+    "^\\s*\\.\\.\\.$",
+    "^\\s*\\.\\.\\.  #",
 ]
 show_missing = true
 skip_covered = false
+# Lock in 100% line coverage of the detection/orchestration surface (the omit
+# list above scopes this to non-UI/non-glue code). A drop fails `coverage
+# report`, so new uncovered lines must be tested or carry a justified
+# `# pragma: no cover`. (SFE-eil)
+fail_under = 100

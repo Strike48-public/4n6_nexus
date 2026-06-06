@@ -174,7 +174,7 @@ def _walk_folder(
     for msg in folder.sub_messages:
         try:
             pairs.append((path, msg))
-        except Exception:
+        except Exception:  # pragma: no cover - building/append of a (tuple, msg) pair cannot raise; iterator errors propagate from the for-loop
             # Corrupt message — skip it rather than halting the entire parse.
             continue
 

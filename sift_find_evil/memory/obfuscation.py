@@ -240,7 +240,9 @@ def _try_decode_powershell_encoded(candidate: str) -> Optional[str]:
         decoded = raw.decode("utf-8", errors="replace")
         if _looks_like_text(decoded):
             return decoded
-    except UnicodeDecodeError:
+    except (
+        UnicodeDecodeError
+    ):  # pragma: no cover - decode(errors="replace") never raises
         return None
     return None
 

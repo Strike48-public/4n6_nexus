@@ -287,7 +287,9 @@ class OffensivePackageInstallDetector:
             if f"/{pkg}_" in uri.lower() or f"/{pkg}-data_" in uri.lower():
                 return pkg
         m = _DEB_URI_RE.search(uri)
-        if m and m.group(1).lower() in self.package_names:
+        if (
+            m and m.group(1).lower() in self.package_names
+        ):  # pragma: no cover - _DEB_URI_RE match implies the "/{pkg}_" prefix check above already returned
             return m.group(1).lower()
         return None
 

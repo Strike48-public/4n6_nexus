@@ -666,7 +666,7 @@ class AnalysisRunner:
                             entries = parser.parse_userassist_csv(registry_file)
                         elif artifact_type == "run_keys":
                             entries = parser.parse_run_keys_csv(registry_file)
-                        else:
+                        else:  # pragma: no cover - artifact_type is always one of the five registry_files keys above
                             entries = []
 
                         all_entries[artifact_type].extend(entries)
