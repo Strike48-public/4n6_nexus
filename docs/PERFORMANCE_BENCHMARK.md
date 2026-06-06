@@ -363,11 +363,16 @@
 ### What Judges Will See
 
 **Speed Comparison (155K entry image):**
+
+> ⚠️ Projection, not a measured run (SFE-3sc): the 155K-entry / 11-minute
+> figure is illustrative positioning, not a benchmarked result - that dataset
+> has not been run. Verified results live in [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
+
 ```
 Human Analyst:      ████████████████████████ 6 hours
 Autopsy:            ████████████ 3 hours (+ 2 hours triage)
 EnCase:             ██████████████ 3.5 hours (+ 2 hours triage)
-Our Engine:         █ 11 minutes ✅
+Our Engine:         █ ~11 minutes (projected) ✅
 ```
 
 **Accuracy Comparison:**
@@ -408,7 +413,7 @@ Our Engine:         0%      ✅ Zero false positives
 2. **Show our engine output:**
    ```
    4n6 Nexus: 15 findings (0% false positives = 0 false alarms)
-   Runtime: 11 minutes
+   Runtime: ~11 minutes (projected, not yet benchmarked - SFE-3sc)
    Analyst time: 15-30 minutes to review (actionable findings only)
    ```
 
