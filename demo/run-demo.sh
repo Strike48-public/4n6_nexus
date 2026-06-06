@@ -117,13 +117,14 @@ run 'PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL'
 
 # --- segment 7: the report (finale) -----------------------------------------
 say "SEGMENT 7 - The investigation report (4:40-5:00)"
-note "PRE-STAGE the case ONCE before recording (off camera): see DEMO_RECORDING_VERIFIED.md"
-note "Generate the report the analyst actually receives, with Mermaid A2A +"
-note "finding-flow diagrams the agent built from its own run:"
+note "PRE-STAGE the multi-finding case ONCE before recording (off camera):"
+note "  cli case init --case-id DEMO-MULTI --case-root \$CR"
+note "  python3 scripts/prep-demo-case.py --case-id DEMO-MULTI --case-root \$CR"
+note "Generate the report the analyst receives, with Mermaid A2A + finding-flow:"
 CR="${SFE_DEMO_CASE_ROOT:-$HOME/demo_cases}"
-run "python -m sift_find_evil.cli report --case-id DEMO-001 --output '$CR/DEMO-001/report.md' --format markdown --all-findings --case-root '$CR'"
-note "Open $CR/DEMO-001/report.md in a Markdown/GitHub preview so the Mermaid renders."
-note "Talking point: the A2A sequence diagram IS the execution record, reconstructed"
-note "from the audit log — orchestrator -> analysts -> verifier. Nothing hand-drawn."
+run "python -m sift_find_evil.cli report --case-id DEMO-MULTI --output '$CR/DEMO-MULTI/report.md' --format markdown --all-findings --case-root '$CR'"
+note "Open $CR/DEMO-MULTI/report.md in MarkText / Markdown preview so Mermaid renders."
+note "Talking point: A2A sequence IS the execution record (orchestrator -> analysts"
+note "-> verifier). Finding-flow: 5 resolved green, 1 held red (the C2 beacon)."
 
 say "Demo complete. Stop the recorder."

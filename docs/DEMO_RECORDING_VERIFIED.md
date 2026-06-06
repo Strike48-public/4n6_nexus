@@ -224,43 +224,42 @@ PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL
 **[Screen: generate the investigation report and open it — ideally rendered on
 GitHub or a Markdown preview so the Mermaid diagrams display as graphics.]**
 
-Pre-staged once before recording (a case with the CIRCL finding + an A2A log):
+Pre-staged ONCE before recording (a 6-finding case so the report carries BOTH
+diagrams — the single-finding CIRCL case shows only the sequence diagram):
 
 ```bash
-# (pre-flight, off camera) build the demo case once:
+# (pre-flight, off camera) build the multi-finding demo case once:
 CR=~/demo_cases
-python -m sift_find_evil.cli case init --case-id DEMO-001 --name "CIRCL Wiped Disk" \
-  --examiner "Jonathan Tomek" --case-root $CR
-python -m sift_find_evil.cli analyze \
-  --image scenarios/real/circl-2023-wiped/evidence/wiped_disk.E01 \
-  --output $CR/DEMO-001/findings.json
-PYTHONPATH=. python3 -m sift_find_evil.orchestration --output-dir /tmp/orch
-cp /tmp/orch/audit.jsonl $CR/DEMO-001/audit.jsonl
+python -m sift_find_evil.cli case init --case-id DEMO-MULTI \
+  --name "Multi-Agent Investigation" --examiner "Jonathan Tomek" --case-root $CR
+PYTHONPATH=. python3 scripts/prep-demo-case.py --case-id DEMO-MULTI --case-root $CR
 ```
 
 On camera — generate and show the report:
 
 ```bash
-python -m sift_find_evil.cli report --case-id DEMO-001 \
-  --output $CR/DEMO-001/report.md --format markdown --all-findings --case-root $CR
+python -m sift_find_evil.cli report --case-id DEMO-MULTI \
+  --output $CR/DEMO-MULTI/report.md --format markdown --all-findings --case-root $CR
 ```
 
-Then open `report.md` (GitHub / VS Code preview renders the Mermaid):
+Then open `report.md` rendered (MarkText, or GitHub / VS Code preview) so the
+Mermaid displays as graphics:
 
 > "And this is what the analyst actually receives - a court-style investigation
-> report the agent wrote itself. Case metadata, the CRITICAL finding with its
-> evidence and SHA-256 hashes, the IOCs. But look at the Visual Summary: this
-> agent-to-agent sequence diagram is the *real execution record* - orchestrator
-> dispatching triage and the three analysts, the verifier challenging every
-> finding - reconstructed straight from the audit log. And the finding flow shows
-> each finding's confidence transition and verdict at a glance. Nothing here is
-> hand-drawn; the system generated all of it from the investigation it just ran.
-> That's autonomous DFIR you can hand to a court."
+> report the agent wrote itself. An executive summary with stated confidence, each
+> finding mapped to MITRE ATT&CK with its supporting evidence, chain of custody,
+> and a methodology section. But look at the visuals: this agent-to-agent sequence
+> diagram is the *real execution record* - orchestrator dispatching triage and the
+> three analysts, the verifier challenging every finding - reconstructed straight
+> from the audit log. And the findings-at-a-glance flow: five contradictions
+> resolved in green, one held in red - the C2 beacon the agent refused to dismiss.
+> Nothing here is hand-drawn; the system generated all of it from the investigation
+> it just ran. That's autonomous DFIR you can hand to a court."
 
-**Expected (real):** a Markdown report whose **Visual Summary** contains two
-```mermaid``` blocks — a `sequenceDiagram` (orchestrator → triage → disk/memory/
-network analysts → verifier, with six verifier challenges) and a `flowchart` of
-the findings with their verdicts. Verified live on the VM 2026-06-05.
+**Expected (real):** a Markdown report following DFIR conventions whose visuals
+include a `sequenceDiagram` (orchestrator → triage → disk/memory/network analysts
+→ verifier) and a colour-coded `flowchart` of the 6 findings (5 green resolved,
+F-005 red/held). Verified live on the VM 2026-06-05.
 
 ---
 
