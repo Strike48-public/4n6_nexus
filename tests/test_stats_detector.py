@@ -59,6 +59,38 @@ def test_beaconing_detector_flags_uniform_cadence():
     assert 290.0 < ev["mean_interval_seconds"] < 310.0
 
 
+def test_beaconing_confidence_capped_below_high_for_pure_cadence():
+    """Pure-cadence beaconing must not claim 'High' (~near-certain) confidence.
+
+    SFE-fqn: real-evidence validation against the Nitroba campus PCAP showed
+    BeaconingDetector firing on a benign image.weather.com widget (7 polls,
+    ~900s mean, CoV=0.0016) -- cadence-IDENTICAL to a textbook malicious
+    beacon. The detector cannot distinguish the two by timing alone, so a
+    tight CoV must NOT be rewarded with ~0.95 'High' confidence; it is a
+    triage signal to review, not a verdict. Cap keeps it below the 0.75
+    High threshold (-> 'Medium').
+    """
+    requests = [_http("evil.example.com", offset_seconds=i * 300.0) for i in range(8)]
+    findings = BeaconingDetector().analyze(http_requests=requests)
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.confidence < 0.75, (
+        f"pure-cadence beaconing should stay below the High threshold; "
+        f"got {f.confidence}"
+    )
+    assert f.confidence_label == "Medium"
+
+
+def test_beaconing_weather_widget_shape_is_medium_triage():
+    """The exact validated FP shape (weather.com: 7 polls, ~900s, near-zero CoV)
+    surfaces for review at Medium, not as a high-confidence C2 verdict."""
+    requests = [_http("image.weather.com", offset_seconds=i * 900.0) for i in range(7)]
+    findings = BeaconingDetector().analyze(http_requests=requests)
+    assert len(findings) == 1
+    assert findings[0].confidence_label == "Medium"
+    assert findings[0].confidence < 0.75
+
+
 def test_beaconing_detector_ignores_jittery_browsing():
     # Wildly varying intervals — user browsing, not a beacon.
     offsets = [0, 35, 120, 300, 800, 810, 2000]
@@ -132,9 +164,7 @@ def test_dns_anomaly_ignores_short_labels():
 
 
 def test_dns_anomaly_suppresses_aws_elb():
-    name = (
-        "internal-some-loadbalancer-1234567890abcdefghij" ".us-east-1.elb.amazonaws.com"
-    )
+    name = "internal-some-loadbalancer-1234567890abcdefghij.us-east-1.elb.amazonaws.com"
     findings = DNSAnomalyDetector().analyze(dns_queries=[_dns(name)])
     assert findings == []
 

@@ -137,7 +137,16 @@ class BeaconingDetector:
 
         first = datetime.fromtimestamp(timestamps[0], tz=timezone.utc).isoformat()
         last = datetime.fromtimestamp(timestamps[-1], tz=timezone.utc).isoformat()
-        confidence = min(0.95, 0.65 + (self.max_cov - cov) * 2.0)
+        # Cadence regularity alone is not a verdict. Real-evidence validation
+        # (SFE-fqn, Nitroba PCAP) showed a benign image.weather.com widget
+        # producing a near-zero CoV indistinguishable from a textbook C2
+        # beacon. A tighter CoV must NOT push confidence into the "High"
+        # (near-certain) band: this is a triage signal to review, not proof of
+        # C2. Cap below the 0.75 High threshold so beaconing always surfaces as
+        # "Medium". Corroborating signals (suspicious host, unresolved IP, exfil
+        # ratio) are what should escalate a beacon -- not the cadence by itself.
+        _HIGH_THRESHOLD = 0.75
+        confidence = min(_HIGH_THRESHOLD - 0.01, 0.55 + (self.max_cov - cov) * 1.0)
         return Finding(
             title=f"Beaconing to {host} from {src_ip}",
             description=(
