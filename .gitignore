@@ -67,6 +67,11 @@ analysis/scenario_testing/
 # and reference corpora, never in git.
 scenarios/**/evidence/
 !scenarios/**/evidence/.gitkeep
+
+# Analysis output + evidence-derived data (per CLAUDE.md output routing to
+# ./exports/). Real-evidence extractions (e.g. an extracted $MFT) and findings
+# JSON must never be committed. Keep curated demo artifacts under demo/ instead.
+exports/
 scenarios/reference/mobile/
 scenarios/reference/nist-nps/
 scenarios/reference/circl-drives/
