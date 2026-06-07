@@ -1016,3 +1016,147 @@ def test_linux_sockstat_no_foreign_address_skipped() -> None:
     )
     findings = MemoryDetector().analyze(linux_sockstat=[row])
     assert len(findings) == 0
+
+
+# -- list-walk-failure diagnostic (SFE-10f) --------------------------------
+#
+# On the SANS SRL-2018 memory corpus (verified 2026-06-06 against
+# base-wkstn-01, md5 7586e0cd...), Volatility 3 2.27.0 could not walk the
+# active-process list: windows.pslist/cmdline/malfind returned 0 rows while
+# windows.psscan returned 131 and netscan 148. An analyst would otherwise see
+# "no injection, no suspicious cmdline" and wrongly conclude the host is clean.
+# The detector now emits one ANALYSIS_GAP diagnostic when the list-walk plugin
+# came back empty but the pool scan found processes.
+
+
+def test_listwalk_failure_emits_analysis_gap() -> None:
+    """pslist empty + psscan non-empty => the active-process list did not
+    traverse. Emit exactly one ANALYSIS_GAP diagnostic so the operator does
+    not mistake an empty list-walk for a clean host."""
+    psscan = [_proc(pid=131, name="firefox.exe"), _proc(pid=520, name="svchost.exe")]
+    findings = MemoryDetector().analyze(pslist=[], psscan=psscan)
+    gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
+    assert len(gaps) == 1
+    gap = gaps[0]
+    assert gap.finding_type == "diagnostic"
+    assert "list-walk" in gap.title.lower()
+    assert gap.evidence["psscan_count"] == 2
+    assert "malfind" in gap.evidence["affected_plugins"]
+    # A diagnostic is not an attacker behavior — it must not masquerade as a
+    # high-confidence detection.
+    assert gap.severity in {"info", "low"}
+
+
+def test_listwalk_ok_no_analysis_gap() -> None:
+    """When pslist traverses (non-empty), no diagnostic fires — this is the
+    normal healthy case (synthetic scenario 12 has pslist=3, psscan=4)."""
+    pslist = [_proc(pid=131, name="firefox.exe")]
+    psscan = [_proc(pid=131, name="firefox.exe"), _proc(pid=520, name="svchost.exe")]
+    findings = MemoryDetector().analyze(pslist=pslist, psscan=psscan)
+    assert [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP] == []
+
+
+def test_listwalk_diagnostic_needs_both_streams() -> None:
+    """The diagnostic compares two streams. If psscan was not run, an empty
+    pslist is just an empty result (operator chose not to corroborate) — do
+    not fire. Likewise an empty psscan with no pslist is silent."""
+    assert MemoryDetector().analyze(pslist=[]) == []
+    assert MemoryDetector().analyze(psscan=[]) == []
+    # Both empty: nothing to walk, nothing to scan — no diagnostic.
+    assert [
+        f
+        for f in MemoryDetector().analyze(pslist=[], psscan=[])
+        if f.category == FindingCategory.ANALYSIS_GAP
+    ] == []
+
+
+def test_empty_malfind_alone_does_not_warn() -> None:
+    """0 malfind rows is the NORMAL benign result (no RWX regions). It must
+    never trigger the list-walk diagnostic on its own."""
+    findings = MemoryDetector().analyze(malfind=[])
+    assert [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP] == []
+
+
+def test_listwalk_failure_suppresses_hidden_process_cascade() -> None:
+    """The list-walk-failure premise also breaks hidden-process detection:
+    when pslist is globally empty, EVERY psscan process is "in psscan but not
+    pslist" and would wrongly fire as a T1014 hidden-process rootkit signal.
+    On the real SRL-2018 base-wkstn-01 that is ~66 false highs. When the
+    list-walk diagnostic fires, the hidden-process analysis must be suppressed
+    — the single ANALYSIS_GAP diagnostic stands in for it."""
+    psscan = [
+        _proc(pid=1, name="firefox.exe"),
+        _proc(pid=2, name="svchost.exe"),
+        _proc(pid=3, name="lsass.exe"),
+    ]
+    findings = MemoryDetector().analyze(pslist=[], psscan=psscan)
+    hidden = [
+        f
+        for f in findings
+        if f.category == FindingCategory.PROCESS_INJECTION
+        and "Hidden process" in f.title
+    ]
+    assert hidden == [], "hidden-process cascade must be suppressed on list-walk failure"
+    gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
+    assert len(gaps) == 1
+
+
+def test_genuine_hidden_process_still_fires_when_listwalk_ok() -> None:
+    """Sanity: a real hidden process (in psscan, not pslist) must still fire
+    when pslist DID traverse (non-empty) — we only suppress the cascade when
+    the list walk itself failed."""
+    pslist = [_proc(pid=1, name="firefox.exe")]
+    psscan = [_proc(pid=1, name="firefox.exe"), _proc(pid=666, name="evil.exe")]
+    findings = MemoryDetector().analyze(pslist=pslist, psscan=psscan)
+    hidden = [
+        f
+        for f in findings
+        if f.category == FindingCategory.PROCESS_INJECTION
+        and "Hidden process" in f.title
+    ]
+    assert len(hidden) == 1
+    assert "evil.exe" in hidden[0].title
+    assert [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP] == []
+
+
+def test_listwalk_failure_suppresses_malfind() -> None:
+    """malfind is ALSO a list-walk plugin: on the real SRL-2018 corpus it
+    returned 0 rows precisely because the active-process list did not walk.
+    An empty malfind result there is meaningless, not "no injection". When the
+    diagnostic fires, suppress malfind so its empty (or partial) output is not
+    read as a reliable verdict."""
+    psscan = [_proc(pid=1, name="firefox.exe")]
+    # Even a malfind row present is untrustworthy under list-walk failure, but
+    # the important case is the empty one masquerading as "clean".
+    findings = MemoryDetector().analyze(pslist=[], psscan=psscan, malfind=[])
+    gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
+    assert len(gaps) == 1
+    assert "malfind" in gaps[0].evidence["affected_plugins"]
+
+
+def test_listwalk_failure_suppresses_cmdline() -> None:
+    """cmdline also walks the active-process list (0 rows on the real corpus).
+    Suppress it under list-walk failure so an empty cmdline is not mistaken
+    for 'no suspicious command lines'."""
+    psscan = [_proc(pid=1, name="firefox.exe")]
+    evil = _cmdline_row(1, "powershell.exe", "powershell -nop -w hidden -enc aGk=")
+    findings = MemoryDetector().analyze(pslist=[], psscan=psscan, cmdline=[evil])
+    # The diagnostic fires; cmdline-derived PERSISTENCE findings are suppressed
+    # because the stream is unreliable when the list walk failed.
+    persistence = [
+        f for f in findings if f.category == FindingCategory.PERSISTENCE
+    ]
+    assert persistence == []
+    assert any(f.category == FindingCategory.ANALYSIS_GAP for f in findings)
+
+
+def test_listwalk_failure_does_not_suppress_netscan() -> None:
+    """netscan is pool-scan-based (reliable when the list walk fails), so its
+    findings must still surface alongside the diagnostic."""
+    psscan = [_proc(pid=1, name="firefox.exe")]
+    sock = _netscan_row(
+        pid=None, owner=None, foreign_addr="198.51.100.7", state="ESTABLISHED"
+    )
+    findings = MemoryDetector().analyze(pslist=[], psscan=psscan, netscan=[sock])
+    assert any(f.category == FindingCategory.ANALYSIS_GAP for f in findings)
+    assert any("Unowned network socket" in f.title for f in findings)

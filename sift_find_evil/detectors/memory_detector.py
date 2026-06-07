@@ -33,6 +33,13 @@ emits case-agnostic findings. Three finding classes today:
   is a point-in-time snapshot — there are no inter-event intervals to
   compute coefficient of variation from.
 
+- ``ANALYSIS_GAP`` (diagnostic, not an attack class) when the active-process
+  list did not traverse: pslist returns 0 rows but psscan finds processes.
+  This bounds what the engine could observe so an empty malfind/cmdline
+  result is never mistaken for a clean host, and it suppresses the
+  hidden-process analysis (which would otherwise flag every psscan row as a
+  false T1014). Observed on the SANS SRL-2018 corpus (SFE-10f).
+
 The detector never shells out — it consumes pre-run plugin rows. That
 lets callers choose when to pay the 30-60s Vol3 symbolization cost
 (e.g. once per scenario rather than once per detector).
@@ -275,14 +282,105 @@ class MemoryDetector:
         subset after tuning.
         """
         findings: list[Finding] = []
-        findings.extend(self._analyze_malfind(malfind or ()))
-        findings.extend(self._analyze_hidden_processes(pslist, psscan))
-        findings.extend(self._analyze_cmdline(cmdline or ()))
+        # Materialize pslist/psscan once: they may be one-shot iterables, and
+        # both the list-walk diagnostic and the hidden-process analysis need
+        # to traverse them. ``None`` (stream not supplied) stays ``None`` so
+        # the diagnostic can tell "not run" from "run and empty".
+        pslist_rows = None if pslist is None else list(pslist)
+        psscan_rows = None if psscan is None else list(psscan)
+
+        listwalk_gaps = self._diagnose_listwalk_failure(pslist_rows, psscan_rows)
+        findings.extend(listwalk_gaps)
+        # When the active-process list did not traverse, every plugin that
+        # walks it is unreliable on this image: malfind and cmdline return
+        # empty/partial output that must not read as "no injection / no
+        # suspicious command lines", and hidden-process detection would flag
+        # every psscan row as a false T1014 (~66 on the real SRL-2018
+        # base-wkstn-01). Suppress all three — the single ANALYSIS_GAP
+        # diagnostic (which lists them in affected_plugins) stands in for them.
+        # Pool-scan plugins (netscan) and the Linux plugins are unaffected.
+        listwalk_failed = bool(listwalk_gaps)
+        if not listwalk_failed:
+            findings.extend(self._analyze_malfind(malfind or ()))
+            findings.extend(self._analyze_hidden_processes(pslist_rows, psscan_rows))
+            findings.extend(self._analyze_cmdline(cmdline or ()))
         findings.extend(self._analyze_netscan(netscan or ()))
         findings.extend(self._analyze_linux_bash(linux_bash or ()))
         findings.extend(self._analyze_linux_pslist(linux_pslist or ()))
         findings.extend(self._analyze_linux_sockstat(linux_sockstat or ()))
         return findings
+
+    # --- list-walk-failure diagnostic (SFE-10f) ---------------------------
+
+    def _diagnose_listwalk_failure(
+        self,
+        pslist: Optional[list[ProcessRow]],
+        psscan: Optional[list[ProcessRow]],
+    ) -> list[Finding]:
+        """Emit an ANALYSIS_GAP when the active-process list did not traverse.
+
+        windows.pslist walks the PsActiveProcessHead doubly-linked list;
+        windows.psscan carves process objects from pool memory independently.
+        When pslist comes back empty but psscan found processes, the list walk
+        failed (KDBG / symbol mismatch, smeared image) — every list-walk plugin
+        (pslist, cmdline, malfind) is then unreliable on this image, and their
+        empty results must NOT be read as "host is clean". Observed on the
+        SANS SRL-2018 corpus under Vol3 2.27.0 (SFE-qad/SFE-10f).
+
+        We require BOTH streams to be present-and-decisive: psscan must have
+        been run and found processes, and pslist must have been run and found
+        none. If either was not run we have nothing to compare and stay silent.
+        """
+        if pslist is None or psscan is None:
+            return []
+        if pslist:
+            # pslist traversed (non-empty) → the list walk succeeded.
+            return []
+        if not psscan:
+            # psscan empty too → no corroborating evidence the walk *should*
+            # have found anything; nothing to compare.
+            return []
+        return [self._build_listwalk_gap_finding(len(psscan))]
+
+    def _build_listwalk_gap_finding(self, psscan_count: int) -> Finding:
+        return Finding(
+            title="Memory list-walk unreliable: pslist empty but psscan found processes",
+            description=(
+                f"windows.pslist returned 0 processes while windows.psscan "
+                f"recovered {psscan_count}. The active-process list "
+                "(PsActiveProcessHead) did not traverse — typically a KDBG / "
+                "symbol mismatch or a smeared acquisition. Every plugin that "
+                "walks that list (pslist, cmdline, malfind) is unreliable on "
+                "this image, so their empty results must NOT be read as "
+                "'no injection / no suspicious processes'. Re-run with "
+                "pool-scan-based plugins (psscan, netscan) or a matching "
+                "symbol set before concluding the host is clean."
+            ),
+            finding_type="diagnostic",
+            severity="info",
+            category=FindingCategory.ANALYSIS_GAP,
+            evidence={
+                "pslist_count": 0,
+                "psscan_count": psscan_count,
+                "affected_plugins": ["pslist", "cmdline", "malfind"],
+                "reliable_plugins": ["psscan", "netscan"],
+            },
+            confidence=0.90,
+            confidence_label="High",
+            reasoning_chain=[
+                "windows.pslist returned 0 rows.",
+                f"windows.psscan independently recovered {psscan_count} "
+                "process objects from pool memory.",
+                "A pool scan finding processes the list walk missed means the "
+                "active-process linked list did not traverse — list-walk "
+                "plugins (pslist, cmdline, malfind) cannot be trusted on this "
+                "image.",
+                "This is an evidence-reliability gap, not an attacker "
+                "behavior: it bounds what the engine could observe so an "
+                "empty malfind/cmdline result is not mistaken for a clean host.",
+            ],
+            artifact_sources=["memory"],
+        )
 
     # --- malfind (unbacked RWX memory) -------------------------------------
 
@@ -348,15 +446,17 @@ class MemoryDetector:
 
     def _analyze_hidden_processes(
         self,
-        pslist: Optional[Iterable[ProcessRow]],
-        psscan: Optional[Iterable[ProcessRow]],
+        pslist: Optional[list[ProcessRow]],
+        psscan: Optional[list[ProcessRow]],
     ) -> list[Finding]:
+        # analyze() materializes both streams to lists before calling, so we
+        # can iterate pslist twice (here and via the set comprehension) and
+        # psscan directly without re-listing a one-shot iterable.
         if pslist is None or psscan is None:
             return []
         pslist_pids = {row.pid for row in pslist}
-        psscan_rows = list(psscan)
         findings: list[Finding] = []
-        for row in psscan_rows:
+        for row in psscan:
             if row.pid in pslist_pids:
                 continue
             if row.pid in self._whitelist:

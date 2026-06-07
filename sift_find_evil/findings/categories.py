@@ -114,6 +114,20 @@ class FindingCategory(StrEnum):
     remote file transfers, suspicious network connections to external IPs.
     """
 
+    ANALYSIS_GAP = "analysis_gap"
+    """Evidence that the analysis itself is incomplete or unreliable.
+
+    Not an attacker behavior — a meta-finding about evidence reliability, so
+    an operator never mistakes a tooling failure for a clean result. Examples:
+    a Volatility list-walk plugin (pslist/cmdline/malfind) returning zero rows
+    while a pool-scan plugin (psscan/netscan) finds processes, which means the
+    active-process list did not traverse (KDBG / symbol mismatch) and any
+    "no injection / no suspicious cmdline" conclusion is unsound. Kept distinct
+    from every attack category because it must not be scored as a detection
+    (true or false positive) — it describes the engine's blind spot, not the
+    host's behavior.
+    """
+
     UNKNOWN = "unknown"
     """Escape hatch for findings that do not yet map to a named category.
 
