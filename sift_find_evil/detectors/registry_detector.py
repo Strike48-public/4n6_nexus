@@ -247,6 +247,8 @@ class RegistryDetector:
                 continue
             if self._is_benign_autostart(entry.command, reasons):
                 continue
+            if self._is_benign_vendor_cleanup(entry.command, reasons):
+                continue
             findings.append(self._build_run_key_finding(entry, reasons))
         return findings
 
@@ -262,6 +264,47 @@ class RegistryDetector:
         if len(reasons) != 1 or "lives under" not in reasons[0].lower():
             return False
         lowered = command.lower()
+        return any(fragment in lowered for fragment in _BENIGN_AUTOSTART_PATH_FRAGMENTS)
+
+    @staticmethod
+    def _is_benign_vendor_cleanup(command: str, reasons: list[str]) -> bool:
+        """True for a self-contained ``cmd /c del|rmdir`` cleanup of a vendor path.
+
+        Legitimate updaters (notably OneDrive) register RunOnce commands that
+        delete old version directories, e.g.::
+
+            cmd.exe /q /c rmdir /s /q "...\\AppData\\Local\\Microsoft\\OneDrive\\19.x\\amd64"
+            cmd.exe /q /c del   /q "...\\OneDrive\\Update\\OneDriveSetup.exe"
+
+        These fire on the lone "cmd.exe is a LOLBAS host" reason (SFE-9rj). A
+        pure file-deletion cleanup launches NO payload, so it is not
+        persistence. We suppress ONLY when every condition holds:
+
+        - the sole reason is the LOLBAS launcher (no hidden flags / double ext),
+        - the launcher is cmd.exe,
+        - the cmd action is del or rmdir (a deletion, not an execution),
+        - there is no command chaining into a second program (``&&``/``|``/``&``),
+        - the deletion target sits under a known-good vendor path.
+
+        Any deviation (a payload launch, chaining, an unknown target path) keeps
+        the finding, so an attacker cannot cloak arbitrary cmd activity as
+        "cleanup".
+        """
+        if len(reasons) != 1 or "lolbas" not in reasons[0].lower():
+            return False
+        lowered = command.lower()
+        if "cmd.exe" not in lowered and not lowered.lstrip().startswith("cmd "):
+            return False
+        # Locate the /c payload; everything after it is the command cmd runs.
+        marker = re.search(r"/c\s+", lowered)
+        if marker is None:
+            return False
+        payload = lowered[marker.end() :]
+        # Must be a deletion verb, and must not chain into another command.
+        if not re.match(r"(?:del|rmdir|rd)\b", payload.strip()):
+            return False
+        if any(sep in payload for sep in ("&&", "&", "|", ";")):
+            return False
         return any(fragment in lowered for fragment in _BENIGN_AUTOSTART_PATH_FRAGMENTS)
 
     def _run_key_reasons(self, entry: RunKeyEntry) -> list[str]:

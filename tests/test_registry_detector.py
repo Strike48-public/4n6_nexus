@@ -508,3 +508,88 @@ def test_scenario08_beacon_exe_execution_still_flagged():
     )
     assert len(findings) == 1
     assert findings[0].evidence["executable"] == "beacon.exe"
+
+
+# --- OneDrive RunOnce self-cleanup FP (SFE-9rj) -----------------------------
+# Found on the SRL-2015 APT corpus (rd-02 rsydow-a, wkstn-01 mhill): the
+# legitimate Microsoft OneDrive updater registers RunOnce cleanup commands that
+# delete old version directories. These fire on the lone "cmd.exe is a LOLBAS
+# host" reason and were flagged Medium. A self-contained `cmd /c del|rmdir`
+# cleanup launches NO payload — it only deletes files — so it is benign updater
+# behavior, not persistence.
+
+
+def test_run_key_onedrive_runonce_rmdir_cleanup_suppressed():
+    # Verbatim from SRL-2015 wkstn-01 (mhill).
+    entry = _run_key(
+        value_name="Uninstall 19.232.1124.0008\\amd64",
+        key_path="Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+        command=(
+            "C:\\WINDOWS\\system32\\cmd.exe /q /c rmdir /s /q "
+            '"C:\\Users\\mhill\\AppData\\Local\\Microsoft\\OneDrive\\19.232.1124.0008\\amd64"'
+        ),
+    )
+    assert RegistryDetector().analyze(run_keys=[entry]) == []
+
+
+def test_run_key_onedrive_runonce_del_cleanup_suppressed():
+    # Verbatim from SRL-2015 wkstn-01 (mhill).
+    entry = _run_key(
+        value_name="Delete Cached Update Binary",
+        key_path="Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+        command=(
+            "C:\\WINDOWS\\system32\\cmd.exe /q /c del /q "
+            '"C:\\Users\\mhill\\AppData\\Local\\Microsoft\\OneDrive\\Update\\OneDriveSetup.exe"'
+        ),
+    )
+    assert RegistryDetector().analyze(run_keys=[entry]) == []
+
+
+def test_run_key_cmd_cleanup_outside_known_vendor_path_still_fires():
+    # A cmd /c rmdir cleanup that is NOT under a known-good vendor path stays a
+    # finding — we only trust the pattern for recognised updater locations, so
+    # an attacker can't cloak arbitrary cmd activity as "cleanup".
+    entry = _run_key(
+        command='C:\\WINDOWS\\system32\\cmd.exe /q /c rmdir /s /q "C:\\Temp\\stage"',
+    )
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+
+
+def test_run_key_cmd_launching_payload_not_treated_as_cleanup():
+    # cmd that chains into execution (not a pure del/rmdir) must still fire even
+    # under a vendor path — the suppression is only for file-deletion cleanups.
+    entry = _run_key(
+        command=(
+            'cmd.exe /c "C:\\Users\\mhill\\AppData\\Local\\Microsoft\\OneDrive\\evil.exe"'
+        ),
+    )
+    findings = RegistryDetector().analyze(run_keys=[entry])
+    assert len(findings) == 1
+
+
+def test_run_key_cmd_without_slash_c_not_cleanup_suppressed():
+    # A cmd invocation with no /c payload is not a recognised cleanup shape;
+    # the lone-LOLBAS finding must still fire (covers the no-/c branch).
+    entry = _run_key(
+        command=(
+            "C:\\WINDOWS\\system32\\cmd.exe "
+            '"C:\\Users\\mhill\\AppData\\Local\\Microsoft\\OneDrive\\x"'
+        ),
+    )
+    assert len(RegistryDetector().analyze(run_keys=[entry])) == 1
+
+
+def test_run_key_cmd_cleanup_with_chaining_not_suppressed():
+    # A del/rmdir on a vendor path that CHAINS into a second command (&&) is
+    # not benign cleanup — the chaining must keep the finding (covers the
+    # command-separator branch). Attacker hiding execution behind a cleanup.
+    entry = _run_key(
+        key_path="Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+        command=(
+            "cmd.exe /c rmdir /s /q "
+            '"C:\\Users\\mhill\\AppData\\Local\\Microsoft\\OneDrive\\old" '
+            "&& C:\\Users\\mhill\\AppData\\Local\\Microsoft\\OneDrive\\evil.exe"
+        ),
+    )
+    assert len(RegistryDetector().analyze(run_keys=[entry])) == 1
