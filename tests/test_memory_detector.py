@@ -1096,7 +1096,9 @@ def test_listwalk_failure_suppresses_hidden_process_cascade() -> None:
         if f.category == FindingCategory.PROCESS_INJECTION
         and "Hidden process" in f.title
     ]
-    assert hidden == [], "hidden-process cascade must be suppressed on list-walk failure"
+    assert hidden == [], (
+        "hidden-process cascade must be suppressed on list-walk failure"
+    )
     gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
     assert len(gaps) == 1
 
@@ -1143,20 +1145,90 @@ def test_listwalk_failure_suppresses_cmdline() -> None:
     findings = MemoryDetector().analyze(pslist=[], psscan=psscan, cmdline=[evil])
     # The diagnostic fires; cmdline-derived PERSISTENCE findings are suppressed
     # because the stream is unreliable when the list walk failed.
-    persistence = [
-        f for f in findings if f.category == FindingCategory.PERSISTENCE
-    ]
+    persistence = [f for f in findings if f.category == FindingCategory.PERSISTENCE]
     assert persistence == []
     assert any(f.category == FindingCategory.ANALYSIS_GAP for f in findings)
 
 
-def test_listwalk_failure_does_not_suppress_netscan() -> None:
-    """netscan is pool-scan-based (reliable when the list walk fails), so its
-    findings must still surface alongside the diagnostic."""
+def test_listwalk_failure_does_not_suppress_owner_resolved_netscan() -> None:
+    """netscan resolves its own socket owners independently of the process
+    list, so an OWNER-resolved finding (LOLBAS process to an external IP) must
+    still surface alongside the diagnostic when the list walk fails. Only the
+    unowned-socket sub-branch is suppressed (SFE-4n7); see
+    test_unowned_socket_suppressed_under_listwalk_failure."""
     psscan = [_proc(pid=1, name="firefox.exe")]
     sock = _netscan_row(
-        pid=None, owner=None, foreign_addr="198.51.100.7", state="ESTABLISHED"
+        pid=4444,
+        owner="powershell.exe",
+        foreign_addr="198.51.100.7",
+        foreign_port=4444,
+        state="ESTABLISHED",
     )
     findings = MemoryDetector().analyze(pslist=[], psscan=psscan, netscan=[sock])
     assert any(f.category == FindingCategory.ANALYSIS_GAP for f in findings)
+    assert any(f.category == FindingCategory.DATA_EXFILTRATION for f in findings)
+
+
+# -- unowned-socket suppression under list-walk failure (SFE-4n7) ----------
+#
+# Found on the LoneWolf (ransomware_2021) 17GB memory dump, a second image
+# confirming the SFE-10f list-walk failure (pslist=0, psscan=216). The
+# unowned-socket branch infers "pid=None + no owner => unlinked => T1014".
+# That inference is invalid when the process layer is degraded: netscan
+# simply could not carve the owner, not because it was maliciously unlinked.
+# 12 benign cloud sockets (443 / 5228 FCM / 5222 XMPP) fired as T1014 highs.
+
+
+def test_unowned_socket_suppressed_under_listwalk_failure() -> None:
+    """When the list-walk-failure diagnostic fires (pslist empty, psscan
+    non-empty), the unowned-socket T1014 sub-branch must be suppressed — we
+    cannot trust 'unowned = hidden' on a degraded process layer."""
+    psscan = [_proc(pid=1, name="firefox.exe")]
+    sock = _netscan_row(
+        pid=None,
+        owner=None,
+        foreign_addr="13.89.190.89",
+        foreign_port=443,
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(pslist=[], psscan=psscan, netscan=[sock])
+    unowned = [f for f in findings if "Unowned network socket" in f.title]
+    assert unowned == [], (
+        "unowned-socket finding must be suppressed on list-walk failure"
+    )
+    # The diagnostic still fires so the operator knows why.
+    assert any(f.category == FindingCategory.ANALYSIS_GAP for f in findings)
+
+
+def test_owner_resolved_netscan_still_fires_under_listwalk_failure() -> None:
+    """Only the UNOWNED sub-branch is unreliable. An owner-resolved netscan
+    finding (LOLBAS process to an external reverse-shell port) stays reliable
+    even when the list walk failed — netscan resolved the owner itself."""
+    psscan = [_proc(pid=1, name="firefox.exe")]
+    sock = _netscan_row(
+        pid=4444,
+        owner="powershell.exe",
+        foreign_addr="203.0.113.10",
+        foreign_port=4444,
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(pslist=[], psscan=psscan, netscan=[sock])
+    exfil = [f for f in findings if f.category == FindingCategory.DATA_EXFILTRATION]
+    assert len(exfil) == 1
+    assert any(f.category == FindingCategory.ANALYSIS_GAP for f in findings)
+
+
+def test_unowned_socket_still_fires_when_listwalk_ok() -> None:
+    """Sanity: when the list walk succeeded (pslist non-empty), an unowned
+    ESTABLISHED socket is still the genuine T1014 signal and must fire."""
+    pslist = [_proc(pid=1, name="firefox.exe")]
+    psscan = [_proc(pid=1, name="firefox.exe")]
+    sock = _netscan_row(
+        pid=None,
+        owner=None,
+        foreign_addr="198.51.100.7",
+        state="ESTABLISHED",
+    )
+    findings = MemoryDetector().analyze(pslist=pslist, psscan=psscan, netscan=[sock])
     assert any("Unowned network socket" in f.title for f in findings)
+    assert [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP] == []

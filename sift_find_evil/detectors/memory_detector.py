@@ -298,13 +298,19 @@ class MemoryDetector:
         # every psscan row as a false T1014 (~66 on the real SRL-2018
         # base-wkstn-01). Suppress all three — the single ANALYSIS_GAP
         # diagnostic (which lists them in affected_plugins) stands in for them.
-        # Pool-scan plugins (netscan) and the Linux plugins are unaffected.
+        # netscan still runs (it resolves its own socket owners independently),
+        # but its UNOWNED-socket sub-branch is suppressed: under list-walk
+        # failure "pid=None" means the owner object was not carved, not that a
+        # process was maliciously unlinked, so the T1014 inference is unsound
+        # (SFE-4n7). The Linux plugins are unaffected.
         listwalk_failed = bool(listwalk_gaps)
         if not listwalk_failed:
             findings.extend(self._analyze_malfind(malfind or ()))
             findings.extend(self._analyze_hidden_processes(pslist_rows, psscan_rows))
             findings.extend(self._analyze_cmdline(cmdline or ()))
-        findings.extend(self._analyze_netscan(netscan or ()))
+        findings.extend(
+            self._analyze_netscan(netscan or (), suppress_unowned=listwalk_failed)
+        )
         findings.extend(self._analyze_linux_bash(linux_bash or ()))
         findings.extend(self._analyze_linux_pslist(linux_pslist or ()))
         findings.extend(self._analyze_linux_sockstat(linux_sockstat or ()))
@@ -638,15 +644,19 @@ class MemoryDetector:
 
     # --- netscan (suspicious sockets) -------------------------------------
 
-    def _analyze_netscan(self, rows: Iterable[NetworkRow]) -> list[Finding]:
+    def _analyze_netscan(
+        self, rows: Iterable[NetworkRow], *, suppress_unowned: bool = False
+    ) -> list[Finding]:
         findings: list[Finding] = []
         for row in rows:
-            finding = self._classify_netscan_row(row)
+            finding = self._classify_netscan_row(row, suppress_unowned=suppress_unowned)
             if finding is not None:
                 findings.append(finding)
         return findings
 
-    def _classify_netscan_row(self, row: NetworkRow) -> Optional[Finding]:
+    def _classify_netscan_row(
+        self, row: NetworkRow, *, suppress_unowned: bool = False
+    ) -> Optional[Finding]:
         # Unowned sockets — kernel-side or hidden process — fire first
         # regardless of destination. This is the T1014 adjunct to the
         # pslist/psscan divergence finding. We still require a live remote
@@ -654,6 +664,12 @@ class MemoryDetector:
         # connection netscan carved from freed pool memory (whose PID was
         # naturally reclaimed), not a hidden live socket (SFE-qad).
         if row.pid is None and not (row.owner or "").strip():
+            # Under list-walk failure the process layer is degraded, so an
+            # unresolved owner does NOT imply a maliciously unlinked process —
+            # the T1014 inference is unsound and would fire on benign cloud
+            # sockets (SFE-4n7). The ANALYSIS_GAP diagnostic covers this case.
+            if suppress_unowned:
+                return None
             if (row.state or "").upper() in _INACTIVE_TCP_STATES:
                 return None
             if row.foreign_addr and not _is_loopback(row.foreign_addr):
