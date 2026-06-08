@@ -63,6 +63,9 @@ analysis/*/csv/
 analysis/*/logs/
 analysis/scenario_testing/
 
+# Sweep directory (evidence-derived artifacts, should not be committed)
+analysis/sweep/
+
 # Scenario evidence - downloaded binary files live under scenarios/**/evidence/
 # and reference corpora, never in git.
 scenarios/**/evidence/
