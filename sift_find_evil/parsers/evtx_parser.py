@@ -39,6 +39,11 @@ class EventLogEntry:
 
     map_description: Optional[str] = None
 
+    # Source host/IP of a remote logon (EvtxECmd ``RemoteHost`` column), shaped
+    # like ``"WKSTN-07 (192.168.1.50)"`` or ``"- (-)"`` for a local logon. Needed
+    # by the lateral-movement detector to attribute 4624/4625 logons to a source.
+    remote_host: Optional[str] = None
+
     # Raw JSON payload from EvtxECmd (contains NewProcessName for Event ID 4688)
     payload_json: Optional[dict] = None
 
@@ -204,6 +209,7 @@ class EventLogParser:
             # Parse optional fields
             user_id = row.get("UserId") or None
             map_description = row.get("MapDescription") or None
+            remote_host = row.get("RemoteHost") or None
 
             # Parse payload data (Maps-extracted fields)
             payload_data1 = row.get("PayloadData1") or None
@@ -237,6 +243,7 @@ class EventLogParser:
                 payload_data5=payload_data5,
                 payload_data6=payload_data6,
                 map_description=map_description,
+                remote_host=remote_host,
                 payload_json=payload_json,
             )
 

@@ -1,0 +1,39 @@
+name: 22_lateral_movement_logons
+tier: synthetic
+category: lateral_movement
+difficulty: intermediate
+description: >
+  Cross-host lateral movement seen purely through Windows Security
+  authentication events. A clean host (no malicious executables in MFT or
+  Prefetch) nevertheless carries four distinct logon-graph signals: a
+  failed-logon spray against CORP\admin from a single source, a service
+  account (svc_sql) logging on via RDP, a pivot account (cbarton-a) fanning
+  out across three hosts, and an explicit-credential burst for STARK\tdungan
+  on one host. Routine machine-account and SYSTEM logons are present as noise
+  and must be filtered. Exercises LateralMovementDetector on 4624/4625/4648.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    lateral_movement: 5
+    total: 5
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Promotes the SFE-e3g SRL-2015 logon-graph heuristics (validated on the real
+  281,829-event corpus) into the engine as LateralMovementDetector. The five
+  expected findings map to MITRE T1110 (brute force: account spike + source
+  spike), T1078 (valid accounts: service-account RDP + explicit-credential
+  burst), and T1021 (remote services: cross-host spread). Machine accounts
+  (CORP\DC01$) and local session principals (NT AUTHORITY\SYSTEM) are routine
+  domain chatter and are filtered, not flagged.

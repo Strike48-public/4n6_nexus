@@ -29,6 +29,9 @@ from sift_find_evil.memory.volatility_runner import (
     _to_network_row,
     _to_process_row,
 )
+from sift_find_evil.detectors.lateral_movement_detector import (
+    LateralMovementDetector,
+)
 from sift_find_evil.parsers.browser_history_parser import BrowserHistoryParser
 from sift_find_evil.parsers.evtx_parser import EventLogParser
 from sift_find_evil.parsers.mft_parser import MFTParser
@@ -304,6 +307,7 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     findings: list[Finding] = []
     mft: list = []
 
+    lateral_findings: list = []
     if has_causality:
         mft = MFTParser().parse_csv(directory / expectation.mft_fixture)
         prefetch = PrefetchParser().parse_csv(directory / expectation.prefetch_fixture)
@@ -312,6 +316,13 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         )
         findings.extend(SelfCorrectionEngine().analyze(mft, prefetch, evtx))
         findings.extend(_run_registry_for_scenario(expectation))
+
+        # Lateral-movement runs over the authentication events (4624/4625/4648),
+        # which are disjoint from the 4688 process-creation events the causality
+        # engine consumes. Re-parse without the 4688 filter so logon rows survive.
+        auth_events = EventLogParser().parse_csv(directory / expectation.evtx_fixture)
+        lateral_findings = LateralMovementDetector().analyze(auth_events)
+        findings.extend(lateral_findings)
 
     network_findings: list = []
     if expectation.browser_history_fixture:
@@ -381,6 +392,17 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         tp.extend(["yara_match"] * min(yara_expected, len(matched)))
         missing = max(yara_expected - len(matched), 0)
         fn.extend(["yara_match"] * missing)
+
+    lateral_expected = expectation.finding_counts.get("lateral_movement", 0)
+    if lateral_expected:
+        matched = [
+            f for f in lateral_findings if f.category.value == "lateral_movement"
+        ]
+        tp.extend(["lateral_movement"] * min(lateral_expected, len(matched)))
+        missing = max(lateral_expected - len(matched), 0)
+        fn.extend(["lateral_movement"] * missing)
+        extra = max(len(matched) - lateral_expected, 0)
+        fp.extend(["lateral_movement"] * extra)
 
     memory_expected = expectation.finding_counts.get("memory_finding", 0)
     if memory_expected:

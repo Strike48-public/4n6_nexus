@@ -1,0 +1,65 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,RemoteHost,MapDescription
+2025-03-15T09:00:00.2000000Z,4688,20001,WORKSTATION-01,Security,Information,S-1-5-21-1234567,C:\Program Files\Google\Chrome\Application\chrome.exe,%%1936,0x1A2B,C:\Windows\explorer.exe,0x3C4D,chrome.exe,,Process Create (Event ID 4688)
+2025-03-15T11:00:00.6000000Z,4688,20002,WORKSTATION-01,Security,Information,S-1-5-21-1234567,C:\Program Files\Mozilla Firefox\firefox.exe,%%1936,0x2B3C,C:\Windows\explorer.exe,0x4D5E,firefox.exe,,Process Create (Event ID 4688)
+2025-03-15T13:00:00.1000000Z,4688,20003,WORKSTATION-01,Security,Information,S-1-5-21-1234567,C:\Windows\System32\notepad.exe,%%1936,0x3C4D,C:\Windows\explorer.exe,0x5E6F,notepad.exe,,Process Create (Event ID 4688)
+2025-03-15T14:00:00.1000000Z,4688,20004,WORKSTATION-01,Security,Information,S-1-5-21-1234567,C:\Windows\System32\calc.exe,%%1936,0x4D5E,C:\Windows\explorer.exe,0x6F7A,calc.exe,,Process Create (Event ID 4688)
+2025-04-15T14:00:10.0000000Z,4625,30001,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:11.0000000Z,4625,30002,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:12.0000000Z,4625,30003,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:13.0000000Z,4625,30004,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:14.0000000Z,4625,30005,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:15.0000000Z,4625,30006,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:16.0000000Z,4625,30007,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:17.0000000Z,4625,30008,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:18.0000000Z,4625,30009,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:19.0000000Z,4625,30010,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:20.0000000Z,4625,30011,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:21.0000000Z,4625,30012,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:22.0000000Z,4625,30013,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:23.0000000Z,4625,30014,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:24.0000000Z,4625,30015,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:25.0000000Z,4625,30016,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:26.0000000Z,4625,30017,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:27.0000000Z,4625,30018,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:28.0000000Z,4625,30019,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:00:29.0000000Z,4625,30020,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\admin,LogonType 3,,,,,ATTACKER (10.0.0.9),Failed logon
+2025-04-15T14:05:00.0000000Z,4624,30021,DBHOST,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\svc_sql,LogonType 10,,,,,JUMP (10.0.0.5),Successful logon
+2025-04-15T14:06:00.0000000Z,4624,30022,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\cbarton-a,LogonType 3,,,,,WKSTN-07 (10.0.0.7),Successful logon
+2025-04-15T14:07:00.0000000Z,4624,30023,FILE01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\cbarton-a,LogonType 3,,,,,WKSTN-07 (10.0.0.7),Successful logon
+2025-04-15T14:08:00.0000000Z,4624,30024,WEB01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\cbarton-a,LogonType 3,,,,,WKSTN-07 (10.0.0.7),Successful logon
+2025-04-15T14:10:00.0000000Z,4648,30025,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:01.0000000Z,4648,30026,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:02.0000000Z,4648,30027,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:03.0000000Z,4648,30028,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:04.0000000Z,4648,30029,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:05.0000000Z,4648,30030,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:06.0000000Z,4648,30031,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:07.0000000Z,4648,30032,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:08.0000000Z,4648,30033,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:10:09.0000000Z,4648,30034,RD-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: STARK\tdungan,,,,,,RD-01 (10.0.0.40),Logon with explicit credentials
+2025-04-15T14:00:00.0000000Z,4624,30035,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:01.0000000Z,4624,30036,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:02.0000000Z,4624,30037,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:03.0000000Z,4624,30038,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:04.0000000Z,4624,30039,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:05.0000000Z,4624,30040,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:06.0000000Z,4624,30041,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:07.0000000Z,4624,30042,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:08.0000000Z,4624,30043,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:09.0000000Z,4624,30044,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:10.0000000Z,4624,30045,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:11.0000000Z,4624,30046,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:12.0000000Z,4624,30047,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:13.0000000Z,4624,30048,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:14.0000000Z,4624,30049,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:15.0000000Z,4624,30050,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:16.0000000Z,4624,30051,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:17.0000000Z,4624,30052,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:18.0000000Z,4624,30053,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:19.0000000Z,4624,30054,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:20.0000000Z,4624,30055,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:21.0000000Z,4624,30056,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:22.0000000Z,4624,30057,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:23.0000000Z,4624,30058,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:24.0000000Z,4624,30059,DC01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: CORP\DC01$,LogonType 3,,,,,- (-),Successful logon
+2025-04-15T14:00:00.0000000Z,4624,30060,WORKSTATION-01,Security,Information,S-1-5-21-1111111-2222222-3333333-1107,Target: NT AUTHORITY\SYSTEM,LogonType 5,,,,,- (-),Successful logon

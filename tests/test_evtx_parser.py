@@ -301,6 +301,32 @@ def test_parse_csv_with_filter(parser, tmp_path):
     assert entries[0].event_id == 4688
 
 
+def test_parse_csv_captures_remote_host(parser, tmp_path):
+    """RemoteHost column is captured for lateral-movement source attribution."""
+    csv_file = tmp_path / "events.csv"
+    csv_file.write_text(
+        "TimeCreated,EventId,RecordId,Computer,Channel,Level,RemoteHost\n"
+        "2024-01-15T10:31:00Z,4624,1002,DC01,Security,Information,WKSTN-07 (10.0.0.7)\n"
+    )
+
+    entries = parser.parse_csv(str(csv_file))
+    assert len(entries) == 1
+    assert entries[0].remote_host == "WKSTN-07 (10.0.0.7)"
+
+
+def test_parse_csv_remote_host_absent_defaults_none(parser, tmp_path):
+    """A CSV without a RemoteHost column leaves remote_host as None."""
+    csv_file = tmp_path / "events.csv"
+    csv_file.write_text(
+        "TimeCreated,EventId,RecordId,Computer,Channel,Level\n"
+        "2024-01-15T10:31:00Z,4624,1002,DC01,Security,Information\n"
+    )
+
+    entries = parser.parse_csv(str(csv_file))
+    assert len(entries) == 1
+    assert entries[0].remote_host is None
+
+
 def test_parse_row_with_invalid_timestamp(parser):
     """Test _parse_row returns None for invalid timestamp."""
     row = {
