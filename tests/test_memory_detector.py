@@ -1096,9 +1096,9 @@ def test_listwalk_failure_suppresses_hidden_process_cascade() -> None:
         if f.category == FindingCategory.PROCESS_INJECTION
         and "Hidden process" in f.title
     ]
-    assert hidden == [], (
-        "hidden-process cascade must be suppressed on list-walk failure"
-    )
+    assert (
+        hidden == []
+    ), "hidden-process cascade must be suppressed on list-walk failure"
     gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
     assert len(gaps) == 1
 
@@ -1193,9 +1193,9 @@ def test_unowned_socket_suppressed_under_listwalk_failure() -> None:
     )
     findings = MemoryDetector().analyze(pslist=[], psscan=psscan, netscan=[sock])
     unowned = [f for f in findings if "Unowned network socket" in f.title]
-    assert unowned == [], (
-        "unowned-socket finding must be suppressed on list-walk failure"
-    )
+    assert (
+        unowned == []
+    ), "unowned-socket finding must be suppressed on list-walk failure"
     # The diagnostic still fires so the operator knows why.
     assert any(f.category == FindingCategory.ANALYSIS_GAP for f in findings)
 

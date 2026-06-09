@@ -245,6 +245,6 @@ def test_concurrent_blocked_calls_lose_no_entries(server):
 
     entries = server.audit_logger._read_all()
     blocked = [e for e in entries if e.action == "tool_blocked"]
-    assert len(blocked) == threads_n * per_thread, (
-        f"expected {threads_n * per_thread} blocked entries, got {len(blocked)}"
-    )
+    assert (
+        len(blocked) == threads_n * per_thread
+    ), f"expected {threads_n * per_thread} blocked entries, got {len(blocked)}"
