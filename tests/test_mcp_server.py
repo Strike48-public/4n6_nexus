@@ -173,3 +173,78 @@ def test_added_tool_inherits_readonly_guardrail(server, evidence_root, monkeypat
             agent="network_analyst",
             correlation_id="corr-x",
         )
+
+
+# --- SEC-1 (SFE-eol): blocked-call auditing must stay append-only -----------
+
+
+def test_blocked_call_audit_is_append_only(server, tmp_path):
+    """A blocked call must be recorded by APPENDING, never by rewriting the log.
+
+    Regression guard for SFE-eol: the old _stamp_last_entry read the whole log
+    and wrote it back, breaking the append-only / tamper-evident guarantee. The
+    file's existing bytes must be untouched -- only new bytes appended.
+    """
+    audit_path = server.audit_logger.audit_path
+
+    # Seed a prior entry so there is existing content that must be preserved.
+    server.audit_logger.log_action("session_start", details={"case": "INC-2026-001"})
+    before = audit_path.read_bytes()
+
+    with pytest.raises(GuardrailViolation):
+        server.run_tool(
+            tool="volatility",
+            args=["-f", "/etc/shadow", "-r", "json", "windows.pslist"],
+            agent="memory_analyst",
+            correlation_id="corr-append",
+        )
+
+    after = audit_path.read_bytes()
+    # Append-only: the prior bytes are an unchanged prefix; the log only grew.
+    assert after.startswith(before), "existing audit bytes were rewritten"
+    assert len(after) > len(before), "blocked call was not appended"
+
+    # And the blocked entry still carries its A2A identity (no _stamp rewrite).
+    blocked = [
+        e
+        for e in server.audit_logger.get_recent(limit=10)
+        if e.action == "tool_blocked"
+    ]
+    assert blocked and blocked[0].agent == "memory_analyst"
+    assert blocked[0].correlation_id == "corr-append"
+
+
+def test_concurrent_blocked_calls_lose_no_entries(server):
+    """Concurrent blocked calls must not drop audit entries (TOCTOU guard).
+
+    The old read-modify-write _stamp_last_entry raced: a write landing between
+    read_text() and write_text() was silently lost. With append-only logging,
+    every blocked attempt survives.
+    """
+    import threading
+
+    threads_n, per_thread = 8, 10
+
+    def hammer(tid: int) -> None:
+        for _ in range(per_thread):
+            try:
+                server.run_tool(
+                    tool="volatility",
+                    args=["-f", "/etc/shadow", "-r", "json", "windows.pslist"],
+                    agent=f"agent-{tid}",
+                    correlation_id=f"corr-{tid}",
+                )
+            except GuardrailViolation:
+                pass
+
+    threads = [threading.Thread(target=hammer, args=(i,)) for i in range(threads_n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    entries = server.audit_logger._read_all()
+    blocked = [e for e in entries if e.action == "tool_blocked"]
+    assert len(blocked) == threads_n * per_thread, (
+        f"expected {threads_n * per_thread} blocked entries, got {len(blocked)}"
+    )

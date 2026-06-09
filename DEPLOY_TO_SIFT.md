@@ -88,6 +88,41 @@ claude "Run a full forensic analysis on case INC-2026-001"
 > The MCP server can also be launched directly for testing:
 > `python -m sift_find_evil.mcp --evidence-root <dir> --audit-path <file>`
 
+### Environment variables
+
+The MCP server reads its case context from four `SFE_*` variables. CLI flags
+take precedence over environment variables, which take precedence over the
+built-in defaults.
+
+| Variable | CLI flag | Default | Purpose |
+|----------|----------|---------|---------|
+| `SFE_CASE_ID` | `--case-id` | `INC-2026-001` | Case identifier stamped on every audit entry. |
+| `SFE_EVIDENCE_ROOT` | `--evidence-root` | `.` | Directory all tool input paths must resolve inside (read-only containment). Set to the real case evidence directory. |
+| `SFE_AUDIT_PATH` | `--audit-path` | `./audit.jsonl` | Append-only JSONL audit log. Set to a case-scoped path. |
+| `SFE_EXAMINER` | `--examiner` | empty (no attribution) | Examiner identity recorded in the chain of custody. Empty is treated the same as unset. |
+
+There are **two ways** these get set, for two different entry points:
+
+1. **`install-claude-agents.sh` (recommended for real cases)** passes all four
+   explicitly via `claude mcp add --env`, so it does **not** read `.mcp.json` and
+   needs no shell exports. Just pass the flags shown above. Its `--examiner`
+   defaults to `$USER`.
+
+2. **The committed project-scope `.mcp.json` (zero-config dev path)** auto-loads
+   when you open Claude Code in this checkout. It uses `${VAR:-default}` syntax,
+   so it resolves cleanly even when nothing is exported. To point it at real
+   evidence without editing the file, export the vars before launching:
+
+   ```bash
+   export SFE_EVIDENCE_ROOT=/cases/INC-2026-001/evidence
+   export SFE_AUDIT_PATH=/cases/INC-2026-001/audit.jsonl
+   export SFE_EXAMINER="Jane Analyst"
+   ```
+
+`.mcp.json` is committed intentionally and contains no secrets (only variable
+references and a placeholder case ID). It is the zero-config integration point,
+not a file to copy from an example.
+
 ## Troubleshooting
 
 **Python version mismatch:**

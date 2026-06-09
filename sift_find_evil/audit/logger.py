@@ -90,12 +90,20 @@ class AuditLogger:
             f.write(json.dumps(entry.to_dict(), default=str) + "\n")
         return entry.entry_id
 
-    def log_action(self, action: str, details: Optional[dict] = None) -> str:
+    def log_action(
+        self,
+        action: str,
+        details: Optional[dict] = None,
+        correlation_id: Optional[str] = None,
+        agent: Optional[str] = None,
+    ) -> str:
         """Log a generic action.
 
         Args:
             action: Action description
             details: Optional action details
+            correlation_id: Investigative thread this action belongs to (A2A)
+            agent: Acting agent identity (A2A)
 
         Returns:
             The assigned entry_id.
@@ -104,6 +112,8 @@ class AuditLogger:
             action=action,
             examiner=self.examiner,
             details=details,
+            correlation_id=correlation_id,
+            agent=agent,
         )
         return self.log_entry(entry)
 

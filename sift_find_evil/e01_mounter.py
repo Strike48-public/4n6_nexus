@@ -45,11 +45,12 @@ class MountedImage:
         """
         commands = []
 
-        # Unmount filesystem first (if mounted)
+        # Unmount filesystem first (if mounted). List-form subprocess (no shell)
+        # so a crafted mount-point path cannot inject shell commands. (SFE-7rw)
         if self.fs_mount_point and self.fs_mount_point.exists():
-            cmd = f"sudo umount {self.fs_mount_point}"
-            subprocess.run(cmd, shell=True, check=False, capture_output=True)
-            commands.append(cmd)
+            argv = ["sudo", "umount", str(self.fs_mount_point)]
+            subprocess.run(argv, check=False, capture_output=True)
+            commands.append(" ".join(argv))
             try:
                 self.fs_mount_point.rmdir()
             except Exception:
@@ -57,9 +58,9 @@ class MountedImage:
 
         # Unmount E01
         if self.mount_point and self.mount_point.exists():
-            cmd = f"sudo umount {self.mount_point}"
-            subprocess.run(cmd, shell=True, check=False, capture_output=True)
-            commands.append(cmd)
+            argv = ["sudo", "umount", str(self.mount_point)]
+            subprocess.run(argv, check=False, capture_output=True)
+            commands.append(" ".join(argv))
             try:
                 self.mount_point.rmdir()
             except Exception:

@@ -124,6 +124,9 @@ class EvidenceMCPServer:
         try:
             self.guard.check(tool, args)
         except (GuardrailViolation, CircuitBreakerOpen) as exc:
+            # Record the denial as a single append-only entry carrying the A2A
+            # identity, so the blocked event stays on the same correlated thread
+            # as the rest of the investigation. (SFE-eol: never rewrite the log.)
             self.audit_logger.log_action(
                 action="tool_blocked",
                 details={
@@ -132,9 +135,9 @@ class EvidenceMCPServer:
                     "reason": type(exc).__name__,
                     "message": str(exc),
                 },
+                correlation_id=correlation_id,
+                agent=agent,
             )
-            # Re-stamp the blocked entry with agent + correlation for the trace.
-            self._stamp_last_entry(agent=agent, correlation_id=correlation_id)
             raise
 
         # 2. Execute (only reached if the guardrail passed).
@@ -159,25 +162,6 @@ class EvidenceMCPServer:
         )
         result["entry_id"] = entry_id
         return result
-
-    def _stamp_last_entry(self, agent: str, correlation_id: str) -> None:
-        """Attach agent + correlation id to the most recently written entry.
-
-        ``log_action`` does not take A2A fields, so for blocked calls we rewrite
-        the final JSONL line with the identity fields. Keeps the blocked event on
-        the same correlated thread as the rest of the investigation.
-        """
-        import json
-
-        path = self.audit_logger.audit_path
-        lines = path.read_text().splitlines()
-        if not lines:
-            return
-        last = json.loads(lines[-1])
-        last["agent"] = agent
-        last["correlation_id"] = correlation_id
-        lines[-1] = json.dumps(last)
-        path.write_text("\n".join(lines) + "\n")
 
     def _execute(self, tool: str, args: list[str]) -> dict:
         """Run the tool as a subprocess (overridable/stubbable in tests)."""

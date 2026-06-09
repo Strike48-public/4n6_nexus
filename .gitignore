@@ -66,6 +66,15 @@ analysis/scenario_testing/
 # Sweep directory (evidence-derived artifacts, should not be committed)
 analysis/sweep/
 
+# Carved / extracted binaries recovered from evidence (SFE-9z3). These are
+# evidence-derived and can trip GitHub malware/push-protection; keep them in the
+# local analysis/ workspace only, never in git.
+analysis/**/carved_executables/
+analysis/**/extracted_files/
+analysis/**/*.exe
+analysis/**/*.raw.info
+analysis/**/memory/*.info
+
 # Scenario evidence - downloaded binary files live under scenarios/**/evidence/
 # and reference corpora, never in git.
 scenarios/**/evidence/

@@ -23,11 +23,42 @@ class MCPToolResult:
     command: str
 
 
+# Flags that would let a tool mutate evidence. Matched as whole tokens
+# (optionally with an attached =value), so a write flag at any position --
+# including the final argument -- is caught, while read flags that merely
+# contain these letters (e.g. --password, --forward) are not. (SFE-0dq)
+#
+# Scoped to evidence-MUTATION flags. Derived-output flags like --csv <outdir>
+# are deliberately NOT blocked: writing analysis output to a separate directory
+# is the normal read-only workflow and is allowed by the server's ToolGuard
+# policy too. The real boundary (path containment) is ToolGuard, not this list.
+_WRITE_FLAG_TOKENS = frozenset({"-w", "-W", "--write", "--modify", "--delete"})
+
+
+def _is_write_flag(token: str) -> bool:
+    """True if a single argv token requests a write/mutation."""
+    base = token.split("=", 1)[
+        0
+    ]  # strip attached value: --write-out=... -> --write-out
+    if base in _WRITE_FLAG_TOKENS:
+        return True
+    # Catch long-form spellings like --write-out / --writeable without
+    # false-positiving on unrelated flags.
+    return base.startswith("--write")
+
+
 class MCPClient:
-    """Client for executing forensic tools via MCP with safety guards.
+    """Legacy client for executing forensic tools with best-effort safety guards.
+
+    WARNING: This client is NOT the architectural security boundary. It performs
+    a best-effort write-flag rejection but has NO path-containment enforcement --
+    it runs ``subprocess.run`` on the command directly. For real forensic
+    investigations, drive tools through ``EvidenceMCPServer`` (server.py), where
+    ``ToolGuard`` enforces the read-only allowlist AND evidence-path containment
+    on every call. See SFE-0dq.
 
     Provides:
-    - Read-only evidence access enforcement
+    - Best-effort read-only enforcement (write-flag rejection; see warning above)
     - Timeout guards (default 5 minutes)
     - Circuit breaker for tool failures
     - Audit logging for all invocations
@@ -79,14 +110,11 @@ class MCPClient:
                 f"Last failure: {self.last_failure_time}"
             )
 
-        # Validate read-only enforcement
-        # Check for write-related flags more precisely to avoid blocking
-        # legitimate flags like "-d <dir>" in forensic tools
-        command_str = " ".join(command)
-        write_flags = ["--write", "-w ", " -w", "--modify", "--delete"]
-        if any(flag in command_str for flag in write_flags):
+        # Best-effort read-only enforcement: reject any whole-token write flag,
+        # at any position (the real boundary is ToolGuard; see class docstring).
+        if any(_is_write_flag(token) for token in command):
             raise ValueError(
-                f"Write operations not allowed in read-only mode: {command_str}"
+                f"Write operations not allowed in read-only mode: {' '.join(command)}"
             )
 
         start_time = time.time()
