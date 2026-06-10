@@ -118,15 +118,15 @@ python -m sift_find_evil.cli analyze \
   --output analysis/nitroba/findings.json
 ```
 
-**Expected (real, exit 0):** a beaconing finding to `image.weather.com` from
-`192.168.15.4`, confidence 0.95, with the reasoning chain:
-`7 events, mean interval 899.5s, coefficient of variation 0.002 (below 0.15) ->
+**Expected (real, exit 0):** a HIGH beaconing finding to `image.weather.com` from
+`192.168.15.4`, confidence 0.7, with the reasoning chain:
+`7 events, mean interval 899.5s, coefficient of variation 0.0016 (below 0.15) ->
 uniform cadence consistent with automated/beaconing traffic`.
 
 > "Different evidence, different domain - the Nitroba network capture, also
 > hash-verified. Same agent finds command-and-control beaconing: seven callbacks
-> at a near-perfect 15-minute cadence - a coefficient of variation of 0.002. It
-> doesn't just flag it; it shows the math behind the call."
+> at a near-perfect 15-minute cadence - a coefficient of variation of essentially
+> zero. It doesn't just flag it; it shows the math behind the call."
 
 ---
 
@@ -211,10 +211,10 @@ python3 -c "from sift_find_evil.audit.logger import AuditLogger; [print(e.entry_
 # And the deterministic regression gate:
 PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL
 ```
-**Expected (real):** `TOTAL  57  0  0  1.00  1.00  1.00`
+**Expected (real):** `TOTAL  62  0  0  1.00  1.00  1.00`
 
 > "Every finding traces to the tool execution that produced it. The detection
-> engine holds F1 of 1.00 across 14 scenarios - zero false positives, zero false
+> engine holds F1 of 1.00 across 15 scenarios - zero false positives, zero false
 > negatives."
 
 ---
@@ -263,18 +263,24 @@ F-005 red/held). Verified live on the VM 2026-06-05.
 
 ---
 
-## Real numbers used in this script (all verified 2026-06-05 on the VM)
+## Real numbers used in this script
+
+> **Verification provenance:** the reproducible segments (3 real-evidence
+> analyses, 4 orchestration + self-correction, 6 traceability, 7 report, and the
+> scenario harness) were RE-VERIFIED on current `main` on 2026-06-10. The live VM
+> beats (Segments 2 and 5: `claude` → MCP enumeration, and the `tool_blocked`
+> guardrail) were verified on the SIFT VM on 2026-06-05 and run only on the VM.
 
 | Claim | Verified value |
 |-------|----------------|
 | CIRCL E01 SHA-256 | `c4a8145b...4f4ef15` (matches pinned hash) |
 | CIRCL analysis result | 1 CRITICAL, exit 0, wiped primary GPT |
 | nitroba PCAP SHA-256 | `2b77a9ea...53ec2fb` (matches pinned hash) |
-| nitroba analysis result | beaconing to image.weather.com, 0.95, CoV 0.002 over 7 events |
+| nitroba analysis result | HIGH beaconing to image.weather.com, conf 0.7, CoV 0.0016 over 7 events |
 | Orchestration | 6 findings; F-005 stays detected (0.9→0.45), rest resolved (→0.75) |
 | Audit log (demo_run) | 37 entries: 16 agent_message, 8 tool_invocation, 6 finding_emitted, 6 verification, 1 tool_blocked |
 | Guardrail block | mftecmd /etc/shadow → GuardrailViolation, logged tool_blocked |
-| Scenario harness | 57 findings, F1=1.00 (0 FP / 0 FN) |
+| Scenario harness | 62 findings across 15 synthetic scenarios, F1=1.00 (0 FP / 0 FN) |
 
 ## Recording tips
 
