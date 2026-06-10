@@ -61,7 +61,7 @@ echo ""
 pause
 
 section "Beat 2/3 - Scenario validation harness"
-echo -e "${YELLOW}Twelve attack scenarios validated against hand-authored ground truth.${NC}"
+echo -e "${YELLOW}Fifteen attack scenarios validated against hand-authored ground truth.${NC}"
 echo -e "${YELLOW}Watch for: F1=1.00, zero false positives, zero false negatives.${NC}"
 echo ""
 PYTHONPATH=. "$PY" tests/scenario_harness.py
@@ -81,6 +81,6 @@ fi
 section "Demo complete"
 echo "Key points:"
 echo "  - Self-correction resolved a causality violation (0.95 -> 0.45 -> 0.75)"
-echo "  - 12 scenarios, F1=1.00, 0 false positives"
+echo "  - 15 scenarios, F1=1.00, 0 false positives"
 echo "  - Same detection logic runs on real evidence (requirements-forensic.txt)"
 echo ""

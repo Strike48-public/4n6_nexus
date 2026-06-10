@@ -57,6 +57,12 @@ analysis/demo_*.json
 analysis/demo_run/
 analysis/bypass_run/
 
+# Local MCP / demo audit byproduct. The repo-root audit.jsonl is the default
+# audit path in .mcp.json (`${SFE_AUDIT_PATH:-./audit.jsonl}`); it is written
+# whenever the project-scoped MCP server or a local demo runs, and must never
+# be committed. Real-case audit logs live under the case root, not here.
+/audit.jsonl
+
 # Scenario analysis outputs (derived from evidence, not shipped)
 analysis/*/extracted/
 analysis/*/csv/

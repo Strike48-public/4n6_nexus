@@ -72,7 +72,7 @@ extension for the live demo. See [Quick Start](#quick-start) below and
 
 ---
 
-## Detection Accuracy: 14 Scenarios @ F1=1.00
+## Detection Accuracy: 15 Scenarios @ F1=1.00
 
 **Perfect precision and recall across all scored scenarios:**
 
@@ -92,7 +92,8 @@ extension for the live demo. See [Quick Start](#quick-start) below and
 | 12_memory_intrusion | 27 | 0 | 0 | **1.00** |
 | 16_powershell_obfuscated | 5 | 0 | 0 | **1.00** |
 | 19_credential_dumping | 5 | 0 | 0 | **1.00** |
-| **TOTAL** | **57** | **0** | **0** | **1.00** |
+| 22_lateral_movement_logons | 5 | 0 | 0 | **1.00** |
+| **TOTAL** | **62** | **0** | **0** | **1.00** |
 
 **Validation method:** Automated scenario harness with ground-truth expected
 findings, backed by 1,000+ tests. All scenarios run in CI/CD on every commit.
@@ -984,11 +985,11 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 | Metric | Result |
 |--------|--------|
-| **Detection Accuracy (F1)** | 1.00 (14 scenarios) |
+| **Detection Accuracy (F1)** | 1.00 (15 scenarios) |
 | **Precision** | 1.00 (0 false positives) |
 | **Recall** | 1.00 (0 false negatives) |
-| **Total Findings (synthetic harness)** | 57 |
-| **Tests** | 1,000+ passing |
+| **Total Findings (synthetic harness)** | 62 |
+| **Tests** | 1,300+ passing |
 | **Test Coverage** | ~94% (lines) |
 | **CI/CD** | ruff + pytest, all passing |
 
@@ -1010,7 +1011,7 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 ### ✅ Completed (v1.0 - Hackathon Submission)
 - Multi-agent system (orchestrator + triage + 3 domain analysts + verifier)
-- Core detection engine (14 scenarios, 57 findings @ F1=1.00)
+- Core detection engine (15 scenarios, 62 findings @ F1=1.00)
 - Cross-domain self-correction (disk/timeline, memory, network contradictions)
 - Human-in-the-loop approval workflow (DRAFT → APPROVED/REJECTED)
 - Case management (SHA-256 registry, integrity verification)
