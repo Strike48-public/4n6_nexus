@@ -190,7 +190,7 @@ install_software() {
         ssh_exec "$ip" "cd ~/sift_find_evil && git pull"
     else
         info "Cloning sift_find_evil..."
-        ssh_exec "$ip" "git clone https://github.com/Strike48-public/sift_find_evil.git"
+        ssh_exec "$ip" "git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil"
     fi
 
     # Install dependencies
