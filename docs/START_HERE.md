@@ -402,7 +402,6 @@ Throughout the documentation, you'll see status indicators:
 ## Need Help?
 
 - **Issues:** https://github.com/Strike48-public/4n6_nexus/issues
-- **Author:** Jonathan Tomek (hackathon@example.com)
 - **GitHub:** https://github.com/Strike48-public/4n6_nexus
 
 ---
