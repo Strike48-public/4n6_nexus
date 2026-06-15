@@ -46,9 +46,9 @@ Enterprise repo:
 
 ---
 
-## 2. Repository Ownership: Strike48 Organization
+## 2. Repository Ownership: Community Organization
 
-**Decision:** Transfer repositories to Strike48 GitHub organization
+**Decision:** Transfer repositories to community GitHub organization
 
 **Rationale:**
 - **Credibility:** Organization-backed projects signal professionalism
@@ -306,7 +306,7 @@ See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) for detaile
 
 - **2026-04-26:** Initial decisions documented
   - Licensing: MPL-2.0
-  - Organization: Strike48
+  - Organization: Strike48-public
   - CLA: None required
   - Versioning: Independent
   - Naming: 4n6nexus / forensic_nexus

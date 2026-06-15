@@ -26,7 +26,7 @@ Split the current monorepo into two editions of **4n6nexus** (forensics nexus):
 
 **Strategic Decisions:** ✅ FINALIZED (see [DECISIONS.md](DECISIONS.md))
 - License: MPL-2.0 (perfect for Community + Enterprise model)
-- Organization: Strike48 GitHub org
+- Organization: Strike48-public-public GitHub org
 - CLA: None required
 - Versioning: Independent (Community 1.x, Enterprise 1.x)
 - Naming: 4n6nexus (renamed from "SIFT Find Evil" hackathon name)
@@ -593,7 +593,7 @@ See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) for detaile
    - Allows Enterprise additions (proprietary modules)
    - Strong patent protection
 
-2. **Repository Ownership:** Strike48 GitHub organization ✅
+2. **Repository Ownership:** community GitHub organization ✅
    - Professional credibility
    - Team ownership model
 
@@ -686,7 +686,7 @@ Week 3-4: Validation & launch
 ### Change Log
 - **2026-04-26 v1.0.0:** Strategic decisions finalized, PRD approved
   - License: MPL-2.0
-  - Organization: Strike48
+  - Organization: Strike48-public
   - Naming: 4n6nexus / forensic_nexus
   - Versioning: Independent
   - CLA: None required
