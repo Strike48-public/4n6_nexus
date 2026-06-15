@@ -8,7 +8,7 @@ The SIFT Find Evil CLI provides an interface to the autonomous self-correction e
 
 ```bash
 # Clone repository
-git clone https://github.com/jtomek-strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
 cd sift_find_evil
 
 # Install core dependencies (add `-r requirements-forensic.txt` for real
@@ -344,4 +344,4 @@ for case_dir in cases:
 
 ## Support
 
-Report issues: https://github.com/jtomek-strike48/sift_find_evil/issues
+Report issues: https://github.com/Strike48-public/4n6_nexus/issues

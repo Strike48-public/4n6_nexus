@@ -24,7 +24,7 @@ Deployment steps for installing the detection engine on a SANS SIFT Workstation
 ssh sansforensics@<sift-host>        # SIFT OVA default password: forensics
 
 cd ~
-git clone https://github.com/Strike48-public/sift_find_evil.git
+git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
 cd sift_find_evil
 ```
 

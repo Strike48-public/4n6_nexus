@@ -499,7 +499,7 @@ A2A trace sequence.
 ### 1. Install
 
 ```bash
-git clone https://github.com/Strike48-public/sift_find_evil.git
+git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
 cd sift_find_evil
 
 python3 -m venv .venv
@@ -1066,8 +1066,8 @@ Open-source community edition. Commercial SaaS offering coming 2026.
 
 ## Contact
 
-- **GitHub:** https://github.com/Strike48-public/sift_find_evil
-- **Issues:** https://github.com/Strike48-public/sift_find_evil/issues
+- **GitHub:** https://github.com/Strike48-public/4n6_nexus
+- **Issues:** https://github.com/Strike48-public/4n6_nexus/issues
 - **Author:** Jonathan Tomek (hackathon@example.com)
 
 Demonstrating the future of autonomous DFIR.

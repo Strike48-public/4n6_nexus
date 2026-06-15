@@ -23,7 +23,7 @@ wheels (including `yara-python`).
 ## 1. Clone and install
 
 ```bash
-git clone https://github.com/Strike48-public/sift_find_evil.git
+git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
 cd sift_find_evil
 
 python3 -m venv .venv && source .venv/bin/activate
@@ -67,9 +67,9 @@ evidence**, and confidence is adjusted to **0.75**, ending with:
 ## 3. Run the multi-agent investigation (findings + A2A audit log)
 
 This is the agentic deliverable: an orchestrator dispatches a triage agent and
-a disk analyst (tools called through the Custom MCP boundary), then a verifier
-challenges the findings and resolves contradictions — emitting **one correlated
-A2A audit log**.
+three domain analysts (disk, memory, network — tools called through the Custom
+MCP boundary), then a verifier challenges the findings and resolves
+contradictions — emitting **one correlated A2A audit log**.
 
 ```bash
 PYTHONPATH=. python3 -m sift_find_evil.orchestration --output-dir ./analysis/demo_run
@@ -78,16 +78,20 @@ PYTHONPATH=. python3 -m sift_find_evil.orchestration --output-dir ./analysis/dem
 Expected output:
 
 ```
-Case INC-2026-001 -- 3 findings
-  F-001 ransom_note.exe    contradiction_resolved   confidence 0.95 -> 0.75
-  F-002 crypt_engine.exe   contradiction_resolved   confidence 0.95 -> 0.75
-  F-003 persist.exe        contradiction_resolved   confidence 0.95 -> 0.75
+Case INC-2026-001 -- 6 findings
+  F-001 [disk_timeline] ransom_note.exe    contradiction_resolved   confidence 0.95 -> 0.75
+  F-002 [disk_timeline] crypt_engine.exe   contradiction_resolved   confidence 0.95 -> 0.75
+  F-003 [disk_timeline] persist.exe        contradiction_resolved   confidence 0.95 -> 0.75
+  F-004 [memory       ] crypt_engine.exe   contradiction_resolved   confidence 0.95 -> 0.75
+  F-005 [network      ] 203.0.113.66       contradiction_detected   confidence 0.9 -> 0.45
+  F-006 [network      ] 1.1.1.1            contradiction_resolved   confidence 0.9 -> 0.75
 
 A2A audit log:  ./analysis/demo_run/audit.jsonl
 Report:         ./analysis/demo_run/report.json
 ```
 
-> **Verified:** produces 3 findings, each self-corrected 0.95 → 0.75, and writes
+> **Verified:** produces 6 findings (F-005 stays flagged as an unresolved
+> contradiction — an honest "held" result, not auto-cleared), and writes
 > `audit.jsonl` + `report.json`.
 
 ### Trace any finding back to its tool executions
@@ -123,7 +127,7 @@ grep tool_blocked ./analysis/bypass_run/audit.jsonl
 
 Expected: a `tool_blocked` entry with
 `reason: GuardrailViolation` and a message that `/etc/shadow` resolves outside
-the evidence root. The investigation still completes its 3 findings — the
+the evidence root. The investigation still completes its findings — the
 boundary blocks abuse without breaking legitimate work.
 
 > **Verified:** `tool_blocked` / `GuardrailViolation` entry present;
@@ -140,13 +144,13 @@ PYTHONPATH=. python3 tests/scenario_harness.py
 Expected final line:
 
 ```
-TOTAL                       57   0   0    1.00    1.00    1.00
+TOTAL                       62   0   0    1.00    1.00    1.00
 ```
 
-(14 scenarios, 57 findings, 0 false positives, 0 false negatives. A
+(15 scenarios, 62 findings, 0 false positives, 0 false negatives. A
 machine-readable copy is written to `analysis/scenario_report.json`.)
 
-> **Verified:** prints `TOTAL  57  0  0  1.00  1.00  1.00`.
+> **Verified:** prints `TOTAL  62  0  0  1.00  1.00  1.00`.
 
 Run the full test suite too, if you want:
 
@@ -160,7 +164,7 @@ Real images are not bundled (they are multi-GB). Each lives under
 `scenarios/real/<name>/` with a `scenario.yaml` that pins the source URL and
 SHA-256, and a `download.sh` / documented fetch step. Provenance and expected
 findings for every dataset are in
-[EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md). Example (CIRCL wiped disk):
+[DATASETS.md](DATASETS.md). Example (CIRCL wiped disk):
 
 ```bash
 # After downloading evidence into scenarios/real/circl-2023-wiped/evidence/
@@ -185,5 +189,5 @@ Expected: one CRITICAL finding (wiped GPT partition table, confidence 0.95).
 All commands are run from the repository root with `PYTHONPATH=.` (or after
 `pip install -e .`). See [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) for
 how the pieces connect, [ACCURACY_REPORT.md](ACCURACY_REPORT.md) for the
-accuracy self-assessment, and [EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md) for
+accuracy self-assessment, and [DATASETS.md](DATASETS.md) for
 what was tested and found.
