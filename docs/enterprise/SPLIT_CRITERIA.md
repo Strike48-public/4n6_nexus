@@ -386,7 +386,7 @@ All strategic decisions have been made. See [DECISIONS.md](DECISIONS.md) for com
 
 ### Post-Demo (May 2026)
 6. **Execute repository split** (see REPOSITORY_SPLIT_PRD.md)
-7. **Launch Community edition** (public on Strike48 org)
+7. **Launch Community edition** (public on community org)
 8. **Migrate Enterprise customers**
 9. **Monitor and iterate**
 

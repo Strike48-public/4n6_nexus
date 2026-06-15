@@ -65,7 +65,7 @@ Enterprise repo:
 - Enterprise: `Strike48-public/4n6_nexus-enterprise`
 
 **Action Required:**
-- Strike48 org owner must accept repository transfer (or create repos directly in org)
+- community org owner must accept repository transfer (or create repos directly in org)
 - Update all documentation references from personal account to org
 
 ---
@@ -278,7 +278,7 @@ See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) for detaile
 - [ ] Tag v1.0.0
 
 ### Phase 2: Create Enterprise Repo (Post-Demo)
-- [ ] Create `4n6nexus-enterprise` repo in Strike48 org
+- [ ] Create `4n6nexus-enterprise` repo in community org
 - [ ] Add Community as git submodule
 - [ ] Configure proprietary licensing
 - [ ] Update imports and dependencies

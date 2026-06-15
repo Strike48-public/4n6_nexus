@@ -289,7 +289,7 @@ See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) for detaile
    - Licensing model (Apache 2.0 vs MIT for Community)
    - Contribution model (CLA required?)
    - Versioning strategy (synchronized vs independent)
-   - Repository hosting (Strike48 org vs personal)
+   - Repository hosting (community org vs personal)
    - Package naming (`sift-find-evil` vs `sift_find_evil`)
 
 3. **Generate dependency map** (1 hour)
@@ -301,7 +301,7 @@ See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) for detaile
 4. **Stakeholder approval** (2 hours)
    - Present PRD to decision makers
    - Confirm licensing strategy
-   - Confirm repository ownership (Strike48 org?)
+   - Confirm repository ownership (community org?)
    - Get budget approval (if needed for tooling/hosting)
 
 **Deliverables:**
