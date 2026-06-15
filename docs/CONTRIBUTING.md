@@ -27,7 +27,7 @@ Thank you for your interest in contributing to SIFT Find Evil! This document pro
 
 ```bash
 # Clone repository
-git clone https://github.com/Strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/sift_find_evil.git
 cd sift_find_evil
 
 # Create virtual environment
@@ -663,7 +663,7 @@ Violations may result in temporary or permanent ban from the project.
 
 - **GitHub Issues:** https://github.com/jtomek-strike48/sift_find_evil/issues
 - **Documentation:** [README.md](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Email:** jonathan.tomek@strike48.com
+- **Email:** hackathon@example.com
 
 ---
 

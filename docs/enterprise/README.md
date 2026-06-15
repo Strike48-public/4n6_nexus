@@ -10,7 +10,7 @@ This directory contains planning documents for splitting the repository into Com
 
 1. **[DECISIONS.md](DECISIONS.md)** - STRATEGIC DECISIONS (FINALIZED)
    - **License:** MPL-2.0 (perfect for Community + Enterprise model)
-   - **Organization:** Strike48 GitHub org
+   - **Organization:** community GitHub org
    - **CLA:** None required (MPL provides protection)
    - **Versioning:** Independent (Community 1.x, Enterprise 1.x)
    - **Naming:** 4n6nexus / forensic_nexus
@@ -60,7 +60,7 @@ All decisions made and documented in [DECISIONS.md](DECISIONS.md):
    - Perfect for Community + Enterprise model
    - Protects Community code, allows Enterprise additions
 
-2. **Organization:** Strike48 GitHub org ✅
+2. **Organization:** community GitHub org ✅
    - Professional credibility
    - Team ownership
 
@@ -142,7 +142,7 @@ All decisions made and documented in [DECISIONS.md](DECISIONS.md):
 
 ## Questions?
 
-Contact: Jonathan Tomek (jonathan.tomek@strike48.com)
+Contact: Jonathan Tomek (hackathon@example.com)
 
 ---
 

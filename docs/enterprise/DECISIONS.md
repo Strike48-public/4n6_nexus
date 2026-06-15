@@ -61,8 +61,8 @@ Enterprise repo:
 - Repo currently at: `jtomek-strike48/sift_find_evil` (personal)
 
 **Target State:**
-- Community: `Strike48/4n6nexus`
-- Enterprise: `Strike48/4n6nexus-enterprise`
+- Community: `Strike48-public/4n6_nexus`
+- Enterprise: `Strike48-public/4n6_nexus-enterprise`
 
 **Action Required:**
 - Strike48 org owner must accept repository transfer (or create repos directly in org)
@@ -144,14 +144,14 @@ Enterprise: 1.x.x (independent numbering)
 **Community Edition:**
 - **Product Name:** 4n6nexus (forensics nexus)
 - **Tagline:** "Open-source DFIR detection engine"
-- **GitHub Repo:** `Strike48/4n6nexus`
+- **GitHub Repo:** `Strike48-public/4n6_nexus`
 - **PyPI Package:** `4n6nexus`
 - **Python Import:** `forensic_nexus` (Python identifiers can't start with numbers)
 
 **Enterprise Edition:**
 - **Product Name:** 4n6nexus Enterprise
 - **Tagline:** "Autonomous DFIR with self-correction"
-- **GitHub Repo:** `Strike48/4n6nexus-enterprise`
+- **GitHub Repo:** `Strike48-public/4n6_nexus-enterprise`
 - **PyPI Package:** `4n6nexus-enterprise` (or direct distribution)
 - **Python Import:** `forensic_nexus_enterprise`
 
@@ -271,7 +271,7 @@ See [CRITICAL_ARCHITECTURE_ISSUE.md](CRITICAL_ARCHITECTURE_ISSUE.md) for detaile
 
 ### Phase 1: Create Community Repo (Post-Demo)
 - [ ] Rename repo to `4n6nexus`
-- [ ] Transfer to Strike48 organization
+- [ ] Transfer to community organization
 - [ ] Remove Enterprise modules
 - [ ] Apply MPL-2.0 license
 - [ ] Update branding and documentation

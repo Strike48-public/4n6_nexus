@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F172A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E293B;stop-opacity:1" />
+    </linearGradient>
+
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10B981;stop-opacity:1" />
+    </linearGradient>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="url(#bgGradient)"/>
+
+  <!-- Grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E3A8A" stroke-width="0.5" opacity="0.1"/>
+  </pattern>
+  <rect width="1200" height="800" fill="url(#grid)"/>
+
+  <!-- SIFT text (top line) -->
+  <text x="600" y="280" font-family="'Courier New', monospace" font-size="140" font-weight="900"
+        fill="url(#textGradient)" letter-spacing="20" text-anchor="middle"
+        filter="url(#glow)">
+    SIFT
+  </text>
+
+  <!-- FIND EVIL text (bottom line) -->
+  <text x="600" y="430" font-family="'Courier New', monospace" font-size="100" font-weight="900"
+        fill="url(#textGradient)" letter-spacing="12" text-anchor="middle"
+        filter="url(#glow)">
+    FIND EVIL
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="530" font-family="'Courier New', monospace" font-size="24" font-weight="400"
+        fill="#94A3B8" text-anchor="middle">
+    Autonomous DFIR with Architectural Guardrails
+  </text>
+
+  <!-- Small forensic icon elements (hexagons representing data/evidence) -->
+  <g opacity="0.3">
+    <polygon points="150,150 170,138 190,150 190,174 170,186 150,174" fill="none" stroke="#3B82F6" stroke-width="2"/>
+    <polygon points="1010,150 1030,138 1050,150 1050,174 1030,186 1010,174" fill="none" stroke="#10B981" stroke-width="2"/>
+    <polygon points="150,650 170,638 190,650 190,674 170,686 150,674" fill="none" stroke="#EF4444" stroke-width="2"/>
+    <polygon points="1010,650 1030,638 1050,650 1050,674 1030,686 1010,674" fill="none" stroke="#F59E0B" stroke-width="2"/>
+  </g>
+
+  <!-- Circuit-like connection lines -->
+  <g opacity="0.2" stroke="#3B82F6" stroke-width="1" fill="none">
+    <line x1="190" y1="162" x2="300" y2="250"/>
+    <line x1="1010" y1="162" x2="900" y2="250"/>
+    <line x1="190" y1="662" x2="300" y2="550"/>
+    <line x1="1010" y1="662" x2="900" y2="550"/>
+  </g>
+</svg>

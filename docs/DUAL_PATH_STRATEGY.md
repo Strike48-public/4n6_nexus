@@ -151,7 +151,7 @@ User runs: python -m sift_find_evil.orchestration --case INC-2026-001
 ```bash
 # 1. Install SIFT Workstation (or just the tools you need)
 # 2. Install sift_find_evil
-git clone https://github.com/Strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/sift_find_evil.git
 cd sift_find_evil
 python3 -m venv venv
 source venv/bin/activate

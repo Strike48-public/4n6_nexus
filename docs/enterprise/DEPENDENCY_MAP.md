@@ -202,7 +202,7 @@ __main__.py                 # Entry point
 
 **Total Community Lines:** ~12,000 SLOC (estimated)
 **License:** MPL-2.0 (all files include MPL header)
-**Repository:** `Strike48/4n6nexus` (public)
+**Repository:** `Strike48-public/4n6_nexus` (public)
 
 ### Enterprise (Proprietary)
 ```
@@ -218,7 +218,7 @@ cli_mcp.py                  # MCP-enabled CLI
 
 **Total Enterprise Lines:** ~8,000 SLOC (estimated)
 **License:** Proprietary commercial license
-**Repository:** `Strike48/4n6nexus-enterprise` (private)
+**Repository:** `Strike48-public/4n6_nexus-enterprise` (private)
 **Depends On:** Community (4n6nexus>=1.0.0,<2.0.0) - MPL-2.0 allows this
 
 ---

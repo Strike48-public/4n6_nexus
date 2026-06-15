@@ -18,7 +18,7 @@ This guide covers installing the `sift_find_evil` detection engine on the SANS S
 ```bash
 # 1. Clone repository
 cd ~
-git clone https://github.com/Strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/sift_find_evil.git
 cd sift_find_evil
 
 # 2. Install Python dependencies
@@ -58,7 +58,7 @@ python3 --version
 
 ```bash
 cd ~
-git clone https://github.com/Strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/sift_find_evil.git
 cd sift_find_evil
 ```
 
@@ -407,8 +407,8 @@ pip3 install --user -e .
 
 ## Support
 
-- **GitHub Issues:** https://github.com/Strike48/sift_find_evil/issues
-- **Documentation:** https://github.com/Strike48/sift_find_evil/tree/main/docs
+- **GitHub Issues:** https://github.com/Strike48-public/sift_find_evil/issues
+- **Documentation:** https://github.com/Strike48-public/sift_find_evil/tree/main/docs
 - **SIFT Workstation:** https://www.sans.org/tools/sift-workstation/
 
 ---

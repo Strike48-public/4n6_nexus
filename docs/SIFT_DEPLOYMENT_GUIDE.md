@@ -26,7 +26,7 @@ Clone and install directly on SIFT:
 
 ```bash
 cd ~
-git clone https://github.com/Strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/sift_find_evil.git
 cd sift_find_evil
 pip3 install --user -r requirements.txt
 pip3 install --user -e .
@@ -93,7 +93,7 @@ docker run --rm -v /cases:/evidence \
 ```bash
 # 1. Clone repository
 cd ~
-git clone https://github.com/Strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/sift_find_evil.git
 cd sift_find_evil
 
 # 2. Install dependencies
@@ -409,8 +409,8 @@ Before deploying on production SIFT:
 ## Support & Documentation
 
 - **Installation Guide:** `INSTALL_SIFT.md`
-- **GitHub:** https://github.com/Strike48/sift_find_evil
-- **Issues:** https://github.com/Strike48/sift_find_evil/issues
+- **GitHub:** https://github.com/Strike48-public/sift_find_evil
+- **Issues:** https://github.com/Strike48-public/sift_find_evil/issues
 - **SIFT Documentation:** https://www.sans.org/tools/sift-workstation/
 
 ---

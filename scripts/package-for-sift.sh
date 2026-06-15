@@ -187,8 +187,8 @@ python3 -m sift_find_evil.cli run \
 
 ## Support
 
-- GitHub: https://github.com/Strike48/sift_find_evil
-- Issues: https://github.com/Strike48/sift_find_evil/issues
+- GitHub: https://github.com/Strike48-public/sift_find_evil
+- Issues: https://github.com/Strike48-public/sift_find_evil/issues
 README_EOF
 
 # Create tarball

@@ -17,11 +17,11 @@
 Split the current monorepo into two editions of **4n6nexus** (forensics nexus):
 
 1. **Community Edition:** Open-source DFIR detection engine (MPL-2.0 licensed)
-   - Repository: `Strike48/4n6nexus`
+   - Repository: `Strike48-public/4n6_nexus`
    - Package: `4n6nexus` (PyPI) / `forensic_nexus` (import)
    
 2. **Enterprise Edition:** Commercial edition with self-correction + MCP integration
-   - Repository: `Strike48/4n6nexus-enterprise` (private)
+   - Repository: `Strike48-public/4n6_nexus-enterprise` (private)
    - Depends on Community via git submodule or PyPI
 
 **Strategic Decisions:** ✅ FINALIZED (see [DECISIONS.md](DECISIONS.md))

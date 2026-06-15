@@ -23,7 +23,7 @@ wheels (including `yara-python`).
 ## 1. Clone and install
 
 ```bash
-git clone https://github.com/Strike48/sift_find_evil.git
+git clone https://github.com/Strike48-public/sift_find_evil.git
 cd sift_find_evil
 
 python3 -m venv .venv && source .venv/bin/activate

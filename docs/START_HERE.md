@@ -421,9 +421,9 @@ Throughout the documentation, you'll see status indicators:
 
 ## Need Help?
 
-- **Issues:** https://github.com/Strike48/sift_find_evil/issues
-- **Author:** Jonathan Tomek (jonathan.tomek@strike48.com)
-- **GitHub:** https://github.com/Strike48/sift_find_evil
+- **Issues:** https://github.com/Strike48-public/sift_find_evil/issues
+- **Author:** Jonathan Tomek (hackathon@example.com)
+- **GitHub:** https://github.com/Strike48-public/sift_find_evil
 
 ---
 

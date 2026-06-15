@@ -377,7 +377,7 @@ Scenario 21: AI Adversarial Attack
 > 
 > 4n6 Nexus: Perfect accuracy at machine speed. Open source Community Edition available now. Enterprise Edition coming soon.
 > 
-> Visit github.com/Strike48/sift_find_evil to learn more."
+> Visit github.com/Strike48-public/sift_find_evil to learn more."
 
 **Text on screen:**
 ```
@@ -393,7 +393,7 @@ Perfect Accuracy. Machine Speed. Zero False Positives.
 Community Edition: Open Source (MIT License)
 Enterprise Edition: Coming Q3 2026
 
-github.com/Strike48/sift_find_evil
+github.com/Strike48-public/sift_find_evil
 ```
 
 ---
@@ -578,7 +578,7 @@ A: "Community Edition is beta - we're actively hardening it for production. Ente
 > 
 > **Validation:** 21 synthetic test scenarios + real SANS evidence. Reproducibility kit available - verify our claims yourself in 30 minutes.
 > 
-> **Open source:** Community Edition (MIT license) available at github.com/Strike48/sift_find_evil
+> **Open source:** Community Edition (MIT license) available at github.com/Strike48-public/sift_find_evil
 > 
 > Would love your feedback as a fellow DFIR professional.
 

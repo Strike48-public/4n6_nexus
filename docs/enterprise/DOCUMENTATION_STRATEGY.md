@@ -7,7 +7,7 @@
 
 ## Current State (Hackathon)
 
-**Repository:** sift_find_evil (Strike48/sift_find_evil)
+**Repository:** sift_find_evil (Strike48-public/4n6_nexus)
 **Documentation:** 73 markdown files in docs/
 **README:** Comprehensive (29K, 902 lines) - hackathon-appropriate
 
@@ -191,7 +191,7 @@ Enterprise Documentation
 
 ### Community Edition
 
-**Owned by:** Community + Strike48 maintainers
+**Owned by:** Community + community maintainers
 **Update frequency:** As needed (PRs accepted)
 **Quality control:** PR review process, CI/CD checks
 
@@ -202,7 +202,7 @@ Enterprise Documentation
 
 ### Enterprise Edition
 
-**Owned by:** Strike48 documentation team
+**Owned by:** community documentation team
 **Update frequency:** With each release + hotfixes
 **Quality control:** Internal review process
 
@@ -243,6 +243,6 @@ Enterprise Documentation
 
 ---
 
-**Document Owner:** Jonathan Tomek (jonathan.tomek@strike48.com)
+**Document Owner:** Jonathan Tomek (hackathon@example.com)
 **Last Updated:** 2026-04-26
 **Status:** Approved for post-hackathon execution

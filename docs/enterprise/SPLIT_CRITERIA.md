@@ -10,7 +10,7 @@
 - **Enterprise Edition:** Commercial edition with self-correction, MCP integration, advanced features
 - **Critical Blocker:** Finding class refactor (APPROVED for immediate execution)
 - **License:** Mozilla Public License 2.0 (MPL-2.0) - perfect for Community + Enterprise model
-- **Organization:** Strike48 GitHub organization
+- **Organization:** Strike48-public GitHub organization
 - **Versioning:** Independent (Community 1.x, Enterprise 1.x)
 
 ## Naming Note
@@ -339,7 +339,7 @@ All strategic decisions have been made. See [DECISIONS.md](DECISIONS.md) for com
 
 ### Summary of Decisions
 1. **Licensing:** MPL-2.0 (Mozilla Public License) - enables Community protection + Enterprise additions
-2. **Organization:** Strike48 GitHub organization (transferred from personal account)
+2. **Organization:** Strike48-public GitHub organization (transferred from personal account)
 3. **CLA:** None required (MPL provides sufficient protection)
 4. **Versioning:** Independent (Community 1.x, Enterprise 1.x - not synchronized)
 5. **Branding:** 4n6nexus (Community) / 4n6nexus Enterprise
@@ -357,8 +357,8 @@ All strategic decisions have been made. See [DECISIONS.md](DECISIONS.md) for com
 
 ### Operational Decisions (APPROVED)
 1. **Repository Hosting:**
-   - Community: `Strike48/4n6nexus` (public)
-   - Enterprise: `Strike48/4n6nexus-enterprise` (private)
+   - Community: `Strike48-public/4n6_nexus` (public)
+   - Enterprise: `Strike48-public/4n6_nexus-enterprise` (private)
    
 2. **Package Distribution:**
    - Community: PyPI (`pip install 4n6nexus`)
@@ -366,12 +366,12 @@ All strategic decisions have been made. See [DECISIONS.md](DECISIONS.md) for com
    - Docker: TBD (post-launch)
 
 3. **Issue Tracking:**
-   - Community: Public GitHub Issues on `Strike48/4n6nexus`
-   - Enterprise: Private GitHub Issues on `Strike48/4n6nexus-enterprise`
+   - Community: Public GitHub Issues on `Strike48-public/4n6_nexus`
+   - Enterprise: Private GitHub Issues on `Strike48-public/4n6_nexus-enterprise`
    
 4. **Documentation Hosting:**
    - Community: ReadTheDocs (public, automated from repo)
-   - Enterprise: Private docs site (Strike48-hosted or similar)
+   - Enterprise: Private docs site (community-hosted or similar)
 
 ## Next Steps (IN PROGRESS)
 
