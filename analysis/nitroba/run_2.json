@@ -16,13 +16,14 @@
         "first_seen": "2008-07-22T04:40:18.076520+00:00",
         "last_seen": "2008-07-22T06:10:14.854626+00:00"
       },
-      "confidence": 0.95,
-      "confidence_label": "High",
+      "confidence": 0.7,
+      "confidence_label": "Medium",
       "reasoning_chain": [
         "7 events to image.weather.com from 192.168.15.4.",
         "Inter-event intervals: mean=899.5s, stddev=1.40s.",
         "Coefficient of variation 0.002 is below threshold 0.15.",
-        "Uniform cadence is consistent with automated/beaconing traffic."
+        "Uniform cadence is consistent with automated/beaconing traffic.",
+        "Cadence alone cannot distinguish a benign timer (e.g. a weather widget) from C2; confidence capped at Medium (0.70) pending corroborating signals (SFE-fqn)."
       ],
       "contradictions": [],
       "resolutions": [],

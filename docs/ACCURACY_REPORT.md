@@ -13,13 +13,13 @@ guardrail taxonomy and [DATASETS.md](DATASETS.md) for dataset provenance.
 
 ```bash
 # Detection accuracy across all scenarios (writes analysis/scenario_report.json)
-PYTHONPATH=. python tests/scenario_harness.py
+PYTHONPATH=. python3 tests/scenario_harness.py
 
-# Guardrail bypass test (architectural evidence-integrity proof)
-PYTHONPATH=. python -m pytest tests/test_mcp_guardrails.py tests/test_mcp_server.py -q
+# Guardrail bypass tests (architectural evidence-integrity proof; 20 passing)
+PYTHONPATH=. python3 -m pytest tests/test_mcp_guardrails.py tests/test_mcp_server.py -q
 
 # Live bypass demo: attempt an out-of-bounds read through the MCP boundary
-PYTHONPATH=. python -m sift_find_evil.orchestration --bypass-demo
+PYTHONPATH=. python3 -m sift_find_evil.orchestration --bypass-demo
 ```
 
 ---
@@ -50,49 +50,60 @@ Scenario harness run, all figures from the live run that writes
 
 15 scenarios, 62 true-positive findings, **0 false positives, 0 false
 negatives** (micro-averaged F1 = 1.00). The full unit + integration suite is
-**1,000+ tests** at ~94% line coverage (CI gate: 85% minimum).
+**1,361 tests**; the CI gate enforces **100% line coverage** of the
+detection/orchestration surface (`fail_under = 100` in `pyproject.toml`, scoped
+to non-UI/non-glue code).
 
 ### Real evidence
 
-Two real datasets were run end-to-end through the engine (artifacts in
-`analysis/`):
+Three real datasets were run end-to-end through the engine, each with a verified
+run artifact under `analysis/`. Full provenance (source URL, license, SHA-256)
+and the findings narrative are in [DATASETS.md](DATASETS.md); this table is the
+accuracy-scoped summary.
 
 | Dataset | Tier | Findings | FP | FN | Notes |
 |---|---|---|---|---|---|
-| `circl-2023-wiped` | real | 1 | 0 | 0 | Anti-forensics / wiped disk; one high-confidence finding (0.95). |
-| `m57-jean` | real | 0 | 0 | 0 | Ran clean against the engine's current detector scope. |
-| `nitroba` | real | 1 beaconing + 0 DNS | 1 (FP-audit) | — | Network FP-validation run (SFE-fqn) via tshark; see note below. |
+| `circl-2023-wiped` | real | 1 CRITICAL (0.95) | 0 | 0 | Anti-forensics / wiped disk; primary GPT zeroed, secondary intact. SHA-256 matches manifest. |
+| `m57-jean` | real | 1 CRITICAL (0.95) + 856 medium | 0 | 0 | Full E01 CLI pipeline: CRITICAL `data_exfiltration` (byte-equal SHA-256 across MFT file ↔ PST attachment). See scope note. |
+| `nitroba` | real | 1 beaconing (0.70) + 0 DNS | 0 | — | Network FP-validation run (SFE-fqn) via tshark; cadence-only beacon, capped Medium. See note. |
 
 These are the real datasets with verified run artifacts. Other datasets named
-in `scenarios/` (e.g. `insider_threat_2022`, `apt_attack_2015`) are
-**downloaded/staged but not yet validated** — they appear as unchecked items in
-`scenarios/VALIDATION.md` and have no run output. We do not report numbers for
-them.
+in `scenarios/` (e.g. `apt_attack_2015`) are staged but **not run** — no bundled
+evidence, no run output. We do not report numbers for them.
 
-> **Network FP validation (SFE-fqn).** The Nitroba campus capture (4,850 HTTP
-> requests, 1,488 DNS queries) was run through the network detectors as a
-> false-positive audit (`analysis/fp_validate_nitroba.py`). Two findings of
-> note: (1) `BeaconingDetector` fired on a benign `image.weather.com` widget (7
-> polls, ~900s interval, CoV=0.0016) — a true false positive in the sense that
-> the host is not malicious, but a *correct* triage signal (regular automated
-> cadence). Cadence alone cannot distinguish a benign timer from C2, so its
-> confidence is now **capped at Medium (0.70)** rather than presented as a
-> high-confidence verdict. (2) `DNSAnomalyDetector` produced **zero** findings;
-> the longest real DNS label was 26 chars, well under the 40-char trigger, so
-> the audit's "CDN suppression list incomplete" hypothesis did **not** reproduce
-> and the list was left unchanged. The remaining FP-audit candidates
-> (memory/Linux-image detectors) require evidence not yet available and are
-> tracked as follow-up tickets.
+> **`m57-jean` scope note (why this row differs from the regression harness).**
+> The regression harness (§1) scores small CSV fixtures and `m57-jean`'s manifest
+> declares `total: 0`, so the harness reports 0 for it. The full CLI pipeline run
+> *against the actual 10 GB E01* is a different, larger analysis: it produced a
+> CRITICAL `data_exfiltration` finding at confidence **0.95** — `m57biz.xls`
+> saved to disk, then emailed 44s later, proven by a byte-equal SHA-256 across
+> two independent artifacts (the on-disk MFT file and the PST attachment) — plus
+> 856 MEDIUM triage findings. Both numbers are true at their own scope and are
+> reported side by side (artifact:
+> `analysis/m57-jean/acceptance_test_results.json`; narrative:
+> `scenarios/real/m57-jean/findings.md`).
 
-> **Correction (authoritative).** Earlier docs across this repo — including the
-> top-level README and `PERFORMANCE_BENCHMARK.md` — cite a "1,071 findings /
-> 7.7 GB / 155,452 MFT entries / 11 minutes" `insider_threat_2022` result. **That
-> figure is not reproducible from any run artifact** and the dataset directory is
-> empty; `PROOF_METHODOLOGY.md` itself marks the "11 minutes / 155K entries"
-> number as an *estimate, not a measurement*. This Accuracy Report supersedes
-> those numbers: treat the 1,071-finding result as unverified until a real run
-> artifact exists. Cleanup of the stale citations across the other docs is
-> tracked as follow-up (SFE-3sc).
+> **Network FP validation (SFE-fqn).** The Nitroba campus capture was run through
+> the network detectors as a false-positive audit. Two findings of note: (1)
+> `BeaconingDetector` fired on a benign `image.weather.com` widget (7 polls,
+> ~900s interval, CoV = 0.0016) — the host is not malicious, but the regular
+> automated cadence is a *correct* triage signal. Cadence alone cannot
+> distinguish a benign timer from C2, so the detector now **caps cadence-only
+> confidence at Medium (0.70)** in code (`stats_detector.py`) rather than
+> presenting it as a high-confidence verdict; the run artifact
+> (`analysis/nitroba/run_2.json`) reflects the capped 0.70. (2)
+> `DNSAnomalyDetector` produced **zero** findings; the longest real DNS label was
+> well under the trigger, so the audit's "CDN suppression list incomplete"
+> hypothesis did **not** reproduce and the list was left unchanged. Remaining
+> FP-audit candidates (memory/Linux-image detectors) need evidence not yet
+> available and are tracked as follow-up tickets.
+
+> **Correction (authoritative).** A previously circulated `insider_threat_2022`
+> "1,071 findings / 7.7 GB / 155,452 MFT entries / 11 minutes" result is **not
+> reproducible from any run artifact** and the dataset is not bundled. This
+> Accuracy Report and [DATASETS.md](DATASETS.md) supersede that figure: treat the
+> 1,071-finding result as **unverified / withdrawn**. The stale citation has been
+> removed from the README and other docs (tracked as SFE-3sc).
 
 ---
 
@@ -196,7 +207,7 @@ rely on them for integrity, so that failure mode does not apply here.
 integrity failures — no test produced evidence modification or an out-of-bounds
 read that the guardrail failed to block.
 
-### Automated bypass tests (17 passing)
+### Automated bypass tests (20 passing)
 
 `tests/test_mcp_guardrails.py` + `tests/test_mcp_server.py` exercise each
 rejection path of `ToolGuard` / `EvidenceMCPServer`:
@@ -226,8 +237,9 @@ message: Path '/etc/shadow' resolves outside the evidence root '…' (read-only 
 The attempt is **denied before any subprocess runs**, and the denial is itself an
 audited A2A entry on the same correlation thread as the investigation — an
 attempted bypass is part of the permanent record, not silently dropped. The
-investigation still completes (3 findings, all self-corrected `0.95 → 0.75`),
-demonstrating the boundary blocks abuse without breaking legitimate work.
+investigation still completes its findings (disk causality violations
+self-correct `0.95 → 0.75`), demonstrating the boundary blocks abuse without
+breaking legitimate work.
 
 ### Why this is architectural, not prompt-based
 
@@ -255,7 +267,7 @@ detection accuracy.
 | **Tampering with our own conclusions** (alter a finding or its chain of custody after the fact) | **Contained** | Append-only JSONL audit trail; approved findings carry a SHA-256 signature hash for tamper detection. |
 
 **What we did and did not test.** Spoliation and out-of-bounds access are
-actively bypass-tested (§5, 17 passing tests + the live demo). Context-exhaustion
+actively bypass-tested (§5, 20 passing tests + the live demo). Context-exhaustion
 mitigations are structural properties of the design, not yet driven by a
 purpose-built adversarial fixture. Prompt-injection resilience is **reasoned, not
 empirically tested** — we have not run a corpus of injection-laden evidence
@@ -275,9 +287,10 @@ measured against.
 - **Synthetic fixtures.** Scenarios are hand-authored CSV/JSON that mirror real
   forensic tool output. They validate detection logic deterministically in CI but
   do not measure performance on adversarial real-world noise.
-- **Real-evidence coverage is thin.** Only two real datasets have verified run
-  artifacts (`circl-2023-wiped`, `m57-jean`); broader real-evidence validation is
-  open work.
+- **Real-evidence coverage is thin.** Three real datasets have verified run
+  artifacts (`circl-2023-wiped`, `m57-jean`, `nitroba`), spanning disk and
+  network domains; broader real-evidence validation (multi-system APT, memory
+  with real symbols) is open work.
 - **Single-vote verification.** The verifier currently applies one
   self-correction pass per finding (engine tiebreaker), not an N-way adversarial
   panel. Multi-vote verification is a future enhancement.
