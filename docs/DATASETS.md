@@ -1,12 +1,10 @@
 # Test Datasets
 
-**Status:** Planning notes (historical)
-**Last Updated:** 2026-04-17
+**Last Updated:** 2026-06-15
 
-> **For the submission deliverable, see [EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md)** —
-> the authoritative "what was tested / source / what was found" document
-> (FIND EVIL! Deliverable #5), grounded in verified run artifacts. This file
-> remains as historical dataset-strategy planning notes.
+> This is the authoritative "what was tested / source / what was found" document
+> (FIND EVIL! Deliverable #5). For the per-finding accuracy self-assessment see
+> [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
 
 This document describes all forensic datasets used for testing, validation, and accuracy reporting.
 
@@ -45,9 +43,8 @@ speed (F1 = 1.00 in CI, seconds per run), and (b) real, independently-sourced
 evidence (CIRCL, Digital Corpora) that proves the same logic holds on genuine
 artifacts. The agent's job is to do the senior-analyst reasoning — sequence the
 approach, notice when artifacts disagree, self-correct — fast enough to matter
-inside the breakout window. The authoritative results live in
-[EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md); speed is measured in
-[PERFORMANCE_BENCHMARK.md](PERFORMANCE_BENCHMARK.md).
+inside the breakout window. The per-finding accuracy self-assessment lives in
+[ACCURACY_REPORT.md](ACCURACY_REPORT.md).
 
 ---
 

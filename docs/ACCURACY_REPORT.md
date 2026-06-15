@@ -7,7 +7,7 @@
 > documents what was measured, what is synthetic, and what is not yet wired.
 
 **See also:** [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) for the
-guardrail taxonomy, [PERFORMANCE_BENCHMARK.md](PERFORMANCE_BENCHMARK.md) for speed.
+guardrail taxonomy and [DATASETS.md](DATASETS.md) for dataset provenance.
 
 ## How to reproduce
 
@@ -45,9 +45,10 @@ Scenario harness run, all figures from the live run that writes
 | 12_memory_intrusion | 27 | 0 | 0 | 1.00 | 1.00 | 1.00 | 0.73 |
 | 16_powershell_obfuscated | 5 | 0 | 0 | 1.00 | 1.00 | 1.00 | 0.82 |
 | 19_credential_dumping | 5 | 0 | 0 | 1.00 | 1.00 | 1.00 | 0.72 |
-| **TOTAL** | **57** | **0** | **0** | **1.00** | **1.00** | **1.00** | — |
+| 22_lateral_movement_logons | 5 | 0 | 0 | 1.00 | 1.00 | 1.00 | 0.80 |
+| **TOTAL** | **62** | **0** | **0** | **1.00** | **1.00** | **1.00** | — |
 
-14 scenarios, 57 true-positive findings, **0 false positives, 0 false
+15 scenarios, 62 true-positive findings, **0 false positives, 0 false
 negatives** (micro-averaged F1 = 1.00). The full unit + integration suite is
 **1,000+ tests** at ~94% line coverage (CI gate: 85% minimum).
 
