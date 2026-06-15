@@ -1,399 +1,232 @@
-# Test Datasets
+# Evidence Dataset Documentation
 
 **Last Updated:** 2026-06-15
 
-> This is the authoritative "what was tested / source / what was found" document
-> (FIND EVIL! Deliverable #5). For the per-finding accuracy self-assessment see
-> [ACCURACY_REPORT.md](ACCURACY_REPORT.md).
-
-This document describes all forensic datasets used for testing, validation, and accuracy reporting.
-
----
-
-## Why this matters: the speed problem
-
-The datasets below are not chosen to chase a benchmark score — they exist to prove
-an agent can investigate at the pace modern threats demand.
-
-In November 2025, Anthropic's security team published findings on **GTG-1002**, a
-Chinese state-sponsored operation in which attackers drove **Claude Code** to run
-autonomous reconnaissance, exploitation, and lateral movement at **80-90% autonomy**,
-at request rates Anthropic described as **"physically impossible"** for human
-operators. That is the offensive side of agentic AI; the SANS SIFT Workstation and
-Protocol SIFT are the defensive platform, and FIND EVIL! exists to close the gap.
-
-The gap is one of velocity. Manual command-line incident response cannot keep up
-with autonomous agents executing thousands of requests:
-
-| Signal | Figure | Source |
-|--------|--------|--------|
-| Fastest observed eCrime breakout time | **2 minutes 7 seconds** | CrowdStrike 2024 Threat Hunting Report |
-| Average eCrime breakout time | **62 minutes** | CrowdStrike 2024 |
-| Autonomous AI recon-to-exploit cycles | minutes, unattended | Horizon3 / industry red-team reporting |
-| AI-augmented adversary speed multiplier | up to **~47x** faster than manual | MIT / academic red-team studies |
-
-Breakout time is the window between initial foothold and lateral movement — the
-minutes a defender has to detect, triage, and contain before the intrusion spreads.
-When that window is measured in single-digit minutes, a human looking up
-command-line flags has already lost.
-
-**This drives our dataset strategy.** We test against (a) deterministic synthetic
-fixtures that prove the detection logic is correct and regression-locked at machine
-speed (F1 = 1.00 in CI, seconds per run), and (b) real, independently-sourced
-evidence (CIRCL, Digital Corpora) that proves the same logic holds on genuine
-artifacts. The agent's job is to do the senior-analyst reasoning — sequence the
-approach, notice when artifacts disagree, self-correct — fast enough to matter
-inside the breakout window. The per-finding accuracy self-assessment lives in
-[ACCURACY_REPORT.md](ACCURACY_REPORT.md).
+> FIND EVIL! Deliverable: Evidence Dataset Documentation. For every dataset the
+> agent was tested against, this document records **what it is, where it came
+> from (provenance + license), and what the agent found**. Numbers here are
+> limited to results with a verifiable run artifact in this repository; anything
+> not yet run is labeled as such. See [ACCURACY_REPORT.md](ACCURACY_REPORT.md)
+> for the precision/recall self-assessment.
 
 ---
 
-## Dataset Strategy
+## Summary
 
-**Hybrid approach:**
-1. **Synthetic scenarios** (`scenarios/synthetic/`) - Deterministic CSV fixtures covering the five core detection paths; used by the automated harness and CI.
-2. **NIST CFReDS datasets** - Ground truth for accuracy report (Precision/Recall)
-3. **SANS starter datasets** - Realistic cases with multiple artifact types
-4. **Synthetic ransomware case** - Custom-built for demo video with known self-correction triggers
+| Tier | Dataset | Source | Run? | What the agent found |
+|---|---|---|---|---|
+| Synthetic | 15 scenarios (harness) | Hand-authored (this repo) | ✅ harness | 62 findings, F1 = 1.00 (0 FP / 0 FN) |
+| Real | `circl-2023-wiped` | CIRCL TR-80 (2023) | ✅ CLI | 1 CRITICAL: wiped GPT partition table (0.95) |
+| Real | `m57-jean` | Digital Corpora (2008) | ✅ CLI | 1 CRITICAL data-exfiltration / BEC (0.95) + 856 medium triage findings |
+| Real | `nitroba` | Digital Corpora (2008) | ✅ CLI | 1 beaconing finding (cadence-based; confidence capped Medium after FP audit) |
+| Real | `apt_attack_2015` | SANS SRL-2015 | ⛔ not run | Evidence not bundled; documented as a breadth candidate only |
+
+Two evidence styles are used deliberately:
+
+- **Synthetic CSV/JSON fixtures** mirror forensic-tool output (MFTECmd CSV,
+  Volatility `-r json`, tshark, etc.) and run in CI, deterministically, in
+  seconds. They are the regression gate (F1 = 1.00).
+- **Real disk/memory/network images** validate the same detection logic against
+  genuine evidence with independent ground truth. They are multi-GB and run
+  out-of-band (not in CI). Every real image carries a `scenario.yaml` manifest
+  pinning the source URL, publication date, license, and SHA-256 of each
+  evidence file, so a judge can verify integrity before and after a run.
+
+**Evidence integrity:** every real image is processed **read-only**; the engine
+never modifies it. This is enforced architecturally at the MCP boundary, not by
+prompt (see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)).
 
 ---
 
-## 0. Synthetic Scenario Fixtures
+## Synthetic scenarios
 
-Location: [`scenarios/synthetic/`](../scenarios/synthetic/README.md)
+**Source / license:** hand-authored in this repository (internal, MIT). Each is
+a small set of CSV/JSON fixtures shaped exactly like the real tool's output, plus
+a `scenario.yaml` manifest that declares the ground-truth finding count. The
+scenario harness (`tests/scenario_harness.py`) auto-discovers every
+`scenario.yaml` and scores findings against that ground truth.
 
-Five small CSV triples that exercise the self-correction engine deterministically:
+**What was tested and found (15 scenarios scored, F1 = 1.00):**
 
-| Scenario | Purpose |
-|----------|---------|
-| `01_clean_baseline` | Legitimate activity - must produce zero findings |
-| `02_ransomware` | Three causality violations resolved via Event ID 4688 |
-| `03_timestomping` | `$SI`/`$FN` discrepancy (critical, unresolved) |
-| `04_edge_cases` | Tolerance boundary, null timestamps, future dates |
-| `05_missing_prefetch` | Executable in MFT+Event Log but no Prefetch |
+| Scenario | What it exercises | Findings |
+|---|---|---|
+| 01_clean_baseline | Legitimate activity — must stay silent | 0 (no false alarms) |
+| 02_ransomware | Causality violations resolved via Event ID 4688 | 3 |
+| 03_timestomping | `$SI`/`$FN` discrepancy (critical, unresolved) | 2 |
+| 04_edge_cases | Tolerance boundary, null/future timestamps | 2 |
+| 05_missing_prefetch | Executable in MFT+EventLog but no Prefetch | 3 |
+| 06_webmail_exfiltration | Webmail upload pattern | 1 |
+| 07_cloud_upload | Cloud-storage upload pattern | 1 |
+| 08_persistence_run_keys | Registry Run-key persistence | 2 |
+| 09_shimcache_only | Execution evidence from shimcache alone | 2 |
+| 10_timestomping_with_bam | Timestomping corroborated by BAM | 3 |
+| 11_yara_malware | YARA signature match | 1 |
+| 12_memory_intrusion | Volatility: injection, hidden proc, C2, Linux | 27 |
+| 16_powershell_obfuscated | Encoded/obfuscated PowerShell (T1027/T1140) | 5 |
+| 19_credential_dumping | LSASS/credential-access patterns | 5 |
+| 22_lateral_movement_logons | Remote-logon lateral movement (Event ID 4624 type 3/10) | 5 |
+| **Total** | | **62 — 0 FP, 0 FN, F1 = 1.00** |
 
-Run the harness:
+**Honest note on the numbering gap.** Directories `13_browser_tampering`,
+`14_usb_device_activity`, `15_scheduled_task_persistence`,
+`17_network_share_lateral`, `18_shadow_copy_deletion`, `20_file_slack_hiding`,
+and `21_ai_adversarial_evasion` exist as **specification stubs without a
+`scenario.yaml`**, so the harness does not run them and they are **not** counted
+above. They document intended future coverage, not tested behavior.
+
+Reproduce:
 
 ```bash
-PYTHONPATH=. python tests/scenario_harness.py
+PYTHONPATH=. python3 tests/scenario_harness.py   # writes analysis/scenario_report.json
+# Expected final line: TOTAL  62  0  0  1.00  1.00  1.00
 ```
 
-The harness writes precision/recall/F1 metrics to `analysis/scenario_report.json` and the corresponding summary is tracked in [`docs/ACCURACY_REPORT.md`](ACCURACY_REPORT.md).
+### Cross-domain self-correction demo (`02_ransomware`)
+
+Beyond the regression-scored CSV fixtures, the `02_ransomware` scenario also
+carries `memory_fixtures/` and `network_fixtures/` consumed by the reproducible
+orchestration harness (not the regression harness). Running
+`python3 -m sift_find_evil.orchestration` over it produces **six findings across
+disk/timeline, memory, and network** in one correlated A2A log — including a
+hidden process resolved via a psscan tiebreaker and a hardcoded-IP C2 that stays
+detected next to a benign direct-IP hit that resolves. See
+[TRY_IT_OUT.md](TRY_IT_OUT.md).
 
 ---
 
-## 1. NIST CFReDS - Hacking Case
+## Real evidence
 
-**Purpose:** Ground truth for accuracy report (mandatory hackathon deliverable)
+### `circl-2023-wiped` — wiped-disk anti-forensics
 
-**Source:** https://cfreds.nist.gov/
+- **What it is:** A disk where an insider began wiping from LBA 0 outward and was
+  interrupted; the primary GPT is zeroed but the secondary GPT at end-of-disk
+  survived.
+- **Source / provenance:** CIRCL (Computer Incident Response Center Luxembourg),
+  technical report **TR-80**, "Recovering data from a wiped disk", published
+  2023-01-31. URL: https://www.circl.lu/pub/tr-80/. License: public.
+- **Evidence:** `wiped_disk.E01` (EWF container, ~8.18 GB logical), SHA-256
+  `c4a8145bcbfd5485cd7b36a0603bdec68674c2f27e6c2dcf3ef25aa7a4f4ef15` (pinned in
+  `scenario.yaml`), plus a walkthrough PDF.
+- **What the agent found:** **1 CRITICAL finding, confidence 0.95** —
+  *"Partition table wiped (primary GPT zeroed, secondary GPT intact)."* The
+  reasoning chain cites the zeroed protective MBR + primary GPT header, the valid
+  `EFI PART` signature in the secondary GPT at end-of-disk, and the partitions it
+  recovers from the surviving copy. The asymmetry (primary destroyed, secondary
+  valid) cannot arise from normal OS behavior. Matches the report's documented
+  ground truth. Artifacts: `analysis/circl-2023-wiped/` (read-only inspection
+  scripts, `findings.json`, `FORENSICS_REPORT.md`).
+- **Reproduce:**
+  ```bash
+  python3 -m sift_find_evil.cli analyze \
+      --image scenarios/real/circl-2023-wiped/evidence/wiped_disk.E01 \
+      --output analysis/circl-2023-wiped/findings.json
+  ```
 
-**Scenario:** Windows system compromise with:
-- Initial access via web exploit
-- Lateral movement
-- Data exfiltration
-- Persistence mechanisms
+### `m57-jean` — data-exfiltration / business email compromise
 
-**Evidence Files:**
-- Disk image: `4del-1-flat.dd` (12 GB)
-- Format: Raw disk image
-- Filesystem: NTFS
-- OS: Windows XP SP2 (historical, but well-documented)
+- **What it is:** The M57.biz scenario: the CFO's (Jean's) laptop is imaged to
+  determine whether the confidential spreadsheet `m57biz.xls` (employee names,
+  salaries, SSNs) was exfiltrated, and how.
+- **Source / provenance:** Digital Corpora, NPS M57-Jean scenario (2008-07-21).
+  URL: https://digitalcorpora.org/corpora/scenarios/m57-jean/. License: academic
+  use. Evidence: `nps-2008-jean.E01` + `.E02` (~10 GB logical), SHA-256s pinned
+  in `scenario.yaml`.
+- **What the agent found:** Running the full CLI analysis pipeline over the E01,
+  the engine produced a **CRITICAL `data_exfiltration` finding, confidence
+  0.95**: *"File m57biz.xls (SHA-256 34456b5f…) saved at 2008-07-20 01:28:03,
+  then emailed 44.2s later as an attachment in 'RE: Please send me the
+  information now'."* The detection is **artifact-centric, not string-matched** —
+  it proves a byte-equal SHA-256 across two independent artifacts (the MFT
+  on-disk file and the PST attachment) with a save-to-send delta under the
+  threshold. Analyst reconciliation (`scenarios/real/m57-jean/findings.md`)
+  identifies the recipient as `tuckgorge@gmail.com` masquerading as
+  `alison@m57.biz` — i.e. Jean is a **phishing victim (BEC)**, not an insider
+  threat. The same full-image triage also surfaced **856 MEDIUM-severity
+  findings** (e.g. missing-Prefetch anti-forensics indicators). Artifacts:
+  `analysis/m57-jean/acceptance_test_results.json` (1 critical + 856 medium),
+  `analysis/m57-jean/engine_findings.json`, and the analyst write-ups under
+  `scenarios/real/m57-jean/`.
+- **Why the regression-harness row shows 0.** In the CSV-fixture regression
+  harness, `m57-jean`'s manifest declares `finding_counts.total: 0`, so the
+  harness (which scores small CSV fixtures, not the multi-GB E01) reports 0 for
+  it. That is the harness scope, not the engine's real-image result. The
+  CRITICAL exfiltration finding above comes from the CLI pipeline against the
+  actual E01. Both facts are true and reported side by side to avoid overstating
+  the regression number. (`ACCURACY_REPORT.md`'s "real evidence" row likewise
+  reflects the regression-scope figure.)
+- **Reproduce:**
+  ```bash
+  python3 -m sift_find_evil.cli analyze \
+      --image scenarios/real/m57-jean/evidence/nps-2008-jean.E01 \
+      --output analysis/m57-jean/findings.json
+  ```
 
-**Ground Truth Artifacts:**
-- Known malicious files (hashes, paths)
-- Known attacker IP addresses
-- Known timeline events (intrusion start time, data exfiltration time)
-- Known attack techniques (documented by NIST)
+### `nitroba` — network-capture harassment attribution
 
-**Expected Findings:**
-- Hacker tools: `nc.exe` (Netcat), `psexec.exe`, `fgdump.exe`
-- Evidence of lateral movement (net commands, shares)
-- Exfiltrated files (SAM database, password hashes)
-- Persistence: Registry RunKey, scheduled tasks
+- **What it is:** The Nitroba State University harassment case: harassing emails
+  were sent from an open dorm Wi-Fi shared by three roommates; a network sniffer
+  captured the traffic, and the task is to attribute the sender.
+- **Source / provenance:** Digital Corpora, Nitroba University Harassment
+  Scenario (2008-07-21). URL:
+  https://digitalcorpora.org/corpora/scenarios/nitroba-university-harassment-scenario/.
+  License: academic use. Evidence: `nitroba.pcap` (~54 MB), SHA-256 pinned in
+  `scenario.yaml`.
+- **What the agent found:** the engine's structured output
+  (`analysis/nitroba/run_2.json`) is a **beaconing detection**: *"Beaconing to
+  image.weather.com from 192.168.15.4 — 7 events, mean interval ~899.5s, very
+  low jitter — the cadence is too regular to be human browsing."* The finding
+  cites the exact event count, intervals, and first/last-seen timestamps.
+- **False-positive hardening (SFE-fqn).** This capture was deliberately run
+  through the network detectors as a **false-positive audit**. The
+  `image.weather.com` beacon is a benign desktop-widget timer, not C2 — a host
+  that is not malicious. Cadence alone cannot distinguish a benign timer from C2,
+  so the beaconing detector's confidence is now **capped at Medium (0.70)** for
+  cadence-only evidence rather than presented as a high-confidence verdict.
+  Separately, `DNSAnomalyDetector` produced **zero** findings on the same capture
+  (the longest real DNS label was well under the trigger), so an
+  "incomplete-CDN-suppression" hypothesis did not reproduce and nothing was
+  changed there. The analyst write-up
+  (`analysis/nitroba/INVESTIGATION_SUMMARY.md`) carries the human attribution to
+  a suspect (a Facebook auth cookie recovered from the capture) — that is analyst
+  interpretation layered on the engine's finding, reported as such, not part of
+  the structured output.
+- **Reproduce:**
+  ```bash
+  python3 -m sift_find_evil.cli analyze \
+      --pcap scenarios/real/nitroba/evidence/nitroba.pcap \
+      --output analysis/nitroba/findings.json
+  ```
 
-**Accuracy Metrics to Calculate:**
-| Metric | Formula | Target |
-|--------|---------|--------|
-| Precision | TP / (TP + FP) | ≥85% |
-| Recall | TP / (TP + FN) | ≥80% |
-| F1 Score | 2 × (Precision × Recall) / (Precision + Recall) | ≥82% |
+### `apt_attack_2015` — multi-system APT (NOT run in this submission)
 
-**Status:** To be downloaded and tested (Issue #9)
-
----
-
-## 2. SANS Starter Datasets
-
-**Purpose:** Realistic multi-artifact cases for development and testing
-
-**Source:** SANS FIND EVIL! Hackathon organizers (TBD - to be provided)
-
-**Expected Contents:**
-- Disk images (E01 or DD format)
-- Memory dumps (raw or VMEM format)
-- Windows Event Logs (EVTX format)
-- Network captures (PCAP format - optional)
-
-**Scenarios Expected:**
-- Ransomware infection
-- Insider data theft
-- APT lateral movement
-- Web server compromise
-
-**Usage:**
-- Development: Test tool wrappers and correlation logic
-- Integration testing: Verify end-to-end investigation flow
-- Demo preparation: Familiarize with artifact types and analysis patterns
-
-**Status:** Awaiting dataset release from SANS (Issue #9)
-
----
-
-## 3. Synthetic Ransomware Case (Demo Video)
-
-**Purpose:** Custom-built case with known self-correction triggers for compelling demo
-
-**Scenario:** Ransomware infection with intentionally planted contradictions to demonstrate self-correction
-
-**Evidence Files:**
-- Disk image: `synthetic_ransomware_v1.dd` (10 GB)
-- Memory dump: `synthetic_ransomware_v1.raw` (8 GB)
-- Event Logs: `synthetic_ransomware_v1_eventlogs/` directory
-
-**Planted Artifacts:**
-
-### 3.1 Timestamp Contradiction (Self-Correction Trigger #1)
-- **MFT:** `C:\Users\victim\ransom_note.txt` modified at 2026-04-15 10:00:00
-- **Prefetch:** `C:\Temp\evil.exe` last run at 2026-04-15 09:55:00
-- **Event Log 4688:** Process `evil.exe` (PID 1234) created at 2026-04-15 09:55:03
-- **Expected:** Agent detects contradiction, queries Event Log, resolves in favor of Prefetch
-
-### 3.2 Low-Confidence Findings (Self-Correction Trigger #2)
-- Multiple findings with confidence scores: 0.70, 0.65, 0.62, 0.60, 0.58
-- Average confidence: 0.63 → Uncertainty: 0.37 (exceeds 0.25 threshold)
-- **Expected:** Agent triggers uncertainty budget re-analysis
-
-### 3.3 Tool Failure Scenario (Self-Correction Trigger #3)
-- Corrupted Prefetch file: `evil.exe-ABC123.pf` (invalid format)
-- **Expected:** Agent attempts to parse, fails, opens circuit breaker, falls back to Event Logs
-
-### 3.4 Actual Ransomware Indicators
-- Ransom notes: `README.txt`, `decrypt.html` in multiple directories
-- Encrypted files: `.locked` extension on 500+ files
-- Ransomware executable: `C:\Temp\evil.exe` (custom-built, not real malware)
-- Registry persistence: `HKLM\Software\Microsoft\Windows\CurrentVersion\Run\Evil`
-- Bitcoin payment address in ransom notes
-- File encryption timeline: 2026-04-15 09:56:00 to 10:15:00 (19 minutes)
-
-**Ground Truth (for validation):**
-```json
-{
-  "case_id": "synthetic_ransomware_v1",
-  "attack_type": "ransomware",
-  "timeline": {
-    "initial_access": "2026-04-15T09:55:00Z",
-    "execution": "2026-04-15T09:55:03Z",
-    "encryption_start": "2026-04-15T09:56:00Z",
-    "encryption_end": "2026-04-15T10:15:00Z"
-  },
-  "iocs": {
-    "files": [
-      {
-        "path": "C:\\Temp\\evil.exe",
-        "hash": "abc123def456...",
-        "type": "ransomware_executable"
-      },
-      {
-        "path": "C:\\Users\\victim\\README.txt",
-        "hash": "def789ghi012...",
-        "type": "ransom_note"
-      }
-    ],
-    "registry": [
-      {
-        "key": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Evil",
-        "value": "C:\\Temp\\evil.exe",
-        "type": "persistence"
-      }
-    ],
-    "bitcoin_addresses": [
-      "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
-    ]
-  },
-  "self_correction_triggers": [
-    {
-      "type": "timestamp_contradiction",
-      "description": "MFT timestamp 10:00 vs Prefetch 09:55"
-    },
-    {
-      "type": "uncertainty_budget",
-      "description": "Multiple low-confidence findings (avg 0.63)"
-    },
-    {
-      "type": "tool_failure",
-      "description": "Corrupted Prefetch file"
-    }
-  ]
-}
-```
-
-**Creation Process:**
-1. Start with clean Windows VM (Windows 10)
-2. Plant "ransomware" (actually harmless script that renames files to `.locked`)
-3. Create ransom notes with payment addresses
-4. Add registry persistence key
-5. Modify MFT timestamp using PowerShell (to create contradiction)
-6. Corrupt one Prefetch file (to trigger tool failure)
-7. Create memory dump using DumpIt or FTK Imager
-8. Export Event Logs
-9. Create disk image using FTK Imager or dd
-10. Verify all self-correction triggers are present
-
-**Status:** To be created (Issue #9)
+- **What it is:** A multi-system enterprise APT compromise (domain controller,
+  file/RDP servers, workstations, DMZ FTP) — a breadth-of-analysis candidate.
+- **Source / provenance:** SANS Security Reinforcement Labs, SRL-2015
+  ("Compromised Enterprise Network").
+- **Status:** **Not run.** The evidence (multiple 12 GB+ E01 images) is **not
+  bundled** in the repository and there is no verified run artifact. The
+  `scenarios/real/apt_attack_2015/` directory contains only analysis scaffolding
+  and notes. It is documented here as a candidate breadth target — **no findings
+  are claimed for it.**
 
 ---
 
-## Dataset Directory Structure
+## What is and isn't claimed (honesty statement)
 
-```
-/evidence/
-├── nist_cfrids_hacking/
-│   ├── 4del-1-flat.dd           # Disk image (12 GB)
-│   ├── ground_truth.json        # Known IoCs and timeline
-│   └── README.txt               # NIST documentation
-│
-├── sans_starter_case_1/
-│   ├── disk.E01                 # Disk image
-│   ├── memory.vmem              # Memory dump
-│   ├── eventlogs/               # Windows Event Logs
-│   │   ├── Security.evtx
-│   │   ├── System.evtx
-│   │   └── Application.evtx
-│   └── README.txt
-│
-├── sans_starter_case_2/
-│   └── ...
-│
-└── synthetic_ransomware_v1/
-    ├── disk.dd                  # Disk image (10 GB)
-    ├── memory.raw               # Memory dump (8 GB)
-    ├── eventlogs/               # Windows Event Logs
-    ├── ground_truth.json        # Known IoCs and self-correction triggers
-    └── README.txt
-```
-
-**Note:** Evidence files are **gitignored** due to large size. Store in `/evidence/` directory locally.
+- **Claimed (with run artifacts in this repo):** the synthetic harness result
+  (62 findings, F1 = 1.00, 0 FP / 0 FN); the `circl-2023-wiped` CRITICAL wipe
+  finding (0.95); the `m57-jean` CRITICAL data-exfiltration finding (0.95) plus
+  856 medium triage findings; and the `nitroba` beaconing finding (confidence
+  capped Medium after FP audit).
+- **Not claimed:** any result for `apt_attack_2015` (not run, evidence not
+  bundled); the spec-stub scenarios `13–15 / 17–18 / 20–21` (no manifest, not
+  scored). A previously circulated `insider_threat_2022` "1,071-finding" result
+  was unverifiable and has been removed across the docs; do not rely on it.
+- **Where the numbers live:** the synthetic figures regenerate from
+  `tests/scenario_harness.py` into `analysis/scenario_report.json`; each real
+  finding traces to a file under `analysis/<dataset>/`.
 
 ---
 
-## Dataset Download & Setup Instructions
-
-### NIST CFReDS Hacking Case
-
-```bash
-# Download from NIST
-wget https://cfreds.nist.gov/4del/4del-1-flat.dd.bz2
-
-# Extract
-bunzip2 4del-1-flat.dd.bz2
-
-# Verify checksum (from NIST docs)
-sha256sum 4del-1-flat.dd
-# Expected: [checksum from NIST]
-
-# Move to evidence directory
-mv 4del-1-flat.dd /evidence/nist_cfrids_hacking/
-```
-
-### SANS Starter Datasets
-
-```bash
-# To be provided by SANS organizers
-# Instructions will be updated when datasets are released
-```
-
-### Synthetic Ransomware Case
-
-```bash
-# Creation instructions in separate script
-# See: scripts/create_synthetic_case.sh
-```
-
----
-
-## Dataset Usage in Testing
-
-### Unit Tests
-- Use small, synthetic files (not full disk images)
-- Mock MCP tool responses with known outputs
-- Focus on logic, not actual forensic tool execution
-
-### Integration Tests
-- Use full synthetic ransomware case
-- Verify end-to-end investigation flow
-- Test all self-correction triggers
-
-### Accuracy Report
-- Use NIST CFReDS Hacking Case
-- Calculate Precision, Recall, F1 Score
-- Compare agent findings to ground truth
-- Generate confusion matrix
-
----
-
-## Accuracy Report Template
-
-```markdown
-# Accuracy Report - NIST CFReDS Hacking Case
-
-## Test Configuration
-- Dataset: NIST CFReDS - 4del-1-flat.dd
-- Agent version: v1.0-hackathon
-- Test date: 2026-06-05
-- Investigation time: 28 minutes
-
-## Ground Truth vs. Findings
-
-### True Positives (TP): 12
-- nc.exe (Netcat) - Correctly identified as hacker tool
-- psexec.exe - Correctly identified as lateral movement tool
-- fgdump.exe - Correctly identified as credential dumper
-- [... 9 more]
-
-### False Positives (FP): 2
-- notepad.exe flagged as suspicious (legitimate Windows utility)
-- cmd.exe flagged as suspicious (legitimate, but used by attacker)
-
-### False Negatives (FN): 3
-- Attacker IP 192.168.1.100 not identified (missing network artifact analysis)
-- Scheduled task persistence not detected (Event Log parsing incomplete)
-- Exfiltrated file timestamps not flagged
-
-## Metrics
-
-| Metric | Value | Target | Status |
-|--------|-------|--------|--------|
-| Precision | 85.7% (12 / 14) | ≥85% | ✅ PASS |
-| Recall | 80.0% (12 / 15) | ≥80% | ✅ PASS |
-| F1 Score | 82.8% | ≥82% | ✅ PASS |
-
-## Analysis
-
-**Why did we miss 3 IoCs (FN)?**
-1. Network artifact analysis not yet implemented (MVP scope)
-2. Event Log parsing incomplete for scheduled tasks
-3. File exfiltration detection requires network + timeline correlation (Phase 2)
-
-**Why did we flag 2 false positives (FP)?**
-1. Notepad.exe: Heuristic flagged due to unusual access patterns (rare file opened)
-2. Cmd.exe: Legitimate, but used by attacker - difficult to distinguish without behavioral analysis
-
-## Conclusion
-
-Agent meets accuracy targets for MVP. False negatives are due to scope limitations (network analysis, advanced correlation). False positives are acceptable for triage phase (human analyst would quickly dismiss).
-```
-
----
-
-*Datasets are the foundation of our accuracy claims. Must be documented, reproducible, and diverse.*
+*Datasets are the foundation of the accuracy claims here: documented,
+reproducible, and grounded in run artifacts.*
