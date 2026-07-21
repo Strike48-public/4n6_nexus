@@ -7,12 +7,14 @@ from pathlib import Path
 from typing import Optional
 
 from .models import (
+    GENESIS_HASH,
     AgentMessage,
     AuditEntry,
     FindingEmitted,
     ToolInvocation,
     Verification,
     calculate_output_hash,
+    compute_entry_hash,
 )
 
 
@@ -46,6 +48,11 @@ class AuditLogger:
         # across logger instances appending to the same file.
         self._next_seq = self._scan_max_seq() + 1
 
+        # Seed the hash-chain tail from any existing log so a fresh logger over
+        # the same file continues the chain rather than restarting it. The first
+        # real entry commits to GENESIS_HASH when the log is empty.
+        self._tail_hash = self._scan_tail_hash()
+
     def _scan_max_seq(self) -> int:
         """Return the highest evt-NNNNNN sequence already present in the log."""
         max_seq = -1
@@ -75,8 +82,39 @@ class AuditLogger:
         self._next_seq += 1
         return entry_id
 
+    def _scan_tail_hash(self) -> str:
+        """Return the ``entry_hash`` of the last chained entry, or GENESIS.
+
+        Reads the log tail so a new logger instance continues the existing
+        chain. Legacy logs whose final entry predates chaining have no
+        ``entry_hash``; in that case we anchor the next entry at GENESIS so a
+        chain still forms going forward (older unchained entries are simply not
+        covered, which ``verify_chain`` reports rather than silently trusting).
+        """
+        tail = GENESIS_HASH
+        try:
+            with open(self.audit_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    tail = data.get("entry_hash", tail)
+        except FileNotFoundError:
+            pass
+        return tail
+
     def log_entry(self, entry: AuditEntry) -> str:
-        """Append audit entry to log, assigning an entry_id if absent.
+        """Append audit entry to log, assigning an entry_id and chain hashes.
+
+        Links the entry into the tamper-evident hash chain: ``prev_hash`` is the
+        prior entry's digest (or GENESIS for the first), and ``entry_hash`` is
+        the SHA-256 over this entry's canonical body. The write critical section
+        assigns both, appends, then advances the in-memory tail so concurrent
+        appends within one process stay ordered.
 
         Args:
             entry: AuditEntry to append
@@ -86,9 +124,76 @@ class AuditLogger:
         """
         if entry.entry_id is None:
             entry.entry_id = self._allocate_entry_id()
+        # Chain: commit to the current tail, then digest the canonical body.
+        entry.prev_hash = self._tail_hash
+        entry.entry_hash = compute_entry_hash(entry.chain_body())
         with open(self.audit_path, "a") as f:
             f.write(json.dumps(entry.to_dict(), default=str) + "\n")
+        self._tail_hash = entry.entry_hash
         return entry.entry_id
+
+    def verify_chain(self) -> tuple[bool, Optional[int], Optional[str]]:
+        """Re-verify the tamper-evident hash chain end to end.
+
+        Walks the log in file order, recomputing each entry's digest and
+        confirming it links to the prior entry. Detects in-line edits (a
+        recomputed ``entry_hash`` no longer matches the stored one), deletions
+        and reordering (a ``prev_hash`` that does not equal the actual prior
+        digest), and appended forgeries (a tail entry that does not chain).
+
+        Returns:
+            ``(ok, broken_at_seq, reason)``. ``ok`` is True for a pristine (or
+            empty) chain, with ``broken_at_seq``/``reason`` None. On failure,
+            ``broken_at_seq`` is the 0-based index of the first bad entry and
+            ``reason`` names the break (content vs. link).
+        """
+        expected_prev = GENESIS_HASH
+        index = 0
+        try:
+            with open(self.audit_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        return (False, index, f"entry {index}: malformed JSON")
+
+                    stored_hash = data.get("entry_hash")
+                    if stored_hash is None:
+                        return (
+                            False,
+                            index,
+                            f"entry {index}: missing entry_hash (unchained/legacy entry)",
+                        )
+
+                    # Link check: this entry must commit to the prior digest.
+                    if data.get("prev_hash") != expected_prev:
+                        return (
+                            False,
+                            index,
+                            f"entry {index}: prev_hash link mismatch "
+                            "(deletion, reordering, or truncation)",
+                        )
+
+                    # Content check: recomputed digest must match the stored one.
+                    body = {k: v for k, v in data.items() if k != "entry_hash"}
+                    recomputed = compute_entry_hash(body)
+                    if recomputed != stored_hash:
+                        return (
+                            False,
+                            index,
+                            f"entry {index}: entry_hash content mismatch "
+                            "(in-line edit)",
+                        )
+
+                    expected_prev = stored_hash
+                    index += 1
+        except FileNotFoundError:
+            return (True, None, None)
+
+        return (True, None, None)
 
     def log_action(
         self,
