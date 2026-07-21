@@ -39,6 +39,10 @@ numpy>=1.24.0
 # detection scenario (11_yara_malware) and the headline 12/12 F1=1.00 result.
 yara-python>=4.3.0
 
+# Cross-artifact / cross-host correlation graph (sift_find_evil/graph/). Pure
+# Python, no compiler needed.
+networkx>=3.0
+
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0

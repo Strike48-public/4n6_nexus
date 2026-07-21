@@ -2,8 +2,10 @@
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+from ..canonical import canonical_bytes
 
 
 @dataclass
@@ -12,7 +14,7 @@ class ToolInvocation:
 
     tool: str
     command: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     exit_code: Optional[int] = None
     duration_ms: Optional[int] = None
     output_hash: Optional[str] = None
@@ -53,6 +55,23 @@ class ToolInvocation:
         )
 
 
+# Genesis anchor for the audit hash chain. The first real entry commits to this
+# constant so an attacker cannot silently drop the head of the log: a chain that
+# does not begin at GENESIS is detectably truncated.
+GENESIS_HASH = "0" * 64
+
+
+def compute_entry_hash(body_without_hash: dict) -> str:
+    """Compute the full SHA-256 chain digest over an entry body.
+
+    The body must already include ``prev_hash`` (so the digest commits to the
+    prior entry) and must EXCLUDE ``entry_hash`` itself (a hash cannot commit to
+    its own value). Uses the shared canonical serializer (``canonical_bytes``) so
+    the byte sequence is reproducible and never drifts from the other hashers.
+    """
+    return hashlib.sha256(canonical_bytes(body_without_hash)).hexdigest()
+
+
 @dataclass
 class AuditEntry:
     """Base audit entry for any logged action.
@@ -61,19 +80,34 @@ class AuditEntry:
     ``entry_id`` and ``correlation_id`` thread an investigative line of inquiry,
     and ``agent`` records the acting agent identity (distinct from the human
     ``examiner``). All four are optional so legacy/tool-only callers are unaffected.
+
+    Tamper-evidence (gallery idea #1): ``prev_hash`` links each entry to the
+    digest of the prior entry and ``entry_hash`` is the SHA-256 over this entry's
+    canonical body (with ``prev_hash`` included, ``entry_hash`` excluded). Both
+    are assigned by ``AuditLogger`` at write time; they are optional on the
+    dataclass so legacy readers and hand-built entries still deserialize.
     """
 
     action: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     examiner: Optional[str] = None
     details: Optional[dict] = None
     entry_id: Optional[str] = None
     correlation_id: Optional[str] = None
     agent: Optional[str] = None
+    prev_hash: Optional[str] = None
+    entry_hash: Optional[str] = None
 
     def to_dict(self) -> dict:
-        """Serialize to dictionary."""
-        return {
+        """Serialize to dictionary.
+
+        ``prev_hash``/``entry_hash`` are emitted only once assigned, so the key
+        SHAPE of legacy (unchained) entries is unchanged; the chain fields are
+        additive. Note the ``timestamp`` VALUE is now tz-aware
+        (``datetime.now(timezone.utc)``), so ``.isoformat()`` carries a ``+00:00``
+        suffix that naive ``datetime.utcnow()`` output did not (PR #3 review nit).
+        """
+        data = {
             "timestamp": self.timestamp.isoformat(),
             "action": self.action,
             "agent": self.agent,
@@ -82,6 +116,19 @@ class AuditEntry:
             "entry_id": self.entry_id,
             "details": self.details,
         }
+        if self.prev_hash is not None:
+            data["prev_hash"] = self.prev_hash
+        if self.entry_hash is not None:
+            data["entry_hash"] = self.entry_hash
+        return data
+
+    def chain_body(self) -> dict:
+        """Return the canonical body the ``entry_hash`` is computed over.
+
+        Includes ``prev_hash`` (the entry commits to its predecessor) and
+        excludes ``entry_hash`` (a digest cannot commit to itself).
+        """
+        return {k: v for k, v in self.to_dict().items() if k != "entry_hash"}
 
     @classmethod
     def from_dict(cls, data: dict) -> "AuditEntry":
@@ -94,6 +141,8 @@ class AuditEntry:
             entry_id=data.get("entry_id"),
             correlation_id=data.get("correlation_id"),
             agent=data.get("agent"),
+            prev_hash=data.get("prev_hash"),
+            entry_hash=data.get("entry_hash"),
         )
 
 
