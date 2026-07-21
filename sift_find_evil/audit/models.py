@@ -1,10 +1,11 @@
 """Data models for audit logging."""
 
 import hashlib
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
+
+from ..canonical import canonical_bytes
 
 
 @dataclass
@@ -65,14 +66,10 @@ def compute_entry_hash(body_without_hash: dict) -> str:
 
     The body must already include ``prev_hash`` (so the digest commits to the
     prior entry) and must EXCLUDE ``entry_hash`` itself (a hash cannot commit to
-    its own value). Canonicalization matches the approval-signing convention
-    (sort_keys + tight separators + ``default=str``) so the byte sequence is
-    reproducible across processes and Python versions.
+    its own value). Uses the shared canonical serializer (``canonical_bytes``) so
+    the byte sequence is reproducible and never drifts from the other hashers.
     """
-    canonical = json.dumps(
-        body_without_hash, sort_keys=True, separators=(",", ":"), default=str
-    )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical_bytes(body_without_hash)).hexdigest()
 
 
 @dataclass
@@ -104,9 +101,11 @@ class AuditEntry:
     def to_dict(self) -> dict:
         """Serialize to dictionary.
 
-        ``prev_hash``/``entry_hash`` are emitted only once assigned so the
-        serialized shape of legacy (unchained) entries is byte-identical to
-        before; the chain fields are additive.
+        ``prev_hash``/``entry_hash`` are emitted only once assigned, so the key
+        SHAPE of legacy (unchained) entries is unchanged; the chain fields are
+        additive. Note the ``timestamp`` VALUE is now tz-aware
+        (``datetime.now(timezone.utc)``), so ``.isoformat()`` carries a ``+00:00``
+        suffix that naive ``datetime.utcnow()`` output did not (PR #3 review nit).
         """
         data = {
             "timestamp": self.timestamp.isoformat(),

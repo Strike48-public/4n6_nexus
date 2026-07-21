@@ -96,7 +96,7 @@ def test_seat_falsifier_dismisses_a_single_source_over_read():
 def test_receipt_key_from_env_and_file_evidence(tmp_path, monkeypatch):
     """Cover the env-supplied receipt key + single-file evidence-image branches."""
     from sift_find_evil.orchestration import (
-        _evidence_image_sha256,
+        _evidence_digest,
         _resolve_receipt_key,
     )
 
@@ -105,5 +105,5 @@ def test_receipt_key_from_env_and_file_evidence(tmp_path, monkeypatch):
 
     img = tmp_path / "image.dd"
     img.write_bytes(b"evidence-bytes")
-    digest = _evidence_image_sha256(img)
+    digest = _evidence_digest(img)
     assert len(digest) == 64

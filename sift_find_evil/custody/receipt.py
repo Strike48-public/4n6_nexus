@@ -21,8 +21,10 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 from typing import Optional
+
+from ..canonical import canonical_bytes
+
 
 # HMAC keys shorter than this are cryptographically meaningless for our purpose;
 # refuse to mint rather than issue a forgeable receipt (mirrors approval/).
@@ -30,10 +32,8 @@ _MIN_KEY_BYTES = 32
 
 
 def _canonical(payload: dict) -> bytes:
-    """Serialize to reproducible canonical UTF-8 JSON bytes."""
-    return json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), default=str
-    ).encode("utf-8")
+    """Serialize to reproducible canonical UTF-8 JSON bytes (shared serializer)."""
+    return canonical_bytes(payload)
 
 
 def _finding_hash(finding: dict) -> str:

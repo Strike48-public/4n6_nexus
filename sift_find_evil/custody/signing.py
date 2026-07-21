@@ -25,7 +25,8 @@ imports cleanly when it is absent, and the signing feature raises a clear
 from __future__ import annotations
 
 import hashlib
-import json
+
+from ..canonical import canonical_bytes
 
 try:  # pragma: no cover - trivial availability probe
     import cryptography  # noqa: F401
@@ -60,9 +61,7 @@ def _canonical(payload: dict) -> bytes:
     Returns:
         Canonical JSON bytes: keys sorted, tight separators.
     """
-    return json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), default=str
-    ).encode("utf-8")
+    return canonical_bytes(payload)
 
 
 def _finding_hash(finding: dict) -> str:

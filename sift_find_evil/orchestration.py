@@ -127,24 +127,33 @@ def _resolve_receipt_key() -> bytes:
     return key
 
 
-def _evidence_image_sha256(evidence_root: Path) -> str:
-    """Derive a stable content hash binding receipts to this run's evidence.
+def _evidence_digest(evidence_root: Path) -> str:
+    """Derive a stable CONTENT hash binding receipts to this run's evidence.
 
-    On real evidence this is the SHA-256 of the disk/memory image. For the
-    synthetic fixture tree we hash the sorted (relative-path, size) inventory of
-    the evidence root, which is deterministic for a given fixture set and still
-    binds every receipt to the exact evidence that produced it.
+    A single file is streamed and hashed directly. For a directory tree we hash,
+    in sorted-path order, each file's relative path AND its full contents (also
+    streamed) - so two trees with the same layout but different bytes receive
+    DIFFERENT digests. (The earlier version hashed only the (path, size)
+    inventory, which collided on same-layout/different-content trees - PR #3
+    review nit #2.) Deterministic for a given fixture set, so receipts stay
+    reproducible across runs.
     """
     digest = hashlib.sha256()
     root = Path(evidence_root)
     if root.is_file():
-        digest.update(root.read_bytes())
+        _hash_file_into(digest, root)
         return digest.hexdigest()
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
-        rel = path.relative_to(root).as_posix()
-        digest.update(rel.encode("utf-8"))
-        digest.update(str(path.stat().st_size).encode("utf-8"))
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        _hash_file_into(digest, path)
     return digest.hexdigest()
+
+
+def _hash_file_into(digest: "hashlib._Hash", path: Path) -> None:
+    """Stream a file's bytes into ``digest`` in 1 MiB chunks (memory-bounded)."""
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
 
 
 # The demo scenario: ransomware with timestomped binaries that each trigger a
@@ -246,7 +255,7 @@ class InvestigationOrchestrator:
         # Chain-of-custody: bind every finding this run emits to the evidence
         # image via a per-run receipt minter. The minter is exposed so a verifier
         # (or a judge, offline) can re-check any receipt against the run key.
-        self.image_sha256 = _evidence_image_sha256(self.server.evidence_root)
+        self.image_sha256 = _evidence_digest(self.server.evidence_root)
         self.receipt_minter = ReceiptMinter(
             key=_resolve_receipt_key(), image_sha256=self.image_sha256
         )
