@@ -1,0 +1,42 @@
+name: 23_distributed_spray
+tier: synthetic
+category: lateral_movement
+difficulty: advanced
+description: >
+  A distributed, low-and-slow password spray seen purely through Windows
+  Security failed-logon events. A clean host (no malicious executables in MFT
+  or Prefetch) carries 36 failed logons (4625) spread across six accounts from
+  six sources inside a five-minute window. No single account (6 failures) or
+  source (6 failures) comes anywhere near the per-target spike threshold (20),
+  so the concentrated-spike pivots stay silent; only the aggregate time-boxed
+  density signal fires. Routine machine-account (CORP\DC01$) logons are present
+  as noise and must be filtered, not counted toward density. Exercises the
+  temporal-clustering distributed-spray signal added in SFE-axz.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    lateral_movement: 1
+    total: 1
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Complements 22_lateral_movement_logons (concentrated single-account spike)
+  with the inverse evasion: breadth over depth. The single expected finding is
+  the distributed_spray signal (MITRE T1110), which counts all real-account
+  4625s inside a sliding window (default 300s) and fires when the density
+  crosses the threshold (default 30) across at least two distinct accounts.
+  The breadth guard is what stops scenario 22's single-account spray from
+  double-firing this signal. Runs the detector at DEFAULT thresholds, so this
+  fixture proves the out-of-the-box configuration catches a low-per-target
+  spray that both per-account and per-source spike detection miss.

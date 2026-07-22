@@ -236,7 +236,7 @@ def detect(self, artifacts: Dict) -> List[Finding]:
 
 ### Run Scenario
 ```bash
-cd /home/jtomek/Code/sift_find_evil
+cd ~/Code/4n6_nexus
 PYTHONPATH=. python3 tests/scenario_harness.py --scenario 14
 ```
 

@@ -103,6 +103,12 @@ class DirectoryScanResult:
 
     matches: Mapping[Path, list["YaraMatch"]] = field(default_factory=dict)
     oversized: tuple[Path, ...] = ()
+    # Paths skipped because reading/stat-ing them raised OSError (I/O error,
+    # permission, corrupt cluster). On real evidence these are common — e.g.
+    # Chrome's 'Network Persistent State', locked SQLite, partial-read clusters
+    # (SFE-4e9). Surfacing them keeps "couldn't read" distinct from "read and
+    # matched nothing", the same reason ``oversized`` exists.
+    unreadable: tuple[Path, ...] = ()
 
 
 class YaraScanner:
@@ -167,8 +173,7 @@ class YaraScanner:
         """
         if _yara is None:
             raise MissingYaraError(
-                "yara-python is not installed. "
-                "Install with `pip install yara-python`."
+                "yara-python is not installed. Install with `pip install yara-python`."
             )
         if not rules_dirs:
             raise ValueError("compile_from_directories requires at least one path")
@@ -250,8 +255,7 @@ class YaraScanner:
         """
         if _yara is None:
             raise MissingYaraError(
-                "yara-python is not installed. "
-                "Install with `pip install yara-python`."
+                "yara-python is not installed. Install with `pip install yara-python`."
             )
         if not rules_dir.is_dir():
             raise FileNotFoundError(f"YARA rules directory not found: {rules_dir}")
@@ -301,8 +305,7 @@ class YaraScanner:
         size = target.stat().st_size
         if size > self._max_file_size:
             raise ValueError(
-                f"{target} is {size} bytes; exceeds max_file_size "
-                f"{self._max_file_size}"
+                f"{target} is {size} bytes; exceeds max_file_size {self._max_file_size}"
             )
         raw_matches = self._rules.match(filepath=str(target))
         return [self._normalize(m, target) for m in raw_matches]
@@ -322,7 +325,7 @@ class YaraScanner:
         a structured view of which files were skipped, or ``scan_file``
         directly for strict mode.
         """
-        matches, _ = self._scan_directory_impl(root, recursive=recursive)
+        matches, _, _ = self._scan_directory_impl(root, recursive=recursive)
         return matches
 
     def scan_directory_details(
@@ -337,10 +340,13 @@ class YaraScanner:
         a distinct outcome from "file scanned and matched nothing" — for
         example when reporting coverage against a carved-file corpus.
         """
-        matches, oversized = self._scan_directory_impl(root, recursive=recursive)
+        matches, oversized, unreadable = self._scan_directory_impl(
+            root, recursive=recursive
+        )
         return DirectoryScanResult(
             matches=MappingProxyType(matches),
             oversized=tuple(oversized),
+            unreadable=tuple(unreadable),
         )
 
     def _scan_directory_impl(
@@ -348,14 +354,22 @@ class YaraScanner:
         root: Path,
         *,
         recursive: bool,
-    ) -> tuple[dict[Path, list[YaraMatch]], list[Path]]:
-        """Walk ``root`` and return (matches, oversized) for both public APIs."""
+    ) -> tuple[dict[Path, list[YaraMatch]], list[Path], list[Path]]:
+        """Walk ``root`` and return (matches, oversized, unreadable).
+
+        A single unreadable file must never abort the whole scan: on real
+        evidence a directory routinely contains files that raise OSError on
+        stat()/read (Chrome's 'Network Persistent State', locked SQLite,
+        corrupt clusters). Both the ``is_file()`` filter and ``scan_file``
+        can raise OSError, so both are guarded and the bad path is recorded
+        as ``unreadable`` rather than propagating (SFE-4e9).
+        """
         if not root.is_dir():
             raise FileNotFoundError(f"scan root not found: {root}")
-        iter_paths = root.rglob("*") if recursive else root.glob("*")
         matches: dict[Path, list[YaraMatch]] = {}
         oversized: list[Path] = []
-        for path in sorted(p for p in iter_paths if p.is_file()):
+        files, unreadable = self._iter_files(root, recursive=recursive)
+        for path in sorted(files):
             try:
                 matches[path] = self.scan_file(path)
             except ValueError as exc:
@@ -366,7 +380,35 @@ class YaraScanner:
                     path,
                     exc,
                 )
-        return matches, oversized
+            except OSError as exc:
+                matches[path] = []
+                unreadable.append(path)
+                logger.warning("yara scan skipped %s: unreadable (%s)", path, exc)
+        return matches, oversized, unreadable
+
+    def _iter_files(
+        self, root: Path, *, recursive: bool
+    ) -> tuple[list[Path], list[Path]]:
+        """Return ``(regular_files, unreadable_paths)`` under ``root``.
+
+        ``p.is_file()`` calls os.stat() and raises OSError on an unreadable
+        entry. That happens inside the walk itself — before ``scan_file`` is
+        ever reached — so it must be guarded here or one bad dirent aborts the
+        entire directory scan (SFE-4e9). Paths whose stat() raises are returned
+        in the second list so the caller can fold them into the ``unreadable``
+        skip set rather than losing them.
+        """
+        iter_paths = root.rglob("*") if recursive else root.glob("*")
+        files: list[Path] = []
+        unreadable: list[Path] = []
+        for p in iter_paths:
+            try:
+                if p.is_file():
+                    files.append(p)
+            except OSError as exc:
+                unreadable.append(p)
+                logger.warning("yara scan skipped %s: unstatable (%s)", p, exc)
+        return files, unreadable
 
     def _normalize(self, raw: Any, source_file: Path) -> YaraMatch:
         """Convert a yara-python match into our immutable dataclass."""

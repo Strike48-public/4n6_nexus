@@ -22,7 +22,7 @@ cd ~/sift_find_evil && source venv/bin/activate
 
 # Confirm everything is live:
 claude -p "Reply with exactly: BEDROCK_OK"        # -> BEDROCK_OK
-claude mcp list                                    # -> sift-find-evil: ✓ Connected
+claude mcp list                                    # -> forensics_nexus: ✓ Connected
 sha256sum scenarios/real/circl-2023-wiped/evidence/wiped_disk.E01
 #   c4a8145bcbfd5485cd7b36a0603bdec68674c2f27e6c2dcf3ef25aa7a4f4ef15  (authentic CIRCL TR-80)
 ```
@@ -70,7 +70,7 @@ Clear the scrollback, set a legible font size, and start the screen recorder.
 ```bash
 claude mcp list
 ```
-**Expected (real):** `sift-find-evil: python -m sift_find_evil.mcp - ✓ Connected`
+**Expected (real):** `forensics_nexus: python -m sift_find_evil.mcp - ✓ Connected`
 
 > "It runs on the SIFT Workstation itself. Claude Code is the agent runtime;
 > backed by Bedrock. But the agents never touch a forensic tool directly - every
@@ -80,7 +80,7 @@ claude mcp list
 # Show the agent only has MCP tools + read-only nav, NO shell:
 grep -A1 '^tools:' .claude/agents/dfir-disk-analyst.md
 ```
-**Expected (real):** `tools: ["Read", "Grep", "Glob", "mcp__sift-find-evil__*"]`
+**Expected (real):** `tools: ["Read", "Grep", "Glob", "mcp__forensics_nexus__*"]`
 
 > "No Bash. No write tools. The only path to a forensic binary is the MCP server."
 
@@ -168,8 +168,8 @@ Case INC-2026-001 -- 6 findings
 **[Screen: ask the live Claude agent to read something out of bounds]**
 
 ```bash
-claude -p "Use the mcp__sift-find-evil__mftecmd tool to parse the MFT at path /etc/shadow with output_dir /tmp/out and correlation_id corr-demo. Report exactly what the tool returned." \
-  --allowedTools "mcp__sift-find-evil__*"
+claude -p "Use the mcp__forensics_nexus__mftecmd tool to parse the MFT at path /etc/shadow with output_dir /tmp/out and correlation_id corr-demo. Report exactly what the tool returned." \
+  --allowedTools "mcp__forensics_nexus__*"
 ```
 
 **Expected (real):** the agent reports the tool returned an error:
@@ -214,7 +214,7 @@ PYTHONPATH=. python3 tests/scenario_harness.py | grep TOTAL
 **Expected (real):** `TOTAL  62  0  0  1.00  1.00  1.00`
 
 > "Every finding traces to the tool execution that produced it. The detection
-> engine holds F1 of 1.00 across 15 scenarios - zero false positives, zero false
+> engine holds F1 of 1.00 across 16 scenarios - zero false positives, zero false
 > negatives."
 
 ---
@@ -280,7 +280,7 @@ F-005 red/held). Verified live on the VM 2026-06-05.
 | Orchestration | 6 findings; F-005 stays detected (0.9→0.45), rest resolved (→0.75) |
 | Audit log (demo_run) | 37 entries: 16 agent_message, 8 tool_invocation, 6 finding_emitted, 6 verification, 1 tool_blocked |
 | Guardrail block | mftecmd /etc/shadow → GuardrailViolation, logged tool_blocked |
-| Scenario harness | 62 findings across 15 synthetic scenarios, F1=1.00 (0 FP / 0 FN) |
+| Scenario harness | 62 findings across 16 synthetic scenarios, F1=1.00 (0 FP / 0 FN) |
 
 ## Recording tips
 

@@ -51,6 +51,25 @@ def test_integrity_block_reports_adversarial_summary(report):
     assert integ["adversarial_sustained"] >= 1
 
 
+def test_independent_entailment_falsifier_runs_on_findings_with_identity_anchors(
+    report,
+):
+    """Findings asserting an IP/PID face the INDEPENDENT re-derivation falsifier.
+
+    This is the reproducible stand-in for a rival-model falsifier - it re-derives
+    the asserted value from evidence rather than trusting the analyst's reasoning.
+    The demo's memory/network findings carry IPs/PIDs, so at least one is checked
+    by the entailment falsifier (family 'entailment-rederivation'), proving the
+    independent verification is LIVE, not dormant.
+    """
+    families = {
+        item["adversarial"]["falsifier_family"] for item in report["case_findings"]
+    }
+    assert (
+        "entailment-rederivation" in families
+    ), f"independent falsifier never ran; families seen: {families}"
+
+
 def test_seat_falsifier_dismisses_a_single_source_over_read():
     """The model-free falsifier kills a single-source finding that over-reads its tool.
 

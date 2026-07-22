@@ -237,7 +237,7 @@ distinguished. In this system:
 | No destructive/write tool flags | `ToolGuard` allowlist (code) | **Architectural** |
 | Reads confined to evidence root | `ToolGuard` path containment (code) | **Architectural** |
 | Runaway-loop protection | `ToolGuard` circuit breaker (code) | **Architectural** |
-| No tool access except via MCP | Agent `tools:` allowlists grant no `Bash`/`Write`/`Edit` -- only `mcp__sift-find-evil__*` (+ read-only `Read`/`Grep`/`Glob`); standalone agents are Python classes with no shell | **Architectural** |
+| No tool access except via MCP | Agent `tools:` allowlists grant no `Bash`/`Write`/`Edit` -- only `mcp__forensics_nexus__*` (+ read-only `Read`/`Grep`/`Glob`); standalone agents are Python classes with no shell | **Architectural** |
 | Tool *selection* / analytic strategy | Agent definitions / prompts | Prompt-based (does not affect evidence integrity) |
 
 The integrity-critical controls are all architectural: an agent cannot reach a forensic

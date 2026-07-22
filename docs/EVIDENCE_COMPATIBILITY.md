@@ -273,7 +273,7 @@ sudo mount -o ro /path/to/macos.dmg /mnt/evidence
 
 **Evidence analyzed:**
 - 2 real datasets with verified run artifacts (`circl-2023-wiped`, `m57-jean`)
-- 15 synthetic scenarios (62 findings, F1=1.00)
+- 16 synthetic scenarios (62 findings, F1=1.00)
 
 **What this demonstrates:**
 - ✅ Perfect accuracy (F1=1.00) on Windows forensics

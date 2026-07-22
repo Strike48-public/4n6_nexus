@@ -64,6 +64,24 @@ from ..memory.volatility_runner import (
 )
 from ..findings import Finding
 
+
+def _timeline_event(ts: str, source: str, actor: str, etype: str) -> dict:
+    """Build a normalized timeline event for cross-artifact correlation.
+
+    Emitted in a finding's evidence under ``timeline`` so the shared hardening
+    pipeline can correlate this finding with another from a DIFFERENT source that
+    concerns the same ``actor`` (process). Purely additive metadata - it does not
+    affect which findings the detector produces.
+    """
+    return {
+        "ts": str(ts or ""),
+        "source": source,
+        "actor": str(actor or ""),
+        "target": "",
+        "type": etype,
+    }
+
+
 # PIDs that routinely appear in psscan but not pslist because they have
 # already terminated / are synthetic. Keeping them out of the hidden-
 # process finding set avoids drowning real leads in noise.
@@ -305,7 +323,17 @@ class MemoryDetector:
         # (SFE-4n7). The Linux plugins are unaffected.
         listwalk_failed = bool(listwalk_gaps)
         if not listwalk_failed:
-            findings.extend(self._analyze_malfind(malfind or ()))
+            # PID -> process create_time from the process lists, so an injection
+            # finding (malfind carries no timestamp of its own) inherits its
+            # process's real creation time. This is genuine cross-source evidence
+            # linkage - it lets a malfind injection time-correlate with other
+            # findings about the same process; it does not change what is flagged.
+            create_times = {
+                r.pid: r.create_time
+                for r in (list(pslist_rows or ()) + list(psscan_rows or ()))
+                if getattr(r, "create_time", "")
+            }
+            findings.extend(self._analyze_malfind(malfind or (), create_times))
             findings.extend(self._analyze_hidden_processes(pslist_rows, psscan_rows))
             findings.extend(self._analyze_cmdline(cmdline or ()))
         findings.extend(
@@ -390,7 +418,10 @@ class MemoryDetector:
 
     # --- malfind (unbacked RWX memory) -------------------------------------
 
-    def _analyze_malfind(self, rows: Iterable[InjectionRow]) -> list[Finding]:
+    def _analyze_malfind(
+        self, rows: Iterable[InjectionRow], create_times: Optional[dict] = None
+    ) -> list[Finding]:
+        create_times = create_times or {}
         findings: list[Finding] = []
         for row in rows:
             protection = (row.protection or "").strip().lower()
@@ -400,10 +431,14 @@ class MemoryDetector:
             # signal to keep per-image finding counts manageable.
             if not is_rwx:
                 continue
-            findings.append(self._build_malfind_finding(row))
+            findings.append(
+                self._build_malfind_finding(row, create_times.get(row.pid, ""))
+            )
         return findings
 
-    def _build_malfind_finding(self, row: InjectionRow) -> Finding:
+    def _build_malfind_finding(
+        self, row: InjectionRow, create_time: str = ""
+    ) -> Finding:
         # MITRE T1055 (Process Injection) is the canonical mapping; we
         # cite the sub-technique only when we have evidence of reflective
         # loading (PE header in private memory), which malfind doesn't
@@ -434,6 +469,14 @@ class MemoryDetector:
                 "commit_charge": row.commit_charge,
                 "private_memory": row.private_memory,
                 "mitre_attack": ["T1055"],
+                # Timeline event keyed on the process so a malfind injection and
+                # a psscan hidden-process finding for the same process correlate.
+                "timeline": _timeline_event(
+                    ts=create_time,
+                    source="malfind",
+                    actor=row.process,
+                    etype="rwx_injection",
+                ),
             },
             confidence=confidence,
             confidence_label="Medium",
@@ -499,6 +542,14 @@ class MemoryDetector:
                 "create_time": row.create_time,
                 "source": "psscan_without_pslist",
                 "mitre_attack": ["T1014"],
+                # Normalized timeline event so cross-source memory findings for
+                # the same process correlate in the shared hardening pipeline.
+                "timeline": _timeline_event(
+                    ts=row.create_time,
+                    source="psscan",
+                    actor=row.name,
+                    etype="process_hidden",
+                ),
             },
             confidence=confidence,
             confidence_label="Medium",

@@ -1,7 +1,7 @@
 """Data models for report generation."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -21,7 +21,7 @@ class Report:
     case_id: str
     case_name: str
     examiner: str
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     findings: list = field(default_factory=list)
     evidence: list = field(default_factory=list)
     iocs: dict = field(default_factory=dict)

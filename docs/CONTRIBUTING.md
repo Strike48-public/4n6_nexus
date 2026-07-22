@@ -27,7 +27,7 @@ Thank you for your interest in contributing to SIFT Find Evil! This document pro
 
 ```bash
 # Clone repository
-git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
+git clone https://github.com/Strike48-public/4n6_nexus.git
 cd sift_find_evil
 
 # Create virtual environment
@@ -381,7 +381,7 @@ def test_my_parser():
 boundary, not by giving an agent a shell.** A tool added here automatically
 inherits the architectural guardrails (read-only allowlist, evidence-path
 containment, circuit breaker, audit logging), and the analyst agents pick it up
-for free because their `tools:` allowlist uses the `mcp__sift-find-evil__*`
+for free because their `tools:` allowlist uses the `mcp__forensics_nexus__*`
 wildcard. No agent edits required.
 
 > **Why not just give an agent `Bash`?** That would let it run any command and
@@ -423,7 +423,7 @@ def tshark(pcap_file: str, correlation_id: str, display_filter: str = "",
 ```
 
 **3. That's it for wiring.** The agents already reach it via the wildcard. To grant
-it to a *new* agent, add `mcp__sift-find-evil__<tool>` (or `mcp__sift-find-evil__*`)
+it to a *new* agent, add `mcp__forensics_nexus__<tool>` (or `mcp__forensics_nexus__*`)
 to that agent's `tools:` list — never add `Bash`/`Write`/`Edit`.
 
 **4. Test the guardrail inheritance** (the contract that makes this safe):
@@ -560,7 +560,7 @@ Brief description of changes.
 - [ ] Docstrings added
 - [ ] Tests added
 - [ ] Documentation updated
-- [ ] Scenario harness passes (12/12 @ F1=1.00)
+- [ ] Scenario harness passes (16/16 @ F1=1.00)
 ```
 
 ### Review Process
@@ -663,7 +663,6 @@ Violations may result in temporary or permanent ban from the project.
 
 - **GitHub Issues:** https://github.com/Strike48-public/4n6_nexus/issues
 - **Documentation:** [README.md](../README.md), [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Email:** hackathon@example.com
 
 ---
 

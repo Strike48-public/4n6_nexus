@@ -1,8 +1,8 @@
 # SIFT Find Evil - System Architecture
 
-**Version**: 1.0  
-**Date**: 2026-04-18  
-**Status**: Production-ready for SANS FIND EVIL! Hackathon
+**Version**: 2.0  
+**Date**: 2026-07-21  
+**Status**: Production-ready. 16-scenario synthetic harness at F1=1.00, over 1,800 tests, full integrity/anti-hallucination stack.
 
 ---
 
@@ -58,6 +58,15 @@ Traditional forensic tools output findings without questioning their own conclus
 └────────────────────────┬────────────────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────────────────┐
+│              Integrity / Anti-Hallucination Layer               │
+│  (Additive-only: attaches metadata, retracts/downgrades only)   │
+│                                                                 │
+│  harden_findings pipeline | hash-chained audit log             │
+│  crypto finding receipts | provenance gate | verdict clamp     │
+│  refutation seats | adversarial falsification | MITRE guardrail│
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────────────────┐
 │                  Self-Correction Engine                         │
 │  (Orchestration, contradiction detection, confidence scoring)   │
 └──────┬────────────────────────────────────────┬─────────────────┘
@@ -66,9 +75,15 @@ Traditional forensic tools output findings without questioning their own conclus
 │     Detectors           │        │      Validators             │
 │ (Pattern recognition)   │        │  (Cross-artifact checks)    │
 │                         │        │                             │
-│ - Exfiltration          │        │ - Contradiction Detector    │
-│ - Disk Wiping           │        │ - Timestamp Comparator      │
-│ - Timestomping          │        │ - Adversarial Validator     │
+│ detectors/ package      │        │ - Contradiction Detector    │
+│ (15 modules + sigma_    │        │ - Timestamp Comparator      │
+│  scan): exfil ratio,    │        │ - Adversarial Validator     │
+│ cloud upload, webmail,  │        │                             │
+│ network, lateral        │        │ disk/ package:              │
+│ movement, registry,     │        │ - Exfiltration              │
+│ memory, YARA, Sigma,    │        │ - Disk Wiping               │
+│ Unicode masquerade, USN │        │ - GPT Inspector             │
+│ timestomp, watchlist... │        │                             │
 └──────┬──────────────────┘        └───────────┬─────────────────┘
        │                                        │
 ┌──────▼────────────────────────────────────────▼─────────────────┐
@@ -85,6 +100,32 @@ Traditional forensic tools output findings without questioning their own conclus
 │  E01 Images | CSV Files | PST Files | PCAP Files               │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**The Integrity / Anti-Hallucination Layer is ADDITIVE-ONLY.** It attaches
+metadata to findings and may retract or downgrade a finding, but it never
+fabricates, mutates, or upgrades one. This is precisely why heavy verification
+and F1=1.00 coexist: the layer can only remove or annotate signal, so it cannot
+manufacture a false positive or inflate a true one. It comprises the shared
+`harden_findings` convergence pipeline plus the tamper-evident hash-chained audit
+log, cryptographic finding receipts, the provenance gate, the verdict clamp,
+refutation seats, adversarial falsification, and the MITRE ATT&CK guardrail.
+
+#### Wired vs. Built (honest wiring status)
+
+To state the wiring precisely (this has been over-claimed before):
+
+- The CI scenario harness (`tests/scenario_harness.py`) routes findings through
+  the single convergence function `harden_findings()` in `hardening.py`.
+- The live orchestrator (`orchestration.py`) applies the SAME integrity
+  primitives - `ReceiptMinter`, `guard_finding`, `resolve_provenance`,
+  `run_adversarial_round`, `seats.adjudicate`, `confirmed_matrix`, and
+  `verify_chain` - INLINE rather than by calling `harden_findings`.
+- Both paths reach the same guarantees, but they do NOT call "one shared module":
+  only the harness imports `hardening.py`.
+- Cross-artifact correlation (`correlate_timeline`) currently runs on the harness
+  path only (invoked from within `harden_findings`).
+- The hallucination benchmark (`benchmark/`) and the offline `tools/verify_chain.py`
+  are standalone - by design, they are not invoked by either execution path.
 
 ---
 
@@ -128,7 +169,11 @@ Traditional forensic tools output findings without questioning their own conclus
 2. **Detectors**: Recognize patterns (exfiltration, wiping) from parsed artifacts
 3. **Validators**: Check logical consistency (causality, timestamp anomalies)
 4. **Self-Correction Engine**: Orchestrate detection, validation, and confidence scoring
-5. **CLI**: User interface, formatting, JSON output
+5. **Integrity / Anti-Hallucination Layer**: Attach tamper-evident metadata, mint
+   cryptographic receipts, gate provenance, clamp verdicts, run refutation seats
+   and adversarial falsification, and enforce the MITRE guardrail. Additive-only:
+   it can retract or downgrade a finding but never fabricates, mutates, or upgrades one.
+6. **CLI**: User interface, formatting, JSON output
 
 ### 4. Graceful Degradation
 
@@ -267,6 +312,31 @@ class EmailMessage:
 ### Layer 3: Detectors
 
 **Purpose**: Recognize suspicious patterns from parsed artifacts.
+
+Detection logic lives in two places. The `detectors/` package holds the bulk of
+the pattern recognizers as focused, single-responsibility modules, and the `disk/`
+package holds the disk-image and partition-table detectors.
+
+#### Detectors Package (`detectors/`)
+
+Fifteen detector modules plus a `sigma_scan/` subpackage:
+
+- `cloud_upload_detector.py` - cloud storage upload detection
+- `exfil_ratio_detector.py` - asymmetric upload/download byte-ratio exfiltration
+- `lateral_movement_detector.py` - lateral movement across hosts
+- `linux_persistence.py` - Linux persistence mechanisms
+- `lnk_jumplist_detector.py` - LNK and JumpList artifact analysis
+- `memory_detector.py` - memory-forensics indicators (injection, hidden processes)
+- `network_detector.py` - suspicious network activity and cleartext protocols
+- `registry_detector.py` - registry persistence (Run keys, shimcache, BAM)
+- `stats_detector.py` - statistical/anomaly-based signals
+- `unicode_masquerade_detector.py` - Unicode homoglyph/masquerade filenames
+- `usn_timestomp_corroborator.py` - USN-journal corroboration of timestomping
+- `watchlist_detector.py` - watchlist/IOC matching
+- `webmail_exfil_detector.py` - webmail-based data exfiltration
+- `yara_detector.py` - YARA signature matching
+- `eco_check.py` - environmental/consistency checks
+- `sigma_scan/matcher.py` - Sigma rule matching
 
 #### Exfiltration Detector (`disk/exfil_detector.py`)
 
@@ -541,6 +611,72 @@ Best of both worlds
 
 ```
 sift_find_evil/
+├── approval/            # Human-in-the-loop finding approval workflow
+│
+├── audit/               # Hash-chained tamper-evident audit log
+│   ├── models.py        #   AuditEntry + compute_entry_hash (prev_hash/entry_hash from GENESIS)
+│   └── logger.py        #   AuditLogger.verify_chain detects tampering
+│
+├── benchmark/           # Hallucination/abstention benchmark (standalone)
+│
+├── carving/             # File carving utilities
+│   ├── file_signatures.py
+│   └── nsrl_filter.py
+│
+├── case/                # Case lifecycle + evidence registry
+│
+├── correlation/         # stdlib-sqlite3 cross-artifact timeline correlation
+│                        #   + contradiction surfacing
+│
+├── coverage/            # Detection-coverage accounting
+│
+├── custody/             # HMAC-SHA256 finding receipts bound to the evidence
+│   ├── receipt.py       #   image hash (receipt.py)
+│   └── signing.py       #   + optional publicly-verifiable Ed25519 signing
+│
+├── detectors/           # Pattern recognizers (15 modules + sigma_scan)
+│   ├── cloud_upload_detector.py
+│   ├── exfil_ratio_detector.py
+│   ├── lateral_movement_detector.py
+│   ├── linux_persistence.py
+│   ├── lnk_jumplist_detector.py
+│   ├── memory_detector.py
+│   ├── network_detector.py
+│   ├── registry_detector.py
+│   ├── stats_detector.py
+│   ├── unicode_masquerade_detector.py
+│   ├── usn_timestomp_corroborator.py
+│   ├── watchlist_detector.py
+│   ├── webmail_exfil_detector.py
+│   ├── yara_detector.py
+│   ├── eco_check.py
+│   └── sigma_scan/
+│       └── matcher.py   #   Sigma rule matching
+│
+├── disk/                # Disk-level detectors
+│   ├── exfil_detector.py
+│   ├── wipe_detector.py
+│   └── gpt_inspector.py
+│
+├── findings/            # Finding model + verdict clamp, provenance gate,
+│   ├── finding.py       #   and deterministic entailment engine
+│   ├── categories.py
+│   ├── entailment.py
+│   ├── provenance.py    #   provenance gate
+│   └── verdict_guard.py #   verdict clamp
+│
+├── fusion/              # Multi-signal fusion
+│
+├── graph/               # Artifact/relationship graph
+│
+├── injection_defense/   # Prompt-injection defense (scan_and_wrap),
+│                        #   wired into mcp/server.py
+│
+├── mcp/                 # Custom MCP server exposing read-only forensic tools
+│                        #   behind architectural guardrails
+│
+├── memory/              # Memory-forensics support
+│
 ├── parsers/             # Artifact ingestion
 │   ├── mft_parser.py
 │   ├── prefetch_parser.py
@@ -549,30 +685,51 @@ sift_find_evil/
 │   ├── pcap_parser.py
 │   └── image_content_reader.py
 │
-├── disk/                # Disk-level detectors
-│   ├── exfil_detector.py
-│   ├── wipe_detector.py
-│   └── gpt_inspector.py
+├── reporting/           # Report generation + the MITRE ATT&CK guardrail
+│   ├── generator.py
+│   └── mitre_guardrail.py  # mitre_guardrail.py, confirmed_matrix
 │
-├── carving/             # File carving utilities
-│   ├── file_signatures.py
-│   └── nsrl_filter.py
+├── security/            # Security-related helpers
 │
-├── self_correction/     # Self-correction engine
-│   ├── engine.py
+├── self_correction/     # Contradiction detection, confidence scoring,
+│   ├── engine.py        #   refutation seats, adversarial falsification
 │   ├── contradiction_detector.py
-│   └── confidence_scorer.py
+│   ├── confidence_scorer.py
+│   ├── adversarial.py   #   EntailmentFalsifier, RulesAdjudicator (model-free)
+│   ├── seats.py         #   refutation seats
+│   ├── attack_pattern_detector.py
+│   ├── bias_audit.py
+│   └── verifier_adapter.py
+│
+├── server/              # Analysis server plumbing
+│
+├── testing/             # Shared test helpers
+│
+├── tui/                 # Terminal UI components
 │
 ├── validation/          # Validators
-│   └── adversarial_validator.py
+│   ├── adversarial_validator.py
+│   └── preflight.py
 │
 ├── validators/          # Timestamp utilities
 │   └── timestamp_comparator.py
 │
-├── findings/            # Finding taxonomy
-│   └── categories.py
+├── yara_scan/           # YARA scanner wrapper
 │
-└── cli.py              # Command-line interface
+├── analysis_runner.py   # Analysis run driver
+├── canonical.py         # Single source of truth for canonical JSON used by
+│                        #   every signing/hashing site
+├── cli.py               # Command-line interface
+├── cli_mcp.py           # MCP CLI entry point
+├── e01_mounter.py       # E01 image mounting
+├── hardening.py         # Shared additive-metadata convergence pipeline
+│                        #   (harden_findings)
+├── orchestration.py     # Multi-agent investigation orchestrator (A2A log)
+├── progress_tracker.py  # Progress reporting
+├── resource_monitor.py  # Resource-usage monitoring
+├── scenario_runner.py   # Scenario execution
+├── tui_app.py           # TUI application
+└── __main__.py          # Module entry point
 ```
 
 ### Public API
@@ -582,14 +739,21 @@ sift_find_evil/
 from sift_find_evil.cli import main
 from sift_find_evil.parsers.mft_parser import MFTParser
 from sift_find_evil.disk.exfil_detector import detect_exfiltration
-from sift_find_evil.self_correction.engine import SelfCorrectionEngine
+
+# Live multi-agent entry point: the investigation orchestrator (emits an A2A audit log)
+from sift_find_evil.orchestration import InvestigationOrchestrator
+
+# CI recall path: the scenario harness routes findings through harden_findings
+from sift_find_evil.hardening import harden_findings
 
 # Usage
 parser = MFTParser()
 entries = parser.parse_csv("mft.csv")
 
-engine = SelfCorrectionEngine()
-findings = engine.analyze(mft_entries, prefetch_entries, event_log_entries)
+# SelfCorrectionEngine remains the contradiction/confidence core, but it is no
+# longer the top-level entry point. Production runs go through
+# InvestigationOrchestrator (orchestration.py); the CI recall path is
+# tests/scenario_harness.py, which routes findings through harden_findings().
 ```
 
 ---
@@ -657,9 +821,9 @@ findings = engine.analyze(mft_entries, prefetch_entries, event_log_entries)
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-04-18  
-**Status**: Production-ready for SANS FIND EVIL! Hackathon
+**Document Version**: 2.0  
+**Last Updated**: 2026-07-21  
+**Status**: Production-ready. 16-scenario synthetic harness at F1=1.00, over 1,800 tests, full integrity/anti-hallucination stack.
 
 ---
 
@@ -884,7 +1048,23 @@ python -m sift_find_evil.cli case status --case-id INC-2026-001
 
 ### Audit Logging for Chain-of-Custody
 
-**Purpose:** Append-only JSONL audit trail for all forensic tool invocations and case actions.
+**Purpose:** Tamper-EVIDENT hash-chained JSONL audit trail for all forensic tool
+invocations and case actions. The log is not merely append-only: each entry
+carries a `prev_hash` plus an `entry_hash` that chains back to a `GENESIS`
+anchor. `entry_hash` is the SHA-256 over the entry's canonical body (with
+`prev_hash` included, `entry_hash` excluded), so altering, deleting, or
+reordering any past entry breaks the chain and is provably detectable by
+`verify_chain`. A truncated log that does not begin at GENESIS is likewise
+detectable.
+
+**Independent offline verifier:** `tools/verify_chain.py` is deliberately
+self-contained - it imports NOTHING from `sift_find_evil` and re-implements
+canonicalization and hashing from the Python standard library. This lets a third
+party verify a log without trusting or installing the engine (a Daubert-friendly
+property). Any drift between the writer and the verifier surfaces as a
+verification failure rather than a silent pass. Chain logic lives in
+`audit/models.py` (`compute_entry_hash`) and `audit/logger.py` (`verify_chain`);
+there is no `audit/chain.py` file.
 
 **JSONL Format:**
 ```json
@@ -982,8 +1162,9 @@ python -m sift_find_evil.cli audit summary \
 ```
 
 **Implementation:**
-- `sift_find_evil/audit/models.py` - AuditEntry, ToolInvocation
-- `sift_find_evil/audit/logger.py` - AuditLogger
+- `sift_find_evil/audit/models.py` - AuditEntry, ToolInvocation, `compute_entry_hash`, `GENESIS_HASH`
+- `sift_find_evil/audit/logger.py` - AuditLogger (chains entries, `verify_chain`)
+- `tools/verify_chain.py` - independent offline verifier (imports nothing from `sift_find_evil`)
 - `sift_find_evil/cli.py` - audit log/summary commands
 
 ---
@@ -1158,6 +1339,6 @@ sequenceDiagram
 
 ---
 
-**Document Version**: 1.1  
-**Last Updated**: 2026-04-23  
-**Status**: Production-ready with Hackathon Features
+**Document Version**: 2.0  
+**Last Updated**: 2026-07-21  
+**Status**: Production-ready with full integrity/anti-hallucination stack

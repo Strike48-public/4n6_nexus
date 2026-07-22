@@ -219,13 +219,86 @@ def _hash_attachment_streaming(attachment, window_kb: int = 64) -> str:
     return hasher.hexdigest()
 
 
+# MAPI property tags carrying an attachment's filename, in preference order:
+#   0x3707 PidTagAttachLongFilename  (long/original name, best)
+#   0x3704 PidTagAttachFilename      (8.3 short name)
+#   0x3001 PidTagDisplayName         (display name, last resort)
+# A pypff attachment object exposes NO ``.name`` attribute; the filename is only
+# reachable through these record-set properties (SFE-0euh).
+_ATTACH_NAME_TAGS: tuple[int, ...] = (0x3707, 0x3704, 0x3001)
+
+
+# Defense-in-depth cap on record sets scanned per attachment. Real attachments
+# have 1-3 record sets; a huge count only appears in a malicious/corrupt PST.
+# We stop early once all name tags are found, so this cap is only reached by
+# pathological input.
+_MAX_RECORD_SETS = 64
+
+
+def _attachment_name(attachment) -> str:
+    """Recover an attachment's filename from its MAPI record-set properties.
+
+    pypff attachments have no ``.name`` attribute, so the filename must be read
+    from the record sets. Returns the best available name (long > short >
+    display), or ``"<unnamed>"`` when no name property is present or the record
+    sets cannot be read (corrupt PST).
+
+    Robustness for untrusted forensic evidence (SFE-0euh): every pypff access is
+    wrapped in ``except Exception`` and degrades to ``"<unnamed>"`` rather than
+    aborting the parse -- a corrupt/malicious PST must never crash triage. The
+    broad catch is deliberate (not a bug-hider): this is a leaf parsing helper
+    over a native library on adversarial input. Recovered names are length-
+    bounded and the record-set scan is capped to resist memory-exhaustion DoS.
+    Never raises.
+    """
+    try:
+        num_sets = attachment.number_of_record_sets
+    except Exception:
+        return "<unnamed>"
+
+    found: dict[int, str] = {}
+    for rs_index in range(min(num_sets, _MAX_RECORD_SETS)):
+        try:
+            record_set = attachment.get_record_set(rs_index)
+            for entry_index in range(record_set.number_of_entries):
+                entry = record_set.get_entry(entry_index)
+                tag = entry.entry_type
+                if tag in _ATTACH_NAME_TAGS and tag not in found:
+                    value = entry.get_data_as_string()
+                    if value:
+                        # Bound the length: a filename is realistically <= Windows
+                        # MAX_PATH (260); a multi-MB "name" from a malicious/corrupt
+                        # PST must not blow out memory (cf. the 4000/2000 caps on
+                        # transport_headers/body_preview).
+                        cleaned = (
+                            value.replace("\r", " ").replace("\n", " ").strip()[:260]
+                        )
+                        if cleaned:
+                            found[tag] = cleaned
+        except Exception:
+            # One corrupt record set must not abort name recovery.
+            continue
+        # Highest-priority tag present -> no point scanning further record sets.
+        if _ATTACH_NAME_TAGS[0] in found:
+            break
+
+    for tag in _ATTACH_NAME_TAGS:
+        if found.get(tag):
+            return found[tag]
+    return "<unnamed>"
+
+
 def _parse_attachment(attachment) -> Attachment:
     """Parse a pypff attachment into an Attachment dataclass.
 
     The attachment object is consumed by the streaming hash read, so this must
-    be called exactly once per attachment.
+    be called exactly once per attachment. Name recovery reads only the MAPI
+    record sets, not the content buffer that ``read_buffer`` streams, so doing
+    it before hashing does not perturb the SHA-256. This ordering is exercised
+    on real evidence by ``test_parse_jean_pst_critical_message`` (name AND hash
+    both asserted against m57biz.xls ground truth).
     """
-    name = _safe_text(attachment, "name") or "<unnamed>"
+    name = _attachment_name(attachment)
     size = 0
     try:
         size = attachment.size

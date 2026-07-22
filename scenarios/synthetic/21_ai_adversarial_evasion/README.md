@@ -610,7 +610,7 @@ def build_timeline_from_immutable_sources(mft_records, prefetch, network_logs, p
 
 ### Run Scenario
 ```bash
-cd /home/jtomek/Code/sift_find_evil
+cd ~/Code/4n6_nexus
 PYTHONPATH=. python3 tests/scenario_harness.py --scenario 21
 ```
 

@@ -22,19 +22,71 @@ from sift_find_evil.parsers.pst_parser import (
 
 
 @dataclass
-class FakeAttachment:
-    """Mock pypff attachment with fixed content."""
+class FakeRecordEntry:
+    """Mock pypff record-set entry (a single MAPI property)."""
 
-    name: str
-    size: int
-    _content: bytes
-    _offset: int = 0
+    entry_type: int
+    _value: str
+
+    def get_data_as_string(self) -> str:
+        return self._value
+
+
+class FakeRecordSet:
+    """Mock pypff record set exposing MAPI property entries."""
+
+    def __init__(self, entries: list[FakeRecordEntry]):
+        self._entries = entries
+
+    @property
+    def number_of_entries(self) -> int:
+        return len(self._entries)
+
+    def get_entry(self, index: int) -> FakeRecordEntry:
+        return self._entries[index]
+
+
+class FakeRecordSetAttachment:
+    """Mock pypff attachment that models the REAL API: no ``.name`` attribute,
+    filename recoverable only from MAPI record-set properties (SFE-0euh)."""
+
+    def __init__(self, size: int, content: bytes, mapi: dict[int, str] | None):
+        self.size = size
+        self._content = content
+        self._offset = 0
+        # mapi maps entry_type -> string; None means no record sets at all.
+        if mapi is None:
+            self._record_sets: list[FakeRecordSet] | None = None
+        else:
+            entries = [FakeRecordEntry(et, val) for et, val in mapi.items()]
+            self._record_sets = [FakeRecordSet(entries)]
 
     def read_buffer(self, size: int) -> bytes:
-        """Simulate pypff read_buffer behavior."""
         chunk = self._content[self._offset : self._offset + size]
         self._offset += len(chunk)
         return chunk
+
+    @property
+    def number_of_record_sets(self) -> int:
+        if self._record_sets is None:
+            raise RuntimeError("no record sets")
+        return len(self._record_sets)
+
+    def get_record_set(self, index: int) -> FakeRecordSet:
+        if self._record_sets is None:
+            raise RuntimeError("no record sets")
+        return self._record_sets[index]
+
+
+def FakeAttachment(name, size: int, _content: bytes) -> FakeRecordSetAttachment:
+    """Build a record-set-backed attachment (models the real pypff API).
+
+    Kept as a factory with the legacy call signature so existing tests read
+    naturally. ``name=None`` produces an attachment with no filename property,
+    which resolves to ``"<unnamed>"`` (the real pypff behavior).
+    """
+    mapi = {0x3707: name} if name is not None else {}
+    return FakeRecordSetAttachment(size=size, content=_content, mapi=mapi)
 
 
 @dataclass
@@ -96,6 +148,78 @@ def test_parse_attachment_no_name():
     parsed = _parse_attachment(att)
     assert parsed.name == "<unnamed>"
     assert parsed.size == len(content)
+
+
+# ─── SFE-0euh: attachment name recovery from MAPI record sets ────────────────
+
+
+def test_parse_attachment_name_from_long_filename():
+    """Recover the attachment name from MAPI 0x3707 (AttachLongFilename).
+
+    Real pypff attachments have no ``.name`` attribute; the filename lives in
+    record-set properties. Losing it produced '<unnamed>' for every real
+    attachment and broke the EXFIL_CORRELATION size+name match (SFE-0euh).
+    """
+    content = b"spreadsheet bytes"
+    att = FakeRecordSetAttachment(
+        size=len(content),
+        content=content,
+        mapi={0x3707: "m57biz.xls"},
+    )
+    parsed = _parse_attachment(att)
+    assert parsed.name == "m57biz.xls"
+    assert parsed.size == len(content)
+    assert parsed.sha256 == hashlib.sha256(content).hexdigest()
+
+
+def test_parse_attachment_name_priority_long_over_short_over_display():
+    """0x3707 (long) wins over 0x3704 (short) wins over 0x3001 (display)."""
+    content = b"x"
+    att = FakeRecordSetAttachment(
+        size=1,
+        content=content,
+        mapi={0x3001: "display", 0x3704: "SHORT.XLS", 0x3707: "long_name.xlsx"},
+    )
+    assert _parse_attachment(att).name == "long_name.xlsx"
+
+    att2 = FakeRecordSetAttachment(
+        size=1, content=content, mapi={0x3001: "display", 0x3704: "SHORT.XLS"}
+    )
+    assert _parse_attachment(att2).name == "SHORT.XLS"
+
+    att3 = FakeRecordSetAttachment(
+        size=1, content=content, mapi={0x3001: "display.doc"}
+    )
+    assert _parse_attachment(att3).name == "display.doc"
+
+
+def test_parse_attachment_unnamed_when_no_name_property():
+    """Fall back to '<unnamed>' when record sets carry no filename property."""
+    content = b"data"
+    att = FakeRecordSetAttachment(
+        size=len(content), content=content, mapi={0x0E20: "irrelevant"}
+    )
+    assert _parse_attachment(att).name == "<unnamed>"
+
+
+def test_parse_attachment_unnamed_when_record_sets_raise():
+    """Fall back to '<unnamed>' when record-set access raises (corrupt PST)."""
+    content = b"data"
+    att = FakeRecordSetAttachment(size=len(content), content=content, mapi=None)
+    parsed = _parse_attachment(att)
+    assert parsed.name == "<unnamed>"
+    # Hashing must still succeed even when name recovery fails.
+    assert parsed.sha256 == hashlib.sha256(content).hexdigest()
+
+
+def test_parse_attachment_name_length_bounded():
+    """A pathologically long name (malicious/corrupt PST) is bounded to 260."""
+    content = b"x"
+    att = FakeRecordSetAttachment(
+        size=1, content=content, mapi={0x3707: "A" * 100_000 + ".xls"}
+    )
+    parsed = _parse_attachment(att)
+    assert len(parsed.name) == 260
 
 
 def test_parse_message_no_attachments():
@@ -196,13 +320,18 @@ def test_parse_attachment_size_exception():
     from sift_find_evil.parsers.pst_parser import _parse_attachment
 
     class AttachmentWithBrokenSize:
-        name = "test.txt"
         _content = b"data"
         _offset = 0
 
         @property
         def size(self):
             raise RuntimeError("Size unavailable")
+
+        # Name recovery works even when size is broken (independent paths).
+        number_of_record_sets = 1
+
+        def get_record_set(self, index):
+            return FakeRecordSet([FakeRecordEntry(0x3707, "test.txt")])
 
         def read_buffer(self, size: int) -> bytes:
             chunk = self._content[self._offset : self._offset + size]
@@ -396,3 +525,8 @@ def test_parse_jean_pst_critical_message():
     assert (
         att.size == 291840
     ), f"Attachment size mismatch: got {att.size}, expected 291840"
+    # SFE-0euh: the attachment name must be recovered from MAPI record sets,
+    # not lost to '<unnamed>' (real pypff attachments have no .name attribute).
+    assert (
+        att.name == "m57biz.xls"
+    ), f"Attachment name not recovered: got {att.name!r}, expected 'm57biz.xls'"

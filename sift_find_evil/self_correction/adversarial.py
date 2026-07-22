@@ -63,6 +63,48 @@ class Falsifier(Protocol):
         ...
 
 
+class EntailmentFalsifier:
+    """A falsifier that re-derives a finding's asserted values from raw evidence.
+
+    Unlike the deterministic refutation SEATS (which reason about tool semantics
+    over the analyst's own claim text), this falsifier is INDEPENDENT of the
+    analyst's reasoning: it re-checks the concrete values a finding asserts
+    (hashes, IPs, PIDs, filenames) directly against the raw evidence text via the
+    entailment engine. If an identity anchor the finding claims does not actually
+    appear in the evidence, the finding is FALSIFIED - a hallucinated value has no
+    evidence to stand on. This is the reproducible, deterministic stand-in for a
+    rival-model falsifier: independence via re-derivation, not a second live LLM.
+
+    - FALSIFIED: an asserted value is not entailed by the evidence.
+    - SURVIVED: all asserted values are re-derivable from the evidence.
+    - INCONCLUSIVE: the finding asserts no checkable values (cannot decide).
+    """
+
+    def __init__(self, asserted_values: list[dict], evidence_text: str):
+        self._asserted_values = asserted_values
+        self._evidence_text = evidence_text
+
+    @property
+    def model_family(self) -> str:
+        # A distinct "family" from any analyst so architectural_distance is 1.0:
+        # the check derives from evidence bytes, not the analyst's model.
+        return "entailment-rederivation"
+
+    def challenge(self, claim: str, evidence_handles: list[str]) -> FalsifierStatus:
+        # Imported lazily to keep this module import-light for callers that never
+        # use the entailment falsifier.
+        from ..findings.entailment import check_entailment
+
+        if not self._asserted_values:
+            return FalsifierStatus.INCONCLUSIVE
+        report = check_entailment(self._asserted_values, self._evidence_text)
+        return (
+            FalsifierStatus.SURVIVED
+            if report.all_supported
+            else FalsifierStatus.FALSIFIED
+        )
+
+
 @dataclass(frozen=True)
 class AdjudicatedVerdict:
     """The deterministic adjudicator's ruling on a single finding."""

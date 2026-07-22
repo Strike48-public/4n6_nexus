@@ -27,6 +27,12 @@ expected:
     total: 3
   min_precision: 1.0
   min_recall: 1.0
+  # Benign executables PRESENT in the evidence that the engine must NOT flag.
+  # Feeds the hallucination/abstention benchmark so the zero-false-confirmations
+  # gate proves specificity (resisting a present-but-benign artifact), not just
+  # the already-known zero-FP recall result.
+  false_positive_traps:
+    - cmd.exe
 
 notes: |
   Confidence should rebound above 0.60 once Event Log resolves the

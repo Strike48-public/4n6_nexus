@@ -10,7 +10,7 @@ forensic tools through our architectural boundary:
 
 Registered in Claude Code via .mcp.json (see repo root) or:
 
-    claude mcp add sift-find-evil -- python -m sift_find_evil.mcp \\
+    claude mcp add forensics_nexus -- python -m sift_find_evil.mcp \\
         --case-id INC-2026-001 --evidence-root <dir> --audit-path <file>
 
 Every tool call still crosses ``EvidenceMCPServer.run_tool`` -> ``ToolGuard``,

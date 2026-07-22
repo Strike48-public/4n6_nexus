@@ -30,7 +30,7 @@ graph TD
     USER --> U4[DEPLOY_TO_SIFT.md<br/>Installation]
     
     DEV --> D1[CONTRIBUTING.md<br/>Dev Guide]
-    DEV --> D2[Testing approach (see CONTRIBUTING.md)<br/>Testing Approach]
+    DEV --> D2[BATCH_TESTING.md<br/>Testing Approach]
     DEV --> D3[ARCHITECTURE.md<br/>Component Design]
     DEV --> D4[DOCUMENTATION_INDEX.md<br/>All Docs]
     
@@ -78,9 +78,8 @@ graph TD
 
 **Key metrics to note:**
 - F1 Score: **1.00** (perfect precision and recall)
-- Scenarios: **15/15 passing** (62 true positives, 0 false positives/negatives)
-- Test coverage: **94%**
-- Tests: **1,000+** passing
+- Scenarios: **16/16 passing** (62 true positives, 0 false positives/negatives)
+- Test coverage: **85%**
 - Self-correction instances: **247** from real evidence
 
 ---
@@ -123,7 +122,7 @@ graph TD
 
 1. **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development setup, coding standards, PR workflow
 2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Component architecture and extension points
-3. **[Testing approach (see CONTRIBUTING.md)](../Testing approach (see CONTRIBUTING.md))** - Testing requirements (80% coverage)
+3. **[BATCH_TESTING.md](../BATCH_TESTING.md)** - Testing requirements (80% coverage)
 4. **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Complete docs map
 
 **By task:**
@@ -133,7 +132,7 @@ graph TD
 | Add a new detector | [ARCHITECTURE.md](ARCHITECTURE.md) - "Adding a New Detector" |
 | Add a new parser | [ARCHITECTURE.md](ARCHITECTURE.md) - "Adding a New Parser" |
 | Add a contradiction type | [ARCHITECTURE.md](ARCHITECTURE.md) - "Adding a New Contradiction Type" |
-| Understand test infrastructure | [Testing approach (see CONTRIBUTING.md)](../Testing approach (see CONTRIBUTING.md)), [Regression testing (see tests/scenario_harness.py)](../Regression testing (see tests/scenario_harness.py)) |
+| Understand test infrastructure | [BATCH_TESTING.md](../BATCH_TESTING.md), [REGRESSION_TESTING.md](../REGRESSION_TESTING.md) |
 | Run CI/CD checks locally | [CONTRIBUTING.md](CONTRIBUTING.md) - Quality checks section |
 | Understand code structure | [ARCHITECTURE.md](ARCHITECTURE.md) - Module reference |
 | Work with MCP servers | [MCP_INTEGRATION.md](MCP_INTEGRATION.md) - Protocol SIFT integration |
@@ -221,8 +220,8 @@ sift_find_evil/
 | Document | Description |
 |----------|-------------|
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, coding standards, PR workflow |
-| [../Testing approach (see CONTRIBUTING.md)](../Testing approach (see CONTRIBUTING.md)) | Systematic testing approach |
-| [../Regression testing (see tests/scenario_harness.py)](../Regression testing (see tests/scenario_harness.py)) | Regression testing setup |
+| [../BATCH_TESTING.md](../BATCH_TESTING.md) | Systematic testing approach |
+| [../REGRESSION_TESTING.md](../REGRESSION_TESTING.md) | Regression testing setup |
 | [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Complete documentation map (all 73 files) |
 
 ### Technical Deep Dives
@@ -248,6 +247,7 @@ sift_find_evil/
 | [PRD.md](PRD.md) | Product Requirements Document |
 | [OPEN_SOURCE_STRATEGY.md](OPEN_SOURCE_STRATEGY.md) | Open source approach |
 | [DEVELOPMENT_TIMELINE.md](DEVELOPMENT_TIMELINE.md) | Phase-by-phase progress |
+| [enterprise/](enterprise/) | Community/Enterprise split planning (6 docs) |
 
 ### Demo & Submission
 
@@ -258,11 +258,30 @@ sift_find_evil/
 
 ---
 
+## Enterprise Edition Planning
+
+**Location:** [docs/enterprise/](enterprise/)
+
+The repository includes detailed planning for splitting into Community (open source) and Enterprise editions:
+
+1. **[enterprise/README.md](enterprise/README.md)** - Overview and reading order
+2. **[enterprise/DECISIONS.md](enterprise/DECISIONS.md)** - Strategic decisions (MPL-2.0, naming, versioning)
+3. **[enterprise/CRITICAL_ARCHITECTURE_ISSUE.md](enterprise/CRITICAL_ARCHITECTURE_ISSUE.md)** - Finding refactor (RESOLVED ✅)
+4. **[enterprise/SPLIT_CRITERIA.md](enterprise/SPLIT_CRITERIA.md)** - Community vs. Enterprise boundaries
+5. **[enterprise/REPOSITORY_SPLIT_PRD.md](enterprise/REPOSITORY_SPLIT_PRD.md)** - Implementation plan
+6. **[enterprise/DEPENDENCY_MAP.md](enterprise/DEPENDENCY_MAP.md)** - Architecture visualization
+
+**Status:** All strategic decisions finalized. Finding refactor complete (commit 80fb97f). Split execution planned post-demo (May 2026).
+
+**Product name:** 4n6 Nexus (forensics nexus)
+- Community: MPL-2.0 license
+- Enterprise: Proprietary, adds self-correction + MCP
+
 ---
 
 ## Complete Documentation Index
 
-For a **complete list of all documentation files**, see:
+For a **complete list of all 73 documentation files**, see:
 
 **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Comprehensive documentation map
 
@@ -301,8 +320,8 @@ sift_find_evil/
 ├── CLAUDE.md                    ← AI agent instructions
 ├── SUBMISSION_CHECKLIST.md      ← Hackathon deliverables
 ├── DEPLOY_TO_SIFT.md            ← Installation guide
-├── Testing approach (see CONTRIBUTING.md)             ← Testing approach
-├── Regression testing (see tests/scenario_harness.py)        ← Regression testing
+├── BATCH_TESTING.md             ← Testing approach
+├── REGRESSION_TESTING.md        ← Regression testing
 │
 ├── docs/                        ← All documentation (73 files)
 │   ├── START_HERE.md            ← You are here!
@@ -313,7 +332,8 @@ sift_find_evil/
 │   ├── CLI_USAGE.md             ← Command reference
 │   ├── EXAMPLES.md              ← Real-world cases
 │   ├── CONTRIBUTING.md          ← Dev guide
-│   └── ... (additional docs)
+│   ├── enterprise/              ← Community/Enterprise split planning
+│   └── ... (60+ more docs)
 │
 ├── sift_find_evil/              ← Python package
 │   ├── parsers/                 ← Artifact parsers
@@ -331,7 +351,7 @@ sift_find_evil/
 │   └── fixtures/                ← Synthetic test data
 │
 ├── scenarios/                   ← Test scenarios
-│   ├── synthetic/               ← 12 synthetic scenarios (F1=1.00)
+│   ├── synthetic/               ← 16 synthetic scenarios (F1=1.00)
 │   └── real/                    ← Real evidence scenarios
 │
 └── cases/                       ← Case management directory
@@ -352,12 +372,12 @@ sift_find_evil/
 **It depends on who you are:**
 - **Judge?** [../README.md](../README.md) → [ACCURACY_REPORT.md](ACCURACY_REPORT.md) → [ARCHITECTURE.md](ARCHITECTURE.md)
 - **User?** [../README.md](../README.md) → [CLI_USAGE.md](CLI_USAGE.md) → [EXAMPLES.md](EXAMPLES.md)
-- **Developer?** [CONTRIBUTING.md](CONTRIBUTING.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [Testing approach (see CONTRIBUTING.md)](../Testing approach (see CONTRIBUTING.md))
+- **Developer?** [CONTRIBUTING.md](CONTRIBUTING.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [BATCH_TESTING.md](../BATCH_TESTING.md)
 - **Researcher?** [SELF_CORRECTION.md](SELF_CORRECTION.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [PRD.md](PRD.md)
 
 ### "How accurate is this tool?"
 
-See [ACCURACY_REPORT.md](ACCURACY_REPORT.md) - **F1=1.00** (perfect precision and recall) across 15 test scenarios with 62 ground-truth findings.
+See [ACCURACY_REPORT.md](ACCURACY_REPORT.md) - **F1=1.00** (perfect precision and recall) across 16 test scenarios.
 
 ### "How does self-correction work?"
 
@@ -406,5 +426,5 @@ Throughout the documentation, you'll see status indicators:
 
 ---
 
-**Last Updated:** 2026-06-15  
-**Repository Status:** Public release for SANS FIND EVIL! Hackathon submission
+**Last Updated:** 2026-04-26  
+**Repository Status:** Ready for demo recording (all deliverables complete except video)

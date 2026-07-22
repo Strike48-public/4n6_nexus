@@ -31,6 +31,7 @@ from .parsers.registry_parser import RegistryParser
 from .scenario_runner import ScenarioLoadError, run_scenario_path
 from .validation import AdversarialValidator
 from .approval import ApprovalManager, ApprovalStatus, FindingWithApproval
+from .approval.manager import APPROVAL_HMAC_KEY_ENV
 from .audit import AuditLogger
 from .case import CaseManager
 from .reporting import ReportFormat, ReportGenerator
@@ -49,15 +50,8 @@ except ImportError:  # pragma: no cover — hosts without libyara
 
 def print_banner():
     """Print CLI banner."""
-    banner = """
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║   4n6 Nexus  (SANS FIND EVIL! entry: SIFT Find Evil)          ║
-║   Autonomous DFIR Detection with Architectural Self-Correction║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-"""
-    print(banner)
+    # Banner removed for cleaner demo output
+    pass
 
 
 def print_section(title: str):
@@ -1361,6 +1355,43 @@ def cmd_list_findings(args):
                     print(f"      Signature: {finding.approval.signature_hash}")
 
 
+def cmd_verify_findings(args):
+    """Handle verify command: re-check approval signatures for tampering."""
+    print_banner()
+
+    findings_path = Path(args.findings)
+    if not findings_path.exists():
+        print(f"Error: Findings file not found: {findings_path}", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ApprovalManager(findings_path)
+
+    print_section("Verifying Approval Signatures")
+    print(f"  Findings file: {findings_path}")
+
+    results = manager.verify()
+
+    if "error" in results:
+        print(f"\n  Error: {results['error']}", file=sys.stderr)
+        sys.exit(2)
+
+    print(f"\n  Signed decisions: {results['total']}")
+    print(f"  Verified: {results['verified']}")
+    print(f"  Tampered: {results['tampered']}")
+    print(f"  Unsigned: {results['unsigned']}")
+
+    if results["tampered"] > 0 or results["unsigned"] > 0:
+        print("\n  Details:")
+        for detail in results["details"]:
+            if detail["status"] == "TAMPERED":
+                print(f"    [TAMPERED] {detail['finding_id']}")
+            elif detail["status"] == "UNSIGNED":
+                print(f"    [UNSIGNED] {detail['finding_id']}")
+
+    if results["tampered"] > 0:
+        sys.exit(1)
+
+
 def cmd_case_init(args):
     """Handle case init command: create a new case."""
     print_banner()
@@ -1854,6 +1885,19 @@ Examples:
         help="Filter by approval status (default: show all)",
     )
 
+    # Verify command
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="Re-verify approval signatures to detect tampering "
+        f"(requires {APPROVAL_HMAC_KEY_ENV})",
+    )
+    verify_parser.add_argument(
+        "--findings",
+        "-f",
+        required=True,
+        help="Path to findings.json file",
+    )
+
     # Case command group
     case_parser = subparsers.add_parser(
         "case",
@@ -2047,6 +2091,8 @@ Examples:
         cmd_reject(args)
     elif args.command == "list":
         cmd_list_findings(args)
+    elif args.command == "verify":
+        cmd_verify_findings(args)
     elif args.command == "case":
         if not hasattr(args, "case_command") or args.case_command is None:
             case_parser.print_help()
