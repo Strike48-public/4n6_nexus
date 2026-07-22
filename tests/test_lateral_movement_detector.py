@@ -16,6 +16,10 @@ from sift_find_evil.detectors.lateral_movement_detector import (
     DEFAULT_CROSS_HOST_THRESHOLD,
     DEFAULT_EXPLICIT_CRED_THRESHOLD,
     DEFAULT_FAILED_LOGON_THRESHOLD,
+    DEFAULT_SERVICE_ACCOUNT_MARKERS,
+    DEFAULT_SPRAY_DENSITY_THRESHOLD,
+    DEFAULT_SPRAY_MIN_ACCOUNTS,
+    DEFAULT_SPRAY_WINDOW_SECONDS,
     LateralMovementDetector,
 )
 from sift_find_evil.findings import FindingCategory
@@ -486,3 +490,307 @@ def test_full_campaign_emits_all_four_signals():
         "explicit_cred_burst",
     }
     assert all(f.category == FindingCategory.LATERAL_MOVEMENT for f in findings)
+
+
+# ===========================================================================
+# SFE-e76: hardened service-account heuristic (word-boundary + configurable)
+# ===========================================================================
+def _svc_rdp(account: str, detector: LateralMovementDetector | None = None):
+    """Run a single service-account RDP event and return matching findings."""
+    events = [
+        _logon(event_id=4624, account=account, logon_type="10", computer="DBHOST")
+    ]
+    det = detector or LateralMovementDetector()
+    return [
+        f for f in det.analyze(events) if f.evidence["signal"] == "service_account_rdp"
+    ]
+
+
+@pytest.mark.parametrize(
+    "account",
+    [
+        "CORP\\svc_sql",  # svc_ prefix
+        "CORP\\svc-web",  # svc- prefix (hyphen separator)
+        "CORP\\svc",  # bare marker as whole name
+        "CORP\\sqladmin",  # sql prefix (was a documented FN)
+        "CORP\\backup_admin",  # backup prefix (was a documented FN)
+        "CORP\\iis_apppool",  # iis prefix
+    ],
+)
+def test_service_account_true_positives_still_fire(account):
+    """Real service accounts (leading role token) must still match."""
+    assert len(_svc_rdp(account)) == 1
+
+
+@pytest.mark.parametrize(
+    "account",
+    [
+        "CORP\\Bob.Service",  # 'service' is a trailing name word, not a role
+        "CORP\\Priscilla",  # human name; 'sql' only as an interior substring
+        "CORP\\Joschka",  # human name; guards against 'sched' substring
+        "CORP\\Marissa",  # human name; guards against interior matches
+    ],
+)
+def test_human_accounts_do_not_false_positive(account):
+    """Human names whose leading token is not a role marker must not match."""
+    assert _svc_rdp(account) == []
+
+
+def test_service_markers_are_configurable():
+    """A custom marker list overrides the defaults."""
+    det = LateralMovementDetector(service_account_markers=("robot",))
+    assert len(_svc_rdp("CORP\\robot_agent", det)) == 1
+    # A default marker is no longer active under the override.
+    assert _svc_rdp("CORP\\svc_sql", det) == []
+
+
+def test_service_markers_default_constant_matches_scenario_account():
+    """The default marker set keeps the scenario-22 svc_sql detection."""
+    assert "svc" in DEFAULT_SERVICE_ACCOUNT_MARKERS
+
+
+def test_empty_service_markers_rejected():
+    with pytest.raises(ValueError, match="service_account_markers"):
+        LateralMovementDetector(service_account_markers=())
+
+
+def test_tokenless_account_never_matches_service():
+    """A name that splits to zero tokens (all separators) is not a service."""
+    from sift_find_evil.detectors.lateral_movement_detector import (
+        _looks_like_service_account,
+    )
+
+    assert _looks_like_service_account("CORP\\___") is False
+    assert _looks_like_service_account("") is False
+
+
+def test_min_span_seconds_raises_when_fewer_than_k():
+    """Fewer than k timestamps is a precondition violation, not a silent 0.0.
+
+    A silent zero would propagate to hosts_per_hour=inf downstream, masking the
+    error. The cross-host caller guards this via the host-count check, so this
+    only fires on direct misuse.
+    """
+    from sift_find_evil.detectors.lateral_movement_detector import (
+        LateralMovementDetector as _D,
+    )
+
+    with pytest.raises(ValueError, match="timestamps to span"):
+        _D._min_span_seconds([_TS], 3)
+    with pytest.raises(ValueError, match="timestamps to span"):
+        _D._min_span_seconds([], 3)
+
+
+def test_distributed_spray_exact_window_boundary_inclusive():
+    """Events spanning exactly `window` seconds co-inhabit one window.
+
+    Pins the closed-interval [anchor-window, anchor] convention the reviewer
+    flagged as untested: 31 failures at 0s,10s,...,300s across 6 accounts span
+    exactly 300s and must still trip the density signal.
+    """
+    events = [
+        _logon(
+            event_id=4625,
+            account=f"CORP\\user{i % 6}",
+            remote_host=f"SRC{i % 6} (10.0.0.{i % 6})",
+            record_id=i,
+            when=_TS + timedelta(seconds=i * 10),  # 0s .. 300s == exactly window
+        )
+        for i in range(31)
+    ]
+    findings = LateralMovementDetector(
+        spray_density_threshold=30, spray_window_seconds=300
+    ).analyze(events)
+    spray = [f for f in findings if f.evidence["signal"] == "distributed_spray"]
+    assert len(spray) == 1
+    assert spray[0].evidence["span_seconds"] == pytest.approx(300.0)
+
+
+# ===========================================================================
+# SFE-axz: temporal clustering — cross-host window + distributed spray
+# ===========================================================================
+# --- cross-host time window (opt-in; default off) -------------------------
+def test_cross_host_window_defaults_off_flags_slow_spread():
+    """With no window set, a 30-day-apart 3-host spread still fires (legacy)."""
+    events = [
+        _logon(
+            event_id=4624,
+            account="CORP\\svc_monitor",
+            computer=f"HOST{i}",
+            record_id=i,
+            when=_TS + timedelta(days=15 * i),
+        )
+        for i in range(DEFAULT_CROSS_HOST_THRESHOLD)
+    ]
+    spread = [
+        f
+        for f in LateralMovementDetector().analyze(events)
+        if f.evidence["signal"] == "cross_host_spread"
+    ]
+    assert len(spread) == 1
+
+
+def test_cross_host_window_suppresses_slow_admin_spread():
+    """An opt-in window drops '3 hosts over 30 days' (routine admin)."""
+    events = [
+        _logon(
+            event_id=4624,
+            account="CORP\\monitor",
+            computer=f"HOST{i}",
+            record_id=i,
+            when=_TS + timedelta(days=15 * i),
+        )
+        for i in range(DEFAULT_CROSS_HOST_THRESHOLD)
+    ]
+    det = LateralMovementDetector(cross_host_window_seconds=300)
+    spread = [
+        f for f in det.analyze(events) if f.evidence["signal"] == "cross_host_spread"
+    ]
+    assert spread == []
+
+
+def test_cross_host_window_keeps_fast_spread():
+    """A burst spread inside the window still fires under the gate."""
+    events = [
+        _logon(
+            event_id=4624,
+            account="CORP\\cbarton-a",
+            computer=f"HOST{i}",
+            record_id=i,
+            when=_TS + timedelta(seconds=30 * i),
+        )
+        for i in range(DEFAULT_CROSS_HOST_THRESHOLD)
+    ]
+    det = LateralMovementDetector(cross_host_window_seconds=300)
+    spread = [
+        f for f in det.analyze(events) if f.evidence["signal"] == "cross_host_spread"
+    ]
+    assert len(spread) == 1
+    # Temporal evidence is attached regardless of the gate.
+    assert spread[0].evidence["span_seconds"] == pytest.approx(
+        30 * (DEFAULT_CROSS_HOST_THRESHOLD - 1)
+    )
+    assert "hosts_per_hour" in spread[0].evidence
+
+
+def test_cross_host_evidence_carries_span_even_without_window():
+    """Temporal fields are always present so operators can triage rate."""
+    events = [
+        _logon(
+            event_id=4624,
+            account="CORP\\cbarton-a",
+            computer=f"HOST{i}",
+            record_id=i,
+            when=_TS + timedelta(seconds=60 * i),
+        )
+        for i in range(DEFAULT_CROSS_HOST_THRESHOLD)
+    ]
+    spread = [
+        f
+        for f in LateralMovementDetector().analyze(events)
+        if f.evidence["signal"] == "cross_host_spread"
+    ]
+    assert len(spread) == 1
+    assert spread[0].evidence["span_seconds"] == pytest.approx(
+        60 * (DEFAULT_CROSS_HOST_THRESHOLD - 1)
+    )
+
+
+def test_cross_host_window_rejects_subone():
+    with pytest.raises(ValueError, match="cross_host_window_seconds"):
+        LateralMovementDetector(cross_host_window_seconds=0)
+
+
+# --- distributed low-and-slow spray --------------------------------------
+def test_distributed_spray_fires_on_many_accounts_many_sources():
+    """Many accounts x many sources, each below the per-target threshold,
+    still trips an aggregate time-boxed density signal."""
+    events: list[EventLogEntry] = []
+    rid = 0
+    # 6 accounts x 6 sources, 1 failure each = 36 failures, none per-target
+    # anywhere near DEFAULT_FAILED_LOGON_THRESHOLD (20).
+    for a in range(6):
+        for s in range(6):
+            events.append(
+                _logon(
+                    event_id=4625,
+                    account=f"CORP\\user{a}",
+                    remote_host=f"SRC{s} (10.0.0.{s})",
+                    record_id=rid,
+                    when=_TS + timedelta(seconds=rid),
+                )
+            )
+            rid += 1
+
+    findings = LateralMovementDetector(
+        spray_density_threshold=30, spray_window_seconds=300
+    ).analyze(events)
+    spray = [f for f in findings if f.evidence["signal"] == "distributed_spray"]
+    assert len(spray) == 1
+    assert spray[0].severity == "high"
+    assert spray[0].evidence["failed_count"] >= 30
+    assert spray[0].evidence["distinct_accounts"] == 6
+    assert spray[0].evidence["mitre"] == "T1110"
+    # No per-target spike should have fired (each target has only 6 or fewer).
+    assert not [f for f in findings if f.evidence["signal"] == "failed_logon_spike"]
+
+
+def test_distributed_spray_needs_breadth_not_single_account():
+    """A single-account concentrated spray must NOT trip the density signal —
+    this is what protects the scenario-22 ground truth from a 6th finding."""
+    events = _many(
+        lambda record_id, when: _logon(
+            event_id=4625,
+            account="CORP\\admin",
+            remote_host="ATTACKER (10.0.0.9)",
+            record_id=record_id,
+            when=when,
+        ),
+        40,  # well over any density threshold, but ONE account + ONE source
+    )
+    findings = LateralMovementDetector(
+        spray_density_threshold=30, spray_window_seconds=300
+    ).analyze(events)
+    assert not [f for f in findings if f.evidence["signal"] == "distributed_spray"]
+
+
+def test_distributed_spray_respects_time_window():
+    """Failures spread beyond the window do not aggregate into a burst."""
+    events: list[EventLogEntry] = []
+    rid = 0
+    for a in range(6):
+        for s in range(6):
+            events.append(
+                _logon(
+                    event_id=4625,
+                    account=f"CORP\\user{a}",
+                    remote_host=f"SRC{s} (10.0.0.{s})",
+                    record_id=rid,
+                    # 1 hour apart -> never 30 within any 300s window.
+                    when=_TS + timedelta(hours=rid),
+                )
+            )
+            rid += 1
+    findings = LateralMovementDetector(
+        spray_density_threshold=30, spray_window_seconds=300
+    ).analyze(events)
+    assert not [f for f in findings if f.evidence["signal"] == "distributed_spray"]
+
+
+def test_distributed_spray_defaults_are_conservative():
+    """Exported defaults exist and stay above scenario-noise levels."""
+    assert DEFAULT_SPRAY_DENSITY_THRESHOLD >= 30
+    assert DEFAULT_SPRAY_MIN_ACCOUNTS >= 2
+    assert DEFAULT_SPRAY_WINDOW_SECONDS >= 60
+
+
+def test_distributed_spray_min_accounts_configurable():
+    with pytest.raises(ValueError, match="spray_min_accounts"):
+        LateralMovementDetector(spray_min_accounts=0)
+
+
+def test_distributed_spray_rejects_subone_window_and_threshold():
+    with pytest.raises(ValueError, match="spray_window_seconds"):
+        LateralMovementDetector(spray_window_seconds=0)
+    with pytest.raises(ValueError, match="spray_density_threshold"):
+        LateralMovementDetector(spray_density_threshold=0)

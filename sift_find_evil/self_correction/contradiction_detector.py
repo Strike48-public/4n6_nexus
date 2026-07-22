@@ -206,14 +206,34 @@ class ContradictionDetector:
         prefetch_entries: List[Any],
         event_log_entries: List[Any] = None,
     ) -> Optional[Contradiction]:
-        """Detect if executable exists in MFT but has no Prefetch evidence.
+        """Detect an executed binary that has no Prefetch artifact.
 
-        This is suspicious for executables that should have Prefetch.
+        A missing Prefetch is only a signal when there is *independent evidence
+        the binary was executed* (Event ID 4688 / XP 592) yet no matching
+        Prefetch exists -- the Prefetch-deletion / prefetch-disabled pattern.
+
+        The check does NOT fire for an .exe that merely exists in the MFT with
+        no execution evidence. That premise is unsound on a real disk: most
+        executables have never run, aged out of the bounded Prefetch LRU cache
+        (128 slots on XP/Win7, 1024 on Win8+), or are restore-point / WinSxS /
+        installer-payload copies. Firing on all of them destroyed precision on
+        real evidence -- 765 false positives on the m57-jean Windows XP image,
+        where Prefetch was at capacity (126 of 128) and process auditing was off
+        (SFE-ucjc, surfaced by the SFE-hp0 real-evidence triage).
+
+        Blind-spot note: an adversary who deletes Prefetch AND clears the
+        Security event log leaves no execution evidence here, so no missing-
+        artifact contradiction fires. That combined anti-forensic action
+        (MITRE T1070.001) is the responsibility of the command-line attack-
+        pattern detector (e.g. ``cleaner.exe --wipe-prefetch``, ``wevtutil cl``)
+        and USN/$LogFile deletion analysis -- not this MFT-vs-Prefetch check,
+        which cannot distinguish deletion from ordinary cache eviction without
+        a positive execution signal.
 
         Args:
             mft_entry: MFTEntry for an executable file
             prefetch_entries: List of all PrefetchEntry objects
-            event_log_entries: Optional list of Event ID 4688 entries
+            event_log_entries: Optional list of Event ID 4688 / 592 entries
 
         Returns:
             Contradiction if detected, None otherwise
@@ -227,76 +247,58 @@ class ContradictionDetector:
         matching_prefetch = [
             pf for pf in prefetch_entries if pf.executable.lower() == exe_name.lower()
         ]
+        if matching_prefetch:
+            return None
 
-        if not matching_prefetch:
-            # Check if Event Log confirms execution (reduces penalty)
-            event_log_entries = event_log_entries or []
-            matching_events = [
-                e
-                for e in event_log_entries
-                if e.get_executable_name()
-                and e.get_executable_name().lower() == exe_name.lower()
-            ]
+        # Require independent evidence the binary was executed. Without it, a
+        # missing Prefetch is not a defect (see docstring / SFE-ucjc).
+        event_log_entries = event_log_entries or []
+        matching_events = [
+            e
+            for e in event_log_entries
+            if e.get_executable_name()
+            and e.get_executable_name().lower() == exe_name.lower()
+        ]
+        if not matching_events:
+            return None
 
-            if matching_events:
-                # Event Log confirms execution, so missing Prefetch is less suspicious
-                # Scale confidence impact by confirmation count
-                event_count = len(matching_events)
+        # Event Log confirms execution but Prefetch is absent: scale the
+        # confidence impact by confirmation count (frequent = more likely a
+        # system service whose Prefetch is legitimately absent/disabled).
+        event_count = len(matching_events)
+        if event_count >= 6:
+            # System service pattern (very high confidence)
+            confidence_impact = -0.05
+            severity = Severity.INFO
+            note = "High-frequency execution pattern (system service)"
+        elif event_count >= 2:
+            # Multiple executions (moderate confidence)
+            confidence_impact = -0.08
+            severity = Severity.LOW
+            note = "Multiple executions confirmed by Event Log"
+        else:
+            # Single execution (lower confidence)
+            confidence_impact = -0.10
+            severity = Severity.LOW
+            note = "Event Log confirms execution; Prefetch may be disabled"
 
-                # Determine confidence impact based on execution frequency
-                if event_count >= 6:
-                    # System service pattern (very high confidence)
-                    confidence_impact = -0.05
-                    severity = Severity.INFO
-                    note = "High-frequency execution pattern (system service)"
-                elif event_count >= 2:
-                    # Multiple executions (moderate confidence)
-                    confidence_impact = -0.08
-                    severity = Severity.LOW
-                    note = "Multiple executions confirmed by Event Log"
-                else:
-                    # Single execution (lower confidence)
-                    confidence_impact = -0.10
-                    severity = Severity.LOW
-                    note = "Event Log confirms execution; Prefetch may be disabled"
-
-                return Contradiction(
-                    type=ContradictionType.MISSING_ARTIFACT,
-                    severity=severity,
-                    description=f"Executable {exe_name} exists in MFT but has no Prefetch artifact (confirmed by Event Log)",
-                    confidence_impact=confidence_impact,
-                    artifacts=[mft_entry] + matching_events,
-                    details={
-                        "file_path": mft_entry.file_path,
-                        "mft_created": (
-                            mft_entry.get_creation_time().isoformat()
-                            if mft_entry.get_creation_time()
-                            else None
-                        ),
-                        "event_log_confirmations": event_count,
-                        "note": note,
-                    },
-                )
-            else:
-                # No Prefetch AND no Event Log - more suspicious
-                return Contradiction(
-                    type=ContradictionType.MISSING_ARTIFACT,
-                    severity=Severity.MEDIUM,
-                    description=f"Executable {exe_name} exists in MFT but has no Prefetch artifact",
-                    confidence_impact=-0.30,
-                    artifacts=[mft_entry],
-                    details={
-                        "file_path": mft_entry.file_path,
-                        "mft_created": (
-                            mft_entry.get_creation_time().isoformat()
-                            if mft_entry.get_creation_time()
-                            else None
-                        ),
-                        "note": "May indicate Prefetch deletion or disabled Prefetch",
-                    },
-                )
-
-        return None
+        return Contradiction(
+            type=ContradictionType.MISSING_ARTIFACT,
+            severity=severity,
+            description=f"Executable {exe_name} exists in MFT but has no Prefetch artifact (confirmed by Event Log)",
+            confidence_impact=confidence_impact,
+            artifacts=[mft_entry] + matching_events,
+            details={
+                "file_path": mft_entry.file_path,
+                "mft_created": (
+                    mft_entry.get_creation_time().isoformat()
+                    if mft_entry.get_creation_time()
+                    else None
+                ),
+                "event_log_confirmations": event_count,
+                "note": note,
+            },
+        )
 
     def detect_temporal_mismatch(
         self,

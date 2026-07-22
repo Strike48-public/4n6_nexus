@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -57,7 +57,7 @@ class CaseManager:
             case_id=case_id,
             name=name,
             examiner=examiner,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             status=CaseStatus.OPEN,
             directory=case_dir,
             description=description,

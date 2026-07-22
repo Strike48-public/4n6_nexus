@@ -9,6 +9,7 @@ they require disk-level parsing outside this harness.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Any, Optional
 
 import yaml
 
+from sift_find_evil.hardening import HardeningReport, harden_findings
 from sift_find_evil.detectors import NetworkDetector
 from sift_find_evil.detectors.memory_detector import MemoryDetector
 from sift_find_evil.detectors.registry_detector import RegistryDetector
@@ -72,6 +74,11 @@ class ScenarioExpectation:
     yara_scan_dir_fixture: Optional[str] = None
     memory_fixtures: dict[str, str] = field(default_factory=dict)
     finding_counts: dict[str, int] = field(default_factory=dict)
+    # Benign artifacts PRESENT in this scenario's evidence that the engine must
+    # NOT flag. Declared under manifest ``expected.false_positive_traps``; feed
+    # the hallucination/abstention benchmark so it proves specificity, not just
+    # recall. Empty for scenarios that declare none.
+    false_positive_traps: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass
@@ -85,6 +92,11 @@ class ScenarioResult:
     false_positives: list[str] = field(default_factory=list)
     false_negatives: list[str] = field(default_factory=list)
     average_confidence: float = 0.0
+    # Additive hardening metadata (receipts, verdict clamp, tool-semantics,
+    # MITRE) for this scenario's findings. Populated by run_scenario via the
+    # shared pipeline so the recall path carries the same guarantees as the
+    # orchestrator; None only for a result built without hardening.
+    hardening: Optional["HardeningReport"] = None
 
     @property
     def precision(self) -> float:
@@ -143,6 +155,7 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
         expected = data.get("expected") or {}
         malicious = expected.get("malicious_executables") or []
         finding_counts = expected.get("finding_counts") or {}
+        fp_traps = expected.get("false_positive_traps") or []
 
         expectations.append(
             ScenarioExpectation(
@@ -165,6 +178,7 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
                 yara_scan_dir_fixture=_optional_str(yara_scan_dir_fixture),
                 memory_fixtures=memory_fixtures,
                 finding_counts={k: int(v) for k, v in finding_counts.items()},
+                false_positive_traps=frozenset(str(t).lower() for t in fp_traps),
             )
         )
 
@@ -287,6 +301,23 @@ def _run_memory_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
     if not analyze_kwargs:
         return []
     return MemoryDetector().analyze(**analyze_kwargs)
+
+
+def _scenario_raw_evidence(directory: Path) -> str:
+    """Concatenate the scenario's fixture text as the raw evidence blob.
+
+    Reads the CSV/JSON fixtures the detectors consumed so the adversarial pass can
+    re-derive asserted anchors (IP/PID) against real evidence rather than a
+    finding's own narrative. Best-effort: unreadable/binary files are skipped.
+    """
+    parts: list[str] = []
+    for path in sorted(directory.rglob("*")):
+        if path.is_file() and path.suffix.lower() in {".csv", ".json"}:
+            try:
+                parts.append(path.read_text(encoding="utf-8", errors="ignore"))
+            except OSError:
+                continue
+    return "\n".join(parts)
 
 
 def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
@@ -415,6 +446,32 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
 
     avg_conf = sum(f.confidence for f in findings) / len(findings) if findings else 0.0
 
+    # Execution-path convergence: harden this scenario's findings through the
+    # SAME pipeline the orchestrator uses, so the recall path carries receipts,
+    # verdict clamps, and tool-semantics checks. Additive only - `findings` and
+    # the tp/fp/fn accounting above are untouched, so F1 is unaffected. The
+    # per-scenario image hash + fixed key make the receipts deterministic for a
+    # given fixture set (reproducible across harness runs).
+    image_sha256 = hashlib.sha256(
+        str(expectation.directory.name).encode("utf-8")
+    ).hexdigest()
+    # Raw evidence for INDEPENDENT anchor re-derivation: the concatenated text of
+    # the scenario's own fixture files (the bytes the detectors consumed). The
+    # adversarial falsifier re-derives a finding's asserted IP/PID against THIS,
+    # not the finding's narrative - so a hallucinated anchor is killed even if the
+    # finding's own reasoning cites it. Every finding maps to the same evidence
+    # blob (a per-finding split would need detector-level provenance we don't yet
+    # emit; the blob is still genuinely independent of any single finding's prose).
+    raw_evidence = _scenario_raw_evidence(expectation.directory)
+    evidence_texts = {f.title: raw_evidence for f in findings}
+    hardening = harden_findings(
+        findings,
+        image_sha256=image_sha256,
+        receipt_key=b"scenario-harness-hardening-key-32",
+        tool="scenario_harness",
+        evidence_texts=evidence_texts,
+    )
+
     return ScenarioResult(
         name=expectation.name,
         findings_count=len(findings),
@@ -423,6 +480,7 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         false_positives=fp,
         false_negatives=fn,
         average_confidence=avg_conf,
+        hardening=hardening,
     )
 
 

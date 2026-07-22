@@ -32,7 +32,7 @@ from typing import Iterable
 
 from ..findings import FindingCategory
 from ..findings import Finding
-from ..yara_scan.scanner import YaraMatch, YaraScanner
+from ..yara_scan.scanner import DirectoryScanResult, YaraMatch, YaraScanner
 
 # Severity → base confidence. Values tuned so HIGH fires the default 0.85
 # confidence gate used elsewhere, MEDIUM sits just below, and LOW makes the
@@ -57,6 +57,13 @@ _MAX_STRING_PREVIEW_BYTES = 64
 # see the full count via evidence["match_count"] and pivot to the file.
 _MAX_STRING_INSTANCES_PER_FINDING = 50
 _DEFAULT_MAX_FINDINGS_PER_FILE = 10
+
+# Cap the number of skipped-file paths embedded in the ANALYSIS_GAP finding's
+# evidence. On a real disk image thousands of files can be unreadable/oversized;
+# the exact COUNT is always reported, but only a bounded sample of paths is
+# carried so the finding's JSON stays shippable (same spirit as the per-finding
+# string-instance cap above).
+_MAX_SKIP_SAMPLE = 50
 
 
 class YaraDetector:
@@ -104,16 +111,100 @@ class YaraDetector:
         noisy file cannot crowd out hits in other files. The returned list is
         not sorted across files — callers that care about global ranking can
         re-sort by confidence.
+
+        When the underlying scan skipped any file — unreadable (OSError on real
+        evidence: locked SQLite, corrupt clusters, permission denied) or
+        oversized (exceeds ``max_file_size``) — a single ANALYSIS_GAP
+        diagnostic Finding is appended so an empty match set is never mistaken
+        for "directory clean". This mirrors the memory detector's list-walk
+        gap: the skip signal appears IN the findings output rather than only in
+        WARNING logs, which are fragile (rotation, ``/dev/null`` in pipelines)
+        and absent from a structured scan report (SFE-fuk).
         """
-        results = self._scanner.scan_directory(root, recursive=recursive)
+        result = self._scanner.scan_directory_details(root, recursive=recursive)
         findings: list[Finding] = []
-        for _path, matches in results.items():
+        for _path, matches in result.matches.items():
             if not matches:
                 continue
             findings.extend(
                 self._rank_and_cap(self._match_to_finding(m) for m in matches)
             )
+        gap = self._skip_gap_finding(root, result)
+        if gap is not None:
+            findings.append(gap)
         return findings
+
+    def _skip_gap_finding(
+        self, root: Path, result: DirectoryScanResult
+    ) -> Finding | None:
+        """Build one ANALYSIS_GAP Finding when files were skipped, else None.
+
+        The exact skip counts are always reported; the embedded path lists are
+        capped at ``_MAX_SKIP_SAMPLE`` so the evidence stays shippable on real
+        images that can skip thousands of files.
+        """
+        oversized = result.oversized
+        unreadable = result.unreadable
+        skipped = len(oversized) + len(unreadable)
+        if skipped == 0:
+            return None
+
+        oversized_sample = [str(p) for p in oversized[:_MAX_SKIP_SAMPLE]]
+        unreadable_sample = [str(p) for p in unreadable[:_MAX_SKIP_SAMPLE]]
+        truncated = (
+            len(oversized) > _MAX_SKIP_SAMPLE or len(unreadable) > _MAX_SKIP_SAMPLE
+        )
+
+        reasons: list[str] = []
+        if unreadable:
+            reasons.append(
+                f"{len(unreadable)} unreadable (I/O error, permission, or "
+                "corrupt cluster)"
+            )
+        if oversized:
+            reasons.append(f"{len(oversized)} exceeded the per-file size cap")
+
+        return Finding(
+            title=(
+                f"YARA scan coverage gap: {skipped} file(s) under "
+                f"{root.name or root} were not scanned"
+            ),
+            description=(
+                f"{skipped} file(s) were skipped during the directory scan "
+                f"({'; '.join(reasons)}) and therefore never matched against "
+                "the ruleset. An empty or partial match set for this directory "
+                "must NOT be read as 'no malware present' — the skipped files "
+                "were not examined at all. Re-scan the skipped paths "
+                "individually (raising max_file_size for oversized blobs, or "
+                "resolving the I/O/permission error for unreadable ones) before "
+                "concluding the directory is clean."
+            ),
+            finding_type="diagnostic",
+            severity="info",
+            category=FindingCategory.ANALYSIS_GAP,
+            evidence={
+                "scan_root": str(root),
+                "skipped_count": skipped,
+                "oversized_count": len(oversized),
+                "unreadable_count": len(unreadable),
+                "oversized_sample": oversized_sample,
+                "unreadable_sample": unreadable_sample,
+                "sample_truncated": truncated,
+            },
+            confidence=0.90,
+            confidence_label="High",
+            reasoning_chain=[
+                f"Directory scan of {root} skipped {skipped} file(s): "
+                + "; ".join(reasons)
+                + ".",
+                "Skipped files were never scanned, so their contents are "
+                "unknown — not confirmed benign.",
+                "This is an evidence-reliability gap, not attacker behavior: it "
+                "bounds what the scan observed so an empty match set is not "
+                "mistaken for a clean directory.",
+            ],
+            artifact_sources=["yara"],
+        )
 
     def _rank_and_cap(self, findings_iter: Iterable[Finding]) -> list[Finding]:
         floored = (f for f in findings_iter if f.confidence >= self._min_confidence)

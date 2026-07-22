@@ -71,6 +71,23 @@ def _prefetch_entry(executable: str) -> PrefetchEntry:
     )
 
 
+class _Event:
+    """Minimal EventLogEntry stand-in exposing get_executable_name().
+
+    A missing Prefetch is only a signal for a binary with independent
+    execution evidence (SFE-ucjc), so the dedup tests below supply an Event
+    ID 4688 for the suspect exe -- matching scenario 05's real shape where
+    ``cleaner.exe --wipe-prefetch`` is recorded in the Security log.
+    """
+
+    def __init__(self, exe_name: str):
+        self._exe = exe_name
+        self.time_created = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+    def get_executable_name(self):
+        return self._exe
+
+
 # ─── Issue 3: over-firing when Prefetch corpus is empty ──────────────────────
 
 
@@ -134,18 +151,21 @@ def test_missing_artifact_deduped_across_repeated_mft_entries():
 
     On the real disk a single binary (multiple hardlinks/paths/instances)
     produced the identical missing_artifact contradiction 8 times. With a
-    non-empty Prefetch corpus that legitimately lacks the suspect exe, the
-    detector must dedup by (exe_name, contradiction_type).
+    non-empty Prefetch corpus that legitimately lacks the suspect exe -- which
+    Event Log confirms WAS executed -- the detector must dedup by
+    (exe_name, contradiction_type).
     """
     # cleaner.exe appears 8 times in the MFT (distinct entry numbers).
     mft = [_exe_entry(100 + i, "cleaner.exe", "C:\\Temp") for i in range(8)]
     # Non-empty corpus, but for a DIFFERENT executable -> cleaner.exe is
-    # genuinely missing its Prefetch.
+    # genuinely missing its Prefetch. Event Log confirms it executed, so the
+    # missing Prefetch is a real prefetch-deletion signal (SFE-ucjc).
     prefetch = [_prefetch_entry("explorer.exe")]
+    events = [_Event("cleaner.exe")]
 
     detector = ContradictionDetector()
     contradictions = detector.detect_all(
-        mft, prefetch_entries=prefetch, event_log_entries=[]
+        mft, prefetch_entries=prefetch, event_log_entries=events
     )
 
     missing = [
@@ -161,9 +181,10 @@ def test_single_finding_has_no_duplicate_contradictions():
     """The generated finding carries exactly one missing-artifact contradiction."""
     mft = [_exe_entry(100 + i, "cleaner.exe", "C:\\Temp") for i in range(8)]
     prefetch = [_prefetch_entry("explorer.exe")]
+    events = [_Event("cleaner.exe")]
 
     findings = SelfCorrectionEngine().analyze(
-        mft_entries=mft, prefetch_entries=prefetch, event_log_entries=[]
+        mft_entries=mft, prefetch_entries=prefetch, event_log_entries=events
     )
 
     cleaner = [f for f in findings if "cleaner.exe" in f.title.lower()]

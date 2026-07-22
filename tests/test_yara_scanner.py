@@ -331,7 +331,209 @@ def test_scan_directory_details_empty_when_no_skips(
     scanner = YaraScanner.compile_from_directory(rules_dir)
     details = scanner.scan_directory_details(tmp_path)
     assert details.oversized == ()
+    assert details.unreadable == ()
     assert details.matches[target]
+
+
+def test_scan_directory_survives_unreadable_file(
+    rules_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A single OSError (I/O error, corrupt cluster) must not abort the scan.
+
+    Real evidence (SFE-4e9, LoneWolf) contains files that raise OSError on
+    stat()/read — e.g. Chrome's 'Network Persistent State'. The directory
+    walk must skip the bad file and keep scanning the rest.
+    """
+    good = tmp_path / "good.bin"
+    good.write_bytes(b"MZ\x90\x00")
+    bad = tmp_path / "unreadable.bin"
+    bad.write_bytes(b"MZ\x90\x00")
+
+    scanner = YaraScanner.compile_from_directory(rules_dir)
+    real_scan_file = scanner.scan_file
+
+    def flaky_scan_file(target: Path) -> list:
+        if target.name == "unreadable.bin":
+            raise OSError(5, "Input/output error")
+        return real_scan_file(target)
+
+    monkeypatch.setattr(scanner, "scan_file", flaky_scan_file)
+
+    # Must NOT raise — the good file is still scanned and matched.
+    results = scanner.scan_directory(tmp_path)
+    assert results[good], "good file should still be scanned and match"
+    assert results[bad] == [], "unreadable file should yield an empty match list"
+
+
+def test_scan_directory_logs_unreadable_skips(
+    rules_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Unreadable files must be logged, not silently swallowed."""
+    import logging
+
+    good = tmp_path / "good.bin"
+    good.write_bytes(b"MZ\x90\x00")
+    bad = tmp_path / "unreadable.bin"
+    bad.write_bytes(b"MZ\x90\x00")
+
+    scanner = YaraScanner.compile_from_directory(rules_dir)
+    real_scan_file = scanner.scan_file
+
+    def flaky_scan_file(target: Path) -> list:
+        if target.name == "unreadable.bin":
+            raise OSError(5, "Input/output error")
+        return real_scan_file(target)
+
+    monkeypatch.setattr(scanner, "scan_file", flaky_scan_file)
+
+    with caplog.at_level(logging.WARNING, logger="sift_find_evil.yara_scan.scanner"):
+        scanner.scan_directory(tmp_path)
+
+    assert any(
+        "unreadable.bin" in rec.getMessage() for rec in caplog.records
+    ), "expected a WARNING naming the unreadable file"
+
+
+def test_scan_directory_survives_unstatable_path(
+    rules_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """OSError from is_file()/stat() during the walk must not abort the scan.
+
+    The crash in SFE-4e9 originated in the ``p.is_file()`` filter of the walk
+    generator, BEFORE scan_file() was ever reached. Simulate a path whose
+    is_file() raises to exercise that branch specifically, and assert the bad
+    path is both surfaced (via details.unreadable) and logged — not silently
+    dropped.
+    """
+    import logging
+
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    good = targets / "good.bin"
+    good.write_bytes(b"MZ\x90\x00")
+    bad = targets / "phantom.bin"
+    bad.write_bytes(b"MZ\x90\x00")
+
+    # Compile BEFORE patching so the rule-file walk is unaffected; the patch
+    # targets only the scan-time is_file() filter over the evidence tree.
+    scanner = YaraScanner.compile_from_directory(rules_dir)
+
+    real_is_file = Path.is_file
+
+    def flaky_is_file(self: Path) -> bool:
+        if self.name == "phantom.bin":
+            raise OSError(5, "Input/output error")
+        return real_is_file(self)
+
+    monkeypatch.setattr(Path, "is_file", flaky_is_file)
+
+    # Must NOT raise; the good file is still scanned, the phantom is recorded.
+    with caplog.at_level(logging.WARNING, logger="sift_find_evil.yara_scan.scanner"):
+        details = scanner.scan_directory_details(targets)
+    assert details.matches[good], "good file should still be scanned and match"
+    assert bad in details.unreadable, "unstatable path must be recorded as unreadable"
+    assert good not in details.unreadable
+    assert any(
+        "phantom.bin" in rec.getMessage() and "unstatable" in rec.getMessage()
+        for rec in caplog.records
+    ), "expected a WARNING naming the unstatable file"
+
+
+def test_scan_directory_survives_recursive_subdir_unreadable(
+    rules_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A recursive walk must survive an unreadable file in a nested subdir.
+
+    Real evidence trees are deep (Chrome profile dirs, WinSxS); the bad file
+    that triggered SFE-4e9 was several levels down. Exercise the recursive
+    path with the unreadable file in a subdirectory.
+    """
+    outer = tmp_path / "outer"
+    inner = outer / "inner"
+    inner.mkdir(parents=True)
+    good = outer / "good.bin"
+    good.write_bytes(b"MZ\x90\x00")
+    bad = inner / "unreadable.bin"
+    bad.write_bytes(b"MZ\x90\x00")
+
+    scanner = YaraScanner.compile_from_directory(rules_dir)
+    real_scan_file = scanner.scan_file
+
+    def flaky_scan_file(target: Path) -> list:
+        if target.name == "unreadable.bin":
+            raise OSError(5, "Input/output error")
+        return real_scan_file(target)
+
+    monkeypatch.setattr(scanner, "scan_file", flaky_scan_file)
+
+    details = scanner.scan_directory_details(outer, recursive=True)
+    assert details.matches[good], "readable file in a sibling dir must still scan"
+    assert bad in details.unreadable
+
+
+def test_scan_directory_mixed_oversized_and_unreadable(
+    rules_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One scan with BOTH an oversized and an unreadable file classifies each.
+
+    The two skip paths share the walk; verify they populate their own buckets
+    independently and the good file still scans (no cross-contamination).
+    """
+    good = tmp_path / "good.bin"
+    good.write_bytes(b"MZ\x90\x00")
+    big = tmp_path / "too_big.bin"
+    big.write_bytes(b"MZ" + b"\x00" * 2048)
+    bad = tmp_path / "unreadable.bin"
+    bad.write_bytes(b"MZ\x90\x00")
+
+    scanner = YaraScanner.compile_from_directory(rules_dir, max_file_size=1024)
+    real_scan_file = scanner.scan_file
+
+    def flaky_scan_file(target: Path) -> list:
+        if target.name == "unreadable.bin":
+            raise OSError(5, "Input/output error")
+        return real_scan_file(target)
+
+    monkeypatch.setattr(scanner, "scan_file", flaky_scan_file)
+
+    details = scanner.scan_directory_details(tmp_path)
+    assert details.matches[good], "good file should still scan"
+    assert big in details.oversized
+    assert big not in details.unreadable
+    assert bad in details.unreadable
+    assert bad not in details.oversized
+
+
+def test_scan_directory_details_returns_unreadable_paths(
+    rules_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """scan_directory_details() surfaces unreadable skips as structured data."""
+    good = tmp_path / "good.bin"
+    good.write_bytes(b"MZ\x90\x00")
+    bad = tmp_path / "unreadable.bin"
+    bad.write_bytes(b"MZ\x90\x00")
+
+    scanner = YaraScanner.compile_from_directory(rules_dir)
+    real_scan_file = scanner.scan_file
+
+    def flaky_scan_file(target: Path) -> list:
+        if target.name == "unreadable.bin":
+            raise OSError(5, "Input/output error")
+        return real_scan_file(target)
+
+    monkeypatch.setattr(scanner, "scan_file", flaky_scan_file)
+
+    details = scanner.scan_directory_details(tmp_path)
+    assert bad in details.unreadable
+    assert good not in details.unreadable
+    assert details.matches[good]
+    assert details.matches[bad] == []
 
 
 def test_scan_directory_details_matches_is_readonly(

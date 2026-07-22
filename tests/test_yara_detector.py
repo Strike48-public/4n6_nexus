@@ -452,3 +452,192 @@ def test_invalid_min_confidence_raises(scanner_high: YaraScanner) -> None:
         YaraDetector(scanner=scanner_high, min_confidence=-0.1)
     with pytest.raises(ValueError, match="min_confidence"):
         YaraDetector(scanner=scanner_high, min_confidence=1.5)
+
+
+# -- analysis-gap diagnostic on skipped files (SFE-fuk) --------------------
+# A directory scan silently drops files it cannot read (OSError on real
+# evidence) or that exceed max_file_size. Those files were never scanned, so
+# an empty match set must NOT be read as "directory clean". analyze_directory
+# emits one ANALYSIS_GAP diagnostic when any file was skipped — mirroring the
+# memory detector's list-walk gap. The gap must never be scored as a malware
+# match (keeps scenario 11_yara_malware at F1=1.00).
+
+
+def test_analyze_directory_no_gap_when_all_scanned(
+    scanner_multi: YaraScanner, tmp_path: Path
+) -> None:
+    """Baseline: a fully-scanned directory emits no ANALYSIS_GAP finding.
+
+    This protects scenario 11_yara_malware — a clean scan stays clean, so no
+    spurious diagnostic dilutes the findings output.
+    """
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    (targets / "a.bin").write_bytes(b"MZ\x90\x00")
+    (targets / "c.txt").write_text("clean")
+    detector = YaraDetector(scanner=scanner_multi)
+    findings = detector.analyze_directory(targets)
+    gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
+    assert gaps == []
+
+
+def test_analyze_directory_emits_gap_for_oversized(tmp_path: Path) -> None:
+    """An oversized (unscanned) file surfaces as an ANALYSIS_GAP finding."""
+    (tmp_path / "mz.yar").write_text(_MZ_HIGH_RULE)
+    # 8-byte cap: the sample below exceeds it and is skipped without scanning.
+    scanner = YaraScanner.compile_from_directory(tmp_path, max_file_size=8)
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    (targets / "big.bin").write_bytes(b"MZ\x90\x00" + b"A" * 1000)
+    detector = YaraDetector(scanner=scanner)
+    findings = detector.analyze_directory(targets)
+    gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
+    assert len(gaps) == 1
+    gap = gaps[0]
+    assert gap.finding_type == "diagnostic"
+    assert gap.severity == "info"
+    assert gap.category == FindingCategory.ANALYSIS_GAP
+    assert gap.evidence["oversized_count"] == 1
+    assert gap.evidence["unreadable_count"] == 0
+    assert gap.evidence["skipped_count"] == 1
+    assert gap.artifact_sources == ["yara"]
+
+
+def test_gap_finding_is_not_scored_as_malware(tmp_path: Path) -> None:
+    """The gap diagnostic must not carry the malware_classification category.
+
+    _score counts yara true-positives by malware_classification and false-
+    positives by evidence['executable']; the gap must have neither so it can
+    never inflate either bucket.
+    """
+    (tmp_path / "mz.yar").write_text(_MZ_HIGH_RULE)
+    scanner = YaraScanner.compile_from_directory(tmp_path, max_file_size=8)
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    (targets / "big.bin").write_bytes(b"MZ\x90\x00" + b"A" * 1000)
+    detector = YaraDetector(scanner=scanner)
+    gap = next(
+        f
+        for f in detector.analyze_directory(targets)
+        if f.category == FindingCategory.ANALYSIS_GAP
+    )
+    assert gap.category != FindingCategory.MALWARE_CLASSIFICATION
+    assert "executable" not in gap.evidence
+
+
+def test_analyze_directory_still_reports_matches_alongside_gap(
+    tmp_path: Path,
+) -> None:
+    """A real match and a skipped file coexist: gap does not suppress hits."""
+    (tmp_path / "mz.yar").write_text(_MZ_HIGH_RULE)
+    scanner = YaraScanner.compile_from_directory(tmp_path, max_file_size=8)
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    (targets / "small.bin").write_bytes(b"MZ\x90\x00")  # 4 bytes: scanned, matches
+    (targets / "big.bin").write_bytes(b"MZ\x90\x00" + b"A" * 1000)  # skipped
+    detector = YaraDetector(scanner=scanner)
+    findings = detector.analyze_directory(targets)
+    rules = {f.evidence.get("rule") for f in findings}
+    gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
+    assert "mz_header_high" in rules
+    assert len(gaps) == 1
+
+
+def test_analyze_directory_emits_gap_for_unreadable(
+    scanner_high: YaraScanner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unreadable files (OSError on real evidence) surface as ANALYSIS_GAP.
+
+    Filesystem permission behavior is not portable (root bypasses chmod 000),
+    so we drive the detector through a crafted DirectoryScanResult that reports
+    an unreadable skip — exactly what _scan_directory_impl produces on an
+    OSError.
+    """
+    from types import MappingProxyType
+
+    from sift_find_evil.yara_scan.scanner import DirectoryScanResult
+
+    bad = tmp_path / "locked.sqlite"
+    result = DirectoryScanResult(
+        matches=MappingProxyType({}),
+        oversized=(),
+        unreadable=(bad,),
+    )
+    monkeypatch.setattr(
+        scanner_high,
+        "scan_directory_details",
+        lambda root, *, recursive=True: result,
+    )
+    detector = YaraDetector(scanner=scanner_high)
+    findings = detector.analyze_directory(tmp_path)
+    gaps = [f for f in findings if f.category == FindingCategory.ANALYSIS_GAP]
+    assert len(gaps) == 1
+    gap = gaps[0]
+    assert gap.evidence["unreadable_count"] == 1
+    assert gap.evidence["oversized_count"] == 0
+    assert str(bad) in gap.evidence["unreadable_sample"]
+
+
+def test_gap_counts_both_oversized_and_unreadable(
+    scanner_high: YaraScanner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A scan that skips BOTH kinds folds both into one gap with both reasons."""
+    from types import MappingProxyType
+
+    from sift_find_evil.yara_scan.scanner import DirectoryScanResult
+
+    big = tmp_path / "big.bin"
+    locked = tmp_path / "locked.sqlite"
+    result = DirectoryScanResult(
+        matches=MappingProxyType({}),
+        oversized=(big,),
+        unreadable=(locked,),
+    )
+    monkeypatch.setattr(
+        scanner_high,
+        "scan_directory_details",
+        lambda root, *, recursive=True: result,
+    )
+    detector = YaraDetector(scanner=scanner_high)
+    gap = next(
+        f
+        for f in detector.analyze_directory(tmp_path)
+        if f.category == FindingCategory.ANALYSIS_GAP
+    )
+    assert gap.evidence["oversized_count"] == 1
+    assert gap.evidence["unreadable_count"] == 1
+    assert gap.evidence["skipped_count"] == 2
+    # Both reasons narrated in the human-facing description.
+    assert "unreadable" in gap.description
+    assert "size cap" in gap.description
+
+
+def test_gap_evidence_truncates_large_skip_lists(
+    scanner_high: YaraScanner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Counts are exact; path samples are capped so the finding stays shippable."""
+    from types import MappingProxyType
+
+    from sift_find_evil.yara_scan.scanner import DirectoryScanResult
+
+    many = tuple(tmp_path / f"f{i}.bin" for i in range(120))
+    result = DirectoryScanResult(
+        matches=MappingProxyType({}),
+        oversized=many,
+        unreadable=(),
+    )
+    monkeypatch.setattr(
+        scanner_high,
+        "scan_directory_details",
+        lambda root, *, recursive=True: result,
+    )
+    detector = YaraDetector(scanner=scanner_high)
+    gap = next(
+        f
+        for f in detector.analyze_directory(tmp_path)
+        if f.category == FindingCategory.ANALYSIS_GAP
+    )
+    assert gap.evidence["oversized_count"] == 120
+    assert gap.evidence["skipped_count"] == 120
+    assert len(gap.evidence["oversized_sample"]) == 50
+    assert gap.evidence["sample_truncated"] is True

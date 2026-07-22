@@ -11,3 +11,13 @@
 # parser shells out to tshark and does NOT import scapy; tests that build .pcap
 # files are skipped automatically when scapy is absent.
 scapy>=2.5.0
+
+# jwt/cryptography/websockets at module load — without them pytest errors at
+# collection rather than skipping. Kept in lockstep with the [connector] extra
+# in pyproject.toml. grpcio-tools is only needed to regenerate stubs (dev-local).
+grpcio>=1.75
+protobuf>=5.29
+cryptography>=42
+pyjwt>=2.8
+requests>=2.31
+websockets>=13.0

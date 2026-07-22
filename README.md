@@ -72,7 +72,7 @@ extension for the live demo. See [Quick Start](#quick-start) below and
 
 ---
 
-## Detection Accuracy: 15 Scenarios @ F1=1.00
+## Detection Accuracy: 16 Scenarios @ F1=1.00
 
 **Perfect precision and recall across all scored scenarios:**
 
@@ -87,18 +87,22 @@ extension for the live demo. See [Quick Start](#quick-start) below and
 | 07_cloud_upload | 1 | 0 | 0 | **1.00** |
 | 08_persistence_run_keys | 2 | 0 | 0 | **1.00** |
 | 09_shimcache_only | 2 | 0 | 0 | **1.00** |
-| 10_timestomping_with_bam | 3 | 0 | 0 | **1.00** |
+| 10_timestomping_with_bam | 2 | 0 | 0 | **1.00** |
 | 11_yara_malware | 1 | 0 | 0 | **1.00** |
 | 12_memory_intrusion | 27 | 0 | 0 | **1.00** |
 | 16_powershell_obfuscated | 5 | 0 | 0 | **1.00** |
 | 19_credential_dumping | 5 | 0 | 0 | **1.00** |
 | 22_lateral_movement_logons | 5 | 0 | 0 | **1.00** |
+| 23_distributed_spray | 1 | 0 | 0 | **1.00** |
 | **TOTAL** | **62** | **0** | **0** | **1.00** |
 
 **Validation method:** Automated scenario harness with ground-truth expected
-findings, backed by 1,000+ tests. All scenarios run in CI/CD on every commit.
-Verified real-evidence runs (CIRCL wiped-disk, M57-Jean, Nitroba) are documented
-separately in the accuracy report.
+findings, backed by over 1,800 tests. All scenarios run in CI/CD on every commit.
+Every finding is additionally routed through the integrity/verification pipeline
+(see "Trust and Verification" below) - which adds tamper-evident receipts and an
+adversarial re-derivation pass without changing a single verdict, so F1 stays
+1.00. Verified real-evidence runs (CIRCL wiped-disk, M57-Jean, Nitroba) are
+documented separately in the accuracy report.
 
 ```bash
 # Run validation harness yourself
@@ -116,7 +120,7 @@ real-evidence results, and an honest list of detection gaps.
 
 ### Self-Correction Example
 
-**Scenario:** MFT shows `malware.exe` modified at 14:40, but Prefetch shows execution at 14:25 (15 minutes BEFORE modification — causality violation).
+**Scenario:** MFT shows `malware.exe` modified at 14:40, but Prefetch shows execution at 14:25 (15 minutes BEFORE modification - causality violation).
 
 **Without self-correction:** Report both timestamps, leave conflict unresolved, confuse examiner.
 
@@ -318,6 +322,29 @@ python -m sift_find_evil.cli audit summary --audit-file /cases/INC-2026-001/audi
 - SHA-256 hash of tool output (first 16 chars) for tamper detection
 - Captures stdout/stderr (first 1KB), exit code, duration, working directory
 - Supports both direct logging and subprocess wrapper with automatic capture
+
+**Tamper-*evidence*, not just tamper-detection (hash-chained log).** Each entry
+carries `prev_hash` + `entry_hash`, chaining every action back to a GENESIS
+anchor - so altering or deleting any past entry breaks the chain at that point
+and is provable, not merely suspected. A **deliberately independent offline
+verifier** (`tools/verify_chain.py`) re-implements the canonicalization + hashing
+from the Python standard library alone and imports *nothing* from this engine, so
+a third party can prove a log's integrity without trusting - or installing - our
+code (a Daubert-friendly property), and any drift between our writer and the
+verifier surfaces as a failure rather than being silently trusted:
+
+```bash
+python3 tools/verify_chain.py /cases/INC-2026-001/audit.jsonl
+# exit 0 = chain valid; exit 1 = invalid (prints failing entry index + reason)
+```
+
+**Cryptographic finding receipts (`custody/`).** Every finding the engine emits
+is bound to the evidence image hash by an HMAC-SHA256 receipt, so a receipt
+cannot be lifted onto a different finding, a different case, or a rebound image
+without failing verification. When a deployment sets an Ed25519 signing key, the
+receipt is additionally *publicly* verifiable (anyone with the public key can
+check it; no shared secret). Receipts are additive metadata - see
+"Trust and Verification" below.
 - Per-case `audit.jsonl` file
 - Statistics: total entries, unique tools, actions breakdown, examiner list
 
@@ -396,6 +423,105 @@ Mass file encryption detected across 1,247 files...
 - IOC extraction from finding evidence dictionaries (IPs, domains, hashes, processes)
 - Severity-based grouping and sorting
 - PDF support noted as future enhancement
+
+### 5. Adversarial-Attack Defense (Anti-Hallucination)
+
+The evidence an autonomous DFIR agent reads is *hostile input*: an attacker who
+knows an LLM is in the loop can plant text designed to hijack it, and the model
+itself can hallucinate a finding no artifact supports. 4n6 Nexus treats both as
+first-class threats and defends against them **in code, not by trusting a
+prompt** - so the guarantees hold regardless of what the model does.
+
+**Prompt injection / hostile-log-as-data** (`injection_defense/`)
+- Every string a parser feeds into a prompt (EVTX messages, PowerShell command
+  lines, PST bodies, LNK args, filenames, registry values) crosses a trust
+  boundary that strips invisible/BIDI/zero-width codepoints, neutralizes
+  role/system tokens and forged tool-call/verdict JSON to inert markers, and
+  wraps the content in a nonce-keyed sentinel the system prompt declares hostile.
+  The injection attempt is itself surfaced as a finding, and only counts are
+  logged - the payload is never re-emitted.
+- A **unicode-masquerade detector** flags RLO / zero-width / homoglyph tricks
+  (Cyrillic "о" in `Micrоsoft.exe`) at the byte level (MITRE T1036.002).
+
+**Anti-hallucination as an architectural property** - a finding cannot ship
+unless deterministic code (no LLM) agrees it is grounded:
+- **Deterministic entailment** (`findings/entailment.py`) re-derives every value
+  a finding asserts (hash, IP, PID, filename) directly from raw parser output
+  with token-boundary matching; an absent identity anchor forces retraction.
+- **Provenance gate** (`findings/provenance.py`) hard-rejects any finding whose
+  cited evidence does not resolve to a real logged tool call (defeats fabricated
+  or borrowed citations).
+- **Verdict rank clamp** (`findings/verdict_guard.py`) re-derives severity from
+  detector output, so the model can narrate freely but cannot inflate a verdict.
+- **Refutation seats** (`self_correction/seats.py`) bounce tool-semantic
+  over-reads (shimcache != execution, netscan != exfiltration).
+
+**Adversarial (not cooperative) verification** (`self_correction/adversarial.py`)
+- Every finding faces a **falsifier whose job is to kill it** - a rival model in
+  the interactive path, a deterministic model-free check in CI. A **deterministic
+  rule ladder** (not an LLM judge) then rules sustained / dismissed / remanded /
+  flagged-for-human on (analyst verdict, falsifier status, corroboration). The
+  falsifier is additive-only: it can bounce a finding but never rescue one.
+
+**Measured, not asserted** - the **hallucination/abstention benchmark**
+(`benchmark/`) scores over-calling (benign decoys the agent must *not* flag) and
+abstention (facts it must actively prove absent - silence is never credited),
+producing a `hallucination_rate` and a headline `zero_false_confirmations` gate.
+Scenario `21_ai_adversarial_evasion` exercises these attacks end to end
+(see its `AI_ATTACK_TECHNIQUES.md`).
+
+---
+
+## Trust and Verification
+
+The features above (integrity, anti-hallucination, adversarial verification) are
+not separate add-ons - they are the same set of integrity primitives every
+finding crosses before it ships. The single most important property is that they
+are **additive-only: they attach metadata and can retract or downgrade a finding,
+but never fabricate, mutate, or upgrade one.** That is why perfect detection
+(F1=1.00) and heavy verification coexist - the verification layer cannot
+manufacture a false positive.
+
+Two entry points apply these primitives. The CI scenario harness routes findings
+through a single convergence function, `harden_findings()`
+(`sift_find_evil/hardening.py`); the live orchestrator applies the same primitives
+(receipt minter, provenance gate, verdict clamp, adversarial pass, MITRE
+guardrail) inline as it builds each finding. Both arrive at the same guarantees.
+
+**What each finding carries after hardening:**
+
+| Layer | Module | What it adds |
+|-------|--------|--------------|
+| Integrity receipt | `custody/receipt.py` | HMAC-SHA256 (+ optional Ed25519) bound to the evidence image hash |
+| Verdict clamp | `findings/verdict_guard.py` | Severity re-derived from detector output; the model cannot inflate it |
+| Provenance gate | `findings/provenance.py` | Rejects any citation that does not resolve to a real logged tool call |
+| Entailment | `findings/entailment.py` | Re-derives asserted hashes/IPs/PIDs from raw parser output |
+| Refutation seats | `self_correction/seats.py` | Bounces tool-semantic over-reads (shimcache != execution) |
+| Adversarial ruling | `self_correction/adversarial.py` | A falsifier tries to kill it; a deterministic ladder rules sustained/dismissed/remanded |
+| MITRE guardrail | `reporting/mitre_guardrail.py` | Only technique IDs the evidence confirms are reported |
+| Correlation* | `correlation/sql_timeline.py` | Cross-artifact corroboration + surfaced (never auto-resolved) contradictions |
+
+**Wired, not merely built.** This is the distinction we hold ourselves to:
+
+- **Live pipeline:** the standalone orchestrator (`orchestration.py`) runs the
+  receipt minter, the adversarial pass, and the MITRE guardrail over every
+  finding and emits an `integrity` block in its report.
+- **In CI on every commit:** the scenario harness (`tests/scenario_harness.py`)
+  routes all 62 findings through the *same* `harden_findings()` call, so the
+  trust pipeline is regression-tested against ground truth, not just unit-tested
+  in isolation - and F1 stays 1.00 through it.
+- **Independently checkable:** `tools/verify_chain.py` (audit chain) and the
+  Ed25519 receipt path (findings) can both be verified by a third party with no
+  access to our engine.
+
+*Correlation currently runs on the CI harness path (via `harden_findings`); the
+live orchestrator applies the other primitives inline and gains correlation when
+it adopts the shared convergence function.
+
+**Measured, not asserted.** The hallucination/abstention benchmark
+(`benchmark/`) is the outer check on all of the above: it scores over-calling
+against benign decoys and abstention against facts the engine must prove absent,
+producing a `hallucination_rate` and a headline `zero_false_confirmations` gate.
 
 ---
 
@@ -492,20 +618,20 @@ A2A trace sequence.
 - **Python 3.12** (the version CI runs and the engine is tested against)
 - **Git**
 - **For real evidence:** the **SIFT Workstation** (the forensic tool foundation)
-  plus native libraries — see step 3 and [DEPLOY_TO_SIFT.md](DEPLOY_TO_SIFT.md).
+  plus native libraries - see step 3 and [DEPLOY_TO_SIFT.md](DEPLOY_TO_SIFT.md).
   The reproducible demo below runs on bundled synthetic fixtures and needs neither,
   which is what makes it CI-friendly; real investigations need SIFT.
 
 ### 1. Install
 
 ```bash
-git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
+git clone https://github.com/Strike48-public/4n6_nexus.git
 cd sift_find_evil
 
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
-# Core dependencies — pure-Python, install on any platform. Sufficient for the
+# Core dependencies - pure-Python, install on any platform. Sufficient for the
 # reproducible demo, the validation harness, and every detector against synthetic
 # fixtures. Real evidence additionally needs the SIFT tools (step 3 + DEPLOY_TO_SIFT.md).
 pip install -r requirements.txt
@@ -518,7 +644,7 @@ python -m sift_find_evil.cli --help   # verify it loads
 This is the deterministic, judge-reproducible artifact: an orchestrator dispatches
 a triage agent and three domain analysts (disk, memory, network) over a Custom MCP
 boundary; a verifier challenges every finding and resolves contradictions; one
-correlated agent-to-agent (A2A) audit log is written — identical every run.
+correlated agent-to-agent (A2A) audit log is written - identical every run.
 
 > For the **interactive Claude Code path on a SIFT host** (the on-narrative
 > Protocol SIFT extension), see step 5 and [DEPLOY_TO_SIFT.md](DEPLOY_TO_SIFT.md).
@@ -632,7 +758,7 @@ boundary:
   --evidence-root /cases/INC-2026-001/evidence \
   --audit-path    /cases/INC-2026-001/audit.jsonl
 
-claude mcp list                                   # confirm 'sift-find-evil'
+claude mcp list                                   # confirm 'forensics_nexus'
 claude "Run a full forensic analysis on case INC-2026-001"
 ```
 
@@ -731,14 +857,14 @@ python -m sift_find_evil.cli audit summary \
 
 This repository includes comprehensive documentation:
 
-- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete map of all documentation
+- **[Start Here](docs/START_HERE.md)** - Documentation navigation guide and quick paths by role
 - **[Architecture](docs/ARCHITECTURE.md)** - System design and component architecture
 - **[Accuracy Report](docs/ACCURACY_REPORT.md)** - Detection metrics and methodology
 - **[Contributing](docs/CONTRIBUTING.md)** - Development guide and coding standards
 - **[Examples](docs/EXAMPLES.md)** - Real-world usage examples
-- **[Testing Guides](BATCH_TESTING.md)** - Systematic testing approach
+- **[Testing Guide](docs/BATCH_TESTING_GUIDE.md)** - Systematic testing approach
 
-See [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) for the complete documentation map.
+See [docs/START_HERE.md](docs/START_HERE.md) for the full documentation map and role-based reading paths.
 
 ---
 
@@ -917,7 +1043,7 @@ sift_find_evil/
 │   ├── server.py                # EvidenceMCPServer (the tool boundary)
 │   └── guardrails.py            # ToolGuard: allowlist, path containment, breaker
 ├── scenarios/
-│   ├── synthetic/                # 21 scenario dirs; 14 have scenario.yaml + run
+│   ├── synthetic/                # 23 scenario dirs; 16 have scenario.yaml + run
 │   │   ├── 01_clean_baseline/ ... 12_memory_intrusion/
 │   │   ├── 16_powershell_obfuscated/
 │   │   ├── 19_credential_dumping/
@@ -970,6 +1096,27 @@ black sift_find_evil/
 mypy sift_find_evil/
 ```
 
+### Before you push (reproduce CI locally)
+
+CI runs its checks against the **whole repo**, so a scoped local check (e.g.
+`ruff check sift_find_evil/`) can pass while CI fails. Run the exact CI gates
+before pushing:
+
+```bash
+# ruff check . + black --check + pytest (coverage gate) - the core tier
+scripts/ci-local.sh
+
+# also run the forensic tier (needs: pip install -r requirements-forensic.txt)
+scripts/ci-local.sh --forensic
+```
+
+Optionally install the fast pre-commit hooks (black + ruff on staged files) so
+formatting/lint drift is caught at commit time - belt-and-braces with CI:
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
 ### Contributing
 
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
@@ -985,12 +1132,12 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 | Metric | Result |
 |--------|--------|
-| **Detection Accuracy (F1)** | 1.00 (15 scenarios) |
+| **Detection Accuracy (F1)** | 1.00 (16 scenarios) |
 | **Precision** | 1.00 (0 false positives) |
 | **Recall** | 1.00 (0 false negatives) |
 | **Total Findings (synthetic harness)** | 62 |
-| **Tests** | 1,300+ passing |
-| **Test Coverage** | ~94% (lines) |
+| **Tests** | over 1,800 passing |
+| **Test Coverage** | ~99% (lines) |
 | **CI/CD** | ruff + pytest, all passing |
 
 ---
@@ -1011,7 +1158,7 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 ### ✅ Completed (v1.0 - Hackathon Submission)
 - Multi-agent system (orchestrator + triage + 3 domain analysts + verifier)
-- Core detection engine (15 scenarios, 62 findings @ F1=1.00)
+- Core detection engine (16 scenarios, 62 findings @ F1=1.00)
 - Cross-domain self-correction (disk/timeline, memory, network contradictions)
 - Human-in-the-loop approval workflow (DRAFT → APPROVED/REJECTED)
 - Case management (SHA-256 registry, integrity verification)
@@ -1067,7 +1214,6 @@ Open-source community edition. Commercial SaaS offering coming 2026.
 ## Contact
 
 - **GitHub:** https://github.com/Strike48-public/4n6_nexus
-- **Issues:** https://github.com/Strike48-public/4n6_nexus/issues
-- **Author:** Jonathan Tomek (hackathon@example.com)
+- **Issues:** https://github.com/Strike48-public/4n6_nexus/issues (bug reports, questions, feature requests)
 
 Demonstrating the future of autonomous DFIR.

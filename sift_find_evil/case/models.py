@@ -1,7 +1,7 @@
 """Data models for case management."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -22,7 +22,7 @@ class EvidenceFile:
     file_path: Path
     description: str
     sha256_hash: str
-    registered_at: datetime = field(default_factory=datetime.utcnow)
+    registered_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     file_size: Optional[int] = None
     evidence_type: Optional[str] = None  # disk_image, memory_dump, pcap, etc.
 

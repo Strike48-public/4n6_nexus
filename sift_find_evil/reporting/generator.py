@@ -1,7 +1,7 @@
 """Report generator for forensic investigations."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from ..approval import ApprovalManager, ApprovalStatus
@@ -68,7 +68,7 @@ class ReportGenerator:
             case_id=case.case_id,
             case_name=case.name,
             examiner=case.examiner,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             findings=[f.to_dict() for f in findings],
             evidence=evidence,
             iocs=iocs,

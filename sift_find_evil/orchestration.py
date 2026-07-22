@@ -32,8 +32,10 @@ from typing import Any, Callable, Optional
 
 from .audit.models import AgentMessage, FindingEmitted
 from .custody.receipt import ReceiptMinter
+from .findings.provenance import resolve_provenance
 from .findings.verdict_guard import guard_finding
 from .mcp.guardrails import GuardrailViolation
+from .reporting.mitre_guardrail import confirmed_matrix
 from .mcp.server import EvidenceMCPServer
 from .memory.volatility_runner import _to_network_row, _to_process_row
 from .parsers.evtx_parser import EventLogParser
@@ -41,6 +43,7 @@ from .parsers.mft_parser import MFTParser
 from .parsers.pcap_parser import DNSQuery, TCPConversation
 from .parsers.prefetch_parser import PrefetchParser
 from .self_correction.adversarial import (
+    EntailmentFalsifier,
     FalsifierStatus,
     RulesAdjudicator,
     run_adversarial_round,
@@ -220,6 +223,27 @@ def _to_dns_query(row: dict) -> DNSQuery:
     )
 
 
+def _asserted_identity_values(finding: Any) -> list[dict]:
+    """Extract re-derivable identity anchors (IPs, PIDs) a finding asserts.
+
+    These are the hard anchors the independent EntailmentFalsifier re-checks
+    against the finding's cited evidence text: an IP or PID a finding claims must
+    actually appear in the evidence, or the finding is a hallucination. Returns a
+    list of ``{path, expected, kind}`` dicts (empty when the finding asserts no
+    such anchor, in which case the caller falls back to the seat/null falsifier).
+    """
+    evidence = getattr(finding, "evidence", None) or {}
+    asserted: list[dict] = []
+    for key in ("dst_ip", "foreign_addr"):
+        value = evidence.get(key)
+        if value:
+            asserted.append({"path": key, "expected": str(value), "kind": "ipv4"})
+    pid = evidence.get("pid")
+    if pid is not None:
+        asserted.append({"path": "pid", "expected": str(pid), "kind": "pid"})
+    return asserted
+
+
 def _artifact_label(finding: Any) -> Optional[str]:
     """Best-effort human label for a finding's primary artifact, across domains."""
     ev = getattr(finding, "evidence", {}) or {}
@@ -316,7 +340,11 @@ class InvestigationOrchestrator:
         # 2. Each domain analyst runs its tools (MCP-audited) then its detector.
         # Every analyst returns (findings, tool_invocation entry_ids) so each
         # finding can cite the exact executions that produced it.
-        report_findings: list[tuple[str, Any, str]] = []
+        report_findings: list[tuple[str, Any, str, list[str]]] = []
+        # Provenance index: every tool invocation id an analyst logged maps to the
+        # evidence it read, so a finding's citations can be walked back to a real
+        # tool call. Built as findings are emitted (SFE deterministic gate).
+        audit_index: dict[str, dict] = {}
         idx = 1
         for analyst, task, runner in (
             (
@@ -337,6 +365,14 @@ class InvestigationOrchestrator:
         ):
             self._dispatch("orchestrator", analyst, task)
             findings, tool_ids = runner()
+            # Register each cited tool invocation in the provenance index. The
+            # evidence root's SHA binds the citation to real, logged input.
+            for tid in tool_ids:
+                audit_index[tid] = {
+                    "input_sha256": self.image_sha256,
+                    "input_files": [str(self.scenario_dir)],
+                    "produced_ids": [],
+                }
             emitted_ids = []
             for finding in findings:
                 finding_id = f"F-{idx:03d}"
@@ -358,7 +394,7 @@ class InvestigationOrchestrator:
                     correlation_id=self.correlation_id,
                     agent=analyst,
                 )
-                report_findings.append((finding_id, finding, analyst))
+                report_findings.append((finding_id, finding, analyst, tool_ids))
                 emitted_ids.append(finding_id)
             self._result(
                 analyst,
@@ -373,7 +409,7 @@ class InvestigationOrchestrator:
         )
         verified = []
         adjudicator = RulesAdjudicator()
-        for finding_id, finding, analyst in report_findings:
+        for finding_id, finding, analyst, tool_ids in report_findings:
             challenge_id = self.server.audit_logger.log_agent_message(
                 AgentMessage(
                     sender="verifier",
@@ -399,12 +435,18 @@ class InvestigationOrchestrator:
             adversarial = self._adversarial_pass(
                 finding, verification, analyst, adjudicator
             )
-            verified.append((finding_id, finding, verification, analyst, adversarial))
+            # Deterministic gates (no LLM): provenance (citations walk back to a
+            # real logged tool call) + tool-semantics (the finding does not
+            # over-read the tool that produced it).
+            checks = self._deterministic_gates(finding, analyst, tool_ids, audit_index)
+            verified.append(
+                (finding_id, finding, verification, analyst, adversarial, checks)
+            )
 
         resolved = sum(
-            1 for _, _, v, _, _ in verified if v.verdict == "contradiction_resolved"
+            1 for _, _, v, _, _, _ in verified if v.verdict == "contradiction_resolved"
         )
-        domains = sorted({v.domain for _, _, v, _, _ in verified})
+        domains = sorted({v.domain for _, _, v, _, _, _ in verified})
         self._result(
             "verifier",
             "orchestrator",
@@ -417,8 +459,15 @@ class InvestigationOrchestrator:
         chain_ok, broken_at, chain_reason = self.server.audit_logger.verify_chain()
 
         adv_sustained = sum(
-            1 for _, _, _, _, a in verified if a["outcome"] == "sustained"
+            1 for _, _, _, _, a, _ in verified if a["outcome"] == "sustained"
         )
+        provenance_resolved = sum(
+            1 for _, _, _, _, _, c in verified if c["provenance"] != "NONE"
+        )
+
+        # MITRE synthesis guardrail: the confirmed matrix is built ONLY from
+        # fired-detector technique tags, not from LLM free-form prose.
+        mitre_report = confirmed_matrix([f.to_dict() for _, f, _, _, _, _ in verified])
 
         # 4. Synthesize the report (structured narrative, not a raw log).
         return {
@@ -431,6 +480,11 @@ class InvestigationOrchestrator:
                 "chain_reason": chain_reason,
                 "receipts_minted": len(verified),
                 "adversarial_sustained": adv_sustained,
+                "provenance_resolved": provenance_resolved,
+            },
+            "mitre": {
+                "confirmed": mitre_report.confirmed,
+                "unconfirmed": mitre_report.unconfirmed,
             },
             "findings": [
                 {
@@ -443,17 +497,18 @@ class InvestigationOrchestrator:
                     "confidence_before": v.confidence_before,
                     "confidence_after": v.confidence_after,
                 }
-                for fid, f, v, _, _ in verified
+                for fid, f, v, _, _, _ in verified
             ],
             # Rich, case-shaped findings (FindingWithApproval) for report
             # generation. The verifier's verdict + confidence transition are
             # folded into the finding dict so the report's finding-flow diagram
             # and self-correction note have everything they need. Additive: the
             # flat "findings" key above is unchanged for existing callers. Each
-            # item now also carries its cryptographic receipt + adversarial ruling.
+            # item now also carries its cryptographic receipt, adversarial ruling,
+            # and deterministic-gate outcomes.
             "case_findings": [
-                self._seal_case_finding(fid, f, v, analyst, adversarial)
-                for fid, f, v, analyst, adversarial in verified
+                self._seal_case_finding(fid, f, v, analyst, adversarial, checks)
+                for fid, f, v, analyst, adversarial, checks in verified
             ],
         }
 
@@ -470,20 +525,29 @@ class InvestigationOrchestrator:
         finding's domain tool; corroboration is the count of distinct artifact
         sources. Returns a JSON-serializable ruling dict for the report + audit.
 
-        The seat check embodies "this LONE tool cannot establish X", so it is
-        only a valid adversary for a SINGLE-source finding. A multi-source
-        finding already carries the corroboration the seat rule assumes absent;
-        applying the seat to it would wrongly dismiss a well-grounded claim. So
-        a corroborated finding faces a null (always-SURVIVED) falsifier and is
-        judged purely on its corroboration count.
+        Falsifier selection, in order of independence:
+        1. If the finding asserts a re-derivable identity value (an IP or PID),
+           use the INDEPENDENT EntailmentFalsifier - it re-derives that value from
+           the finding's cited evidence text rather than trusting the analyst's
+           reasoning, so a hallucinated IP/PID is killed. This is the reproducible
+           stand-in for a rival-model falsifier and closes the single-engine gap.
+        2. Else, a multi-source finding faces a null (always-SURVIVED) falsifier
+           and is judged on corroboration (the seat premise does not apply once
+           corroborated).
+        3. Else (single-source, no re-derivable anchor) the seat check applies.
         """
         corroboration = len({s for s in finding.artifact_sources if s})
-        if corroboration >= 2:
-            falsifier: Any = _NullFalsifier()
+        claim = " ".join(finding.reasoning_chain) or finding.description
+        asserted = _asserted_identity_values(finding)
+        if asserted:
+            falsifier: Any = EntailmentFalsifier(
+                asserted_values=asserted, evidence_text=claim
+            )
+        elif corroboration >= 2:
+            falsifier = _NullFalsifier()
         else:
             seat_tool = _DOMAIN_SEAT_TOOL.get(analyst, "mft")
             falsifier = _SeatFalsifier(seat_tool)
-        claim = " ".join(finding.reasoning_chain) or finding.description
         result = run_adversarial_round(
             claim=claim,
             evidence_handles=[verification.finding_id],
@@ -501,6 +565,43 @@ class InvestigationOrchestrator:
             "architectural_distance": result.architectural_distance,
         }
 
+    def _deterministic_gates(
+        self,
+        finding: Any,
+        analyst: str,
+        tool_ids: list[str],
+        audit_index: dict[str, dict],
+    ) -> dict:
+        """Run the model-free verification gates for one finding.
+
+        - Provenance: the finding's cited tool invocations must walk back to a
+          real logged tool call bound to the registered evidence (FULL/PARTIAL/
+          NONE; NONE would be hard-rejected in a gating configuration).
+        - Tool semantics (refutation seats): the finding must not over-read the
+          tool that produced it (SUPPORTED / MISREAD_TOOL).
+
+        Like the adversarial pass, the seat check embodies "this LONE tool cannot
+        establish X" and is only meaningful for a SINGLE-source finding. A
+        multi-source finding already carries the corroboration the seat rule
+        assumes absent, so applying the seat to it produces a spurious
+        MISREAD_TOOL on a well-grounded claim (e.g. an MFT+Prefetch+EventLog
+        causality finding that legitimately says "executed"). Corroborated
+        findings are therefore reported SUPPORTED - the seat does not apply.
+        """
+        prov = resolve_provenance(tool_ids, audit_index)
+        corroboration = len({s for s in finding.artifact_sources if s})
+        claim = " ".join(finding.reasoning_chain) or finding.description
+        if corroboration >= 2:
+            tool_semantics = "SUPPORTED"
+        else:
+            seat_tool = _DOMAIN_SEAT_TOOL.get(analyst, "mft")
+            tool_semantics = seats_adjudicate(seat_tool, claim)
+        return {
+            "provenance": prov.grade,
+            "provenance_resolved_ids": prov.resolved,
+            "tool_semantics": tool_semantics,
+        }
+
     def _seal_case_finding(
         self,
         fid: str,
@@ -508,6 +609,7 @@ class InvestigationOrchestrator:
         verification: Any,
         analyst: str,
         adversarial: dict,
+        checks: dict,
     ) -> dict:
         """Build a case-finding dict and mint a receipt over its exact content.
 
@@ -530,6 +632,7 @@ class InvestigationOrchestrator:
             "approval": None,
             "receipt": receipt,
             "adversarial": adversarial,
+            "deterministic_checks": checks,
             "created_at": finding.detected_at.isoformat(),
         }
 

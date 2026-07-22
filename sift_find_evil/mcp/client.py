@@ -3,7 +3,7 @@
 import subprocess
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -146,7 +146,7 @@ class MCPClient:
                 self.failure_count = 0
             else:
                 self.failure_count += 1
-                self.last_failure_time = datetime.utcnow()
+                self.last_failure_time = datetime.now(timezone.utc)
 
             # Log to audit trail
             if self.audit_logger:
@@ -164,14 +164,14 @@ class MCPClient:
 
         except subprocess.TimeoutExpired:
             self.failure_count += 1
-            self.last_failure_time = datetime.utcnow()
+            self.last_failure_time = datetime.now(timezone.utc)
             raise TimeoutError(
                 f"Tool {tool} exceeded timeout of {self.timeout_seconds}s"
             )
 
         except Exception as e:
             self.failure_count += 1
-            self.last_failure_time = datetime.utcnow()
+            self.last_failure_time = datetime.now(timezone.utc)
             raise RuntimeError(f"Tool {tool} execution failed: {e}")
 
     def reset_circuit_breaker(self) -> None:

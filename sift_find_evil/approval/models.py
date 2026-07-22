@@ -1,7 +1,7 @@
 """Data models for approval workflow."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -22,7 +22,9 @@ class ApprovalMetadata:
     reviewer: str
     timestamp: datetime
     reason: Optional[str] = None
-    signature_hash: Optional[str] = None  # SHA-256 hash for tamper detection
+    # Keyed HMAC-SHA256 over the decision, re-checkable via
+    # ApprovalManager.verify(). None when no signing key is configured.
+    signature_hash: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Serialize to dictionary."""
@@ -53,7 +55,7 @@ class FindingWithApproval:
     finding_id: str
     finding: dict  # Original finding.to_dict() output
     approval: Optional[ApprovalMetadata] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict:
         """Serialize to dictionary."""

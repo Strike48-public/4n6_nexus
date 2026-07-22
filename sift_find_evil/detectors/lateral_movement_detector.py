@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
+from datetime import datetime
 from typing import Iterable, Optional
 
 from ..findings import Finding, FindingCategory
@@ -54,8 +55,21 @@ DEFAULT_FAILED_LOGON_THRESHOLD = 20  # per account or per source host
 DEFAULT_CROSS_HOST_THRESHOLD = 3  # distinct hosts one account touches
 DEFAULT_EXPLICIT_CRED_THRESHOLD = 10  # 4648 of one account on one host
 
+# Distributed (low-and-slow) spray defaults. A spray that keeps every single
+# account/source just under DEFAULT_FAILED_LOGON_THRESHOLD evades the per-target
+# spike signals, so we add an aggregate time-boxed density signal. The density
+# threshold sits above the routine failed-logon floor, and the min-accounts
+# breadth guard keeps a single-account concentrated spike (already covered by
+# the per-account spike) from double-firing here.
+DEFAULT_SPRAY_WINDOW_SECONDS = 300  # sliding window for aggregate failures
+DEFAULT_SPRAY_DENSITY_THRESHOLD = 30  # total 4625 within any one window
+DEFAULT_SPRAY_MIN_ACCOUNTS = 2  # distinct targets required (breadth guard)
+
 # Service-account name markers. Interactive/RDP logon by one of these is abuse.
-_SERVICE_ACCOUNT_MARKERS = ("svc", "sql", "service", "iis", "backup", "sched")
+# Matched on a word/token basis (see ``_looks_like_service_account``) rather
+# than bare substring, so a human name like ``Bob.Service`` does not match while
+# ``sqladmin`` / ``backup_admin`` (leading-token) do.
+DEFAULT_SERVICE_ACCOUNT_MARKERS = ("svc", "sql", "service", "iis", "backup", "sched")
 
 # Well-known local / virtual session principals present on every Windows host.
 # Never a cross-host pivot; filtered to keep the account-spread graph clean.
@@ -92,11 +106,43 @@ def _is_real_account(account: str) -> bool:
     )
 
 
-def _looks_like_service_account(account: str) -> bool:
-    """Heuristic: does the account name read like a non-interactive service?"""
+# Separators that delimit tokens inside a sAMAccountName (``svc_sql``,
+# ``backup-admin``, ``iis$pool``). A marker is a service signal only when the
+# *leading* token starts with it, mirroring the near-universal convention that
+# service accounts are named role-first (``svc_*``, ``sql*``, ``backup_*``).
+_TOKEN_SPLIT_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _looks_like_service_account(
+    account: str, markers: tuple[str, ...] = DEFAULT_SERVICE_ACCOUNT_MARKERS
+) -> bool:
+    """Heuristic: does the account name read like a non-interactive service?
+
+    Matching is leading-token / prefix based rather than bare substring:
+
+    * ``svc_sql`` / ``svc-web`` / ``sqladmin`` / ``backup_admin`` /
+      ``iis_apppool`` -> service (the leading token starts with a marker).
+    * ``Bob.Service`` / ``Priscilla`` -> not a service (the leading token is a
+      human given name; the marker, if any, is not in front).
+
+    Leading-token matching is what fixes the ``Bob.Service`` false positive the
+    old bare-substring check produced while keeping ``sqladmin`` /
+    ``backup_admin`` (previously argued as false negatives).
+
+    Args:
+        account: Full account principal, optionally ``DOMAIN\\name``.
+        markers: Service-name markers to match against.
+
+    Returns:
+        True when the leading token starts with a marker.
+    """
     # Compare on the bare sAMAccountName (strip DOMAIN\ prefix).
     name = account.split("\\")[-1].strip().lower()
-    return any(marker in name for marker in _SERVICE_ACCOUNT_MARKERS)
+    tokens = [t for t in _TOKEN_SPLIT_RE.split(name) if t]
+    if not tokens:
+        return False
+    lead = tokens[0]
+    return any(lead.startswith(marker) for marker in markers)
 
 
 def _target_account(entry: EventLogEntry) -> str:
@@ -136,6 +182,11 @@ class LateralMovementDetector:
         failed_logon_threshold: int = DEFAULT_FAILED_LOGON_THRESHOLD,
         cross_host_threshold: int = DEFAULT_CROSS_HOST_THRESHOLD,
         explicit_cred_threshold: int = DEFAULT_EXPLICIT_CRED_THRESHOLD,
+        cross_host_window_seconds: Optional[int] = None,
+        spray_window_seconds: int = DEFAULT_SPRAY_WINDOW_SECONDS,
+        spray_density_threshold: int = DEFAULT_SPRAY_DENSITY_THRESHOLD,
+        spray_min_accounts: int = DEFAULT_SPRAY_MIN_ACCOUNTS,
+        service_account_markers: tuple[str, ...] = DEFAULT_SERVICE_ACCOUNT_MARKERS,
     ) -> None:
         # A threshold below 1 would fire on every account/source/host and is
         # almost certainly a misconfiguration, so reject it rather than flood
@@ -144,12 +195,30 @@ class LateralMovementDetector:
             ("failed_logon_threshold", failed_logon_threshold),
             ("cross_host_threshold", cross_host_threshold),
             ("explicit_cred_threshold", explicit_cred_threshold),
+            ("spray_window_seconds", spray_window_seconds),
+            ("spray_density_threshold", spray_density_threshold),
+            ("spray_min_accounts", spray_min_accounts),
         ):
             if value < 1:
                 raise ValueError(f"{name} must be >= 1, got {value}")
+        # The cross-host window is opt-in (None disables the time gate entirely,
+        # preserving the count-only legacy behaviour); when set it must be >= 1.
+        if cross_host_window_seconds is not None and cross_host_window_seconds < 1:
+            raise ValueError(
+                "cross_host_window_seconds must be >= 1 or None, "
+                f"got {cross_host_window_seconds}"
+            )
+        if not service_account_markers:
+            raise ValueError("service_account_markers must be a non-empty tuple")
+
         self.failed_logon_threshold = failed_logon_threshold
         self.cross_host_threshold = cross_host_threshold
         self.explicit_cred_threshold = explicit_cred_threshold
+        self.cross_host_window_seconds = cross_host_window_seconds
+        self.spray_window_seconds = spray_window_seconds
+        self.spray_density_threshold = spray_density_threshold
+        self.spray_min_accounts = spray_min_accounts
+        self.service_account_markers = tuple(m.lower() for m in service_account_markers)
 
     def analyze(
         self, event_logs: Optional[Iterable[EventLogEntry]] = None
@@ -169,6 +238,7 @@ class LateralMovementDetector:
 
         findings: list[Finding] = []
         findings.extend(self._detect_failed_logon_spikes(events))
+        findings.extend(self._detect_distributed_spray(events))
         findings.extend(self._detect_service_account_rdp(events))
         findings.extend(self._detect_cross_host_spread(events))
         findings.extend(self._detect_explicit_cred_bursts(events))
@@ -262,6 +332,112 @@ class LateralMovementDetector:
             artifact_sources=["evtx"],
         )
 
+    # --- Signal 1b: distributed low-and-slow spray (aggregate 4625) -------
+    def _detect_distributed_spray(self, events: list[EventLogEntry]) -> list[Finding]:
+        """Aggregate time-boxed failure density across many accounts/sources.
+
+        A spray that keeps every individual account and source just under
+        ``failed_logon_threshold`` slips past both per-target spike pivots. This
+        signal counts *all* real-account 4625s inside a sliding window and fires
+        when the density crosses ``spray_density_threshold`` while spanning at
+        least ``spray_min_accounts`` distinct targets. The breadth guard is what
+        keeps a single-account concentrated spike (already caught by the
+        per-account spike, e.g. scenario 22) from double-firing here.
+        """
+        failed = [
+            e
+            for e in events
+            if e.event_id == _FAILED_LOGON and _is_real_account(_target_account(e))
+        ]
+        if len(failed) < self.spray_density_threshold:
+            return []
+
+        ordered = sorted(failed, key=lambda e: e.time_created)
+        window = float(self.spray_window_seconds)
+
+        # Slide a right-anchored window over the ordered failures; at each anchor
+        # find the densest window ending there and test the density + breadth.
+        # The window is the CLOSED interval [anchor - window, anchor]: two
+        # failures exactly ``window`` seconds apart co-inhabit one window, the
+        # natural reading of "within a 300s window". This is also the safe error
+        # direction for a detector -- a benign host will not accrue >= density
+        # failures across >= min-accounts targets in ~window seconds, so erring
+        # toward inclusion cannot manufacture a false positive here.
+        left = 0
+        best: Optional[dict] = None
+        for right in range(len(ordered)):
+            anchor = ordered[right].time_created
+            while (anchor - ordered[left].time_created).total_seconds() > window:
+                left += 1
+            span = ordered[left : right + 1]
+            if len(span) < self.spray_density_threshold:
+                continue
+            accounts = {_target_account(e) for e in span}
+            if len(accounts) < self.spray_min_accounts:
+                continue
+            sources = {s for e in span if (s := _source_label(e))}
+            candidate = {
+                "failed_count": len(span),
+                "accounts": accounts,
+                "sources": sources,
+                "start": span[0].time_created,
+                "end": span[-1].time_created,
+            }
+            # Keep the densest window; ties break toward the earliest anchor
+            # (strict '>'), which is deterministic regardless of input order.
+            if best is None or candidate["failed_count"] > best["failed_count"]:
+                best = candidate
+
+        if best is None:
+            return []
+        return [self._distributed_spray_finding(best)]
+
+    def _distributed_spray_finding(self, agg: dict) -> Finding:
+        span_seconds = (agg["end"] - agg["start"]).total_seconds()
+        n_accounts = len(agg["accounts"])
+        n_sources = len(agg["sources"])
+        return Finding(
+            title=(
+                f"Distributed password spray: {agg['failed_count']} failed logons "
+                f"across {n_accounts} accounts"
+            ),
+            description=(
+                f"{agg['failed_count']} failed logons (4625) against {n_accounts} "
+                f"distinct accounts from {n_sources} source(s) occurred within a "
+                f"{self.spray_window_seconds}s window (span {span_seconds:.0f}s), at "
+                f"or above the {self.spray_density_threshold}-event density "
+                "threshold. A broad, low-per-target failure burst is a distributed "
+                "/ low-and-slow password spray that evades per-account and "
+                "per-source spike detection (MITRE T1110)."
+            ),
+            finding_type="behavior",
+            severity="high",
+            category=FindingCategory.LATERAL_MOVEMENT,
+            evidence={
+                "signal": "distributed_spray",
+                "failed_count": agg["failed_count"],
+                "distinct_accounts": n_accounts,
+                "distinct_sources": n_sources,
+                "window_seconds": self.spray_window_seconds,
+                "span_seconds": span_seconds,
+                "density_threshold": self.spray_density_threshold,
+                "mitre": "T1110",
+            },
+            confidence=0.75,
+            confidence_label="High",
+            reasoning_chain=[
+                f"{agg['failed_count']} failed logons (4625) hit {n_accounts} "
+                f"accounts from {n_sources} source(s) within "
+                f"{self.spray_window_seconds}s.",
+                "No single account or source crossed the per-target spike "
+                "threshold, so this evades the concentrated-spike pivots.",
+                f"Aggregate density >= {self.spray_density_threshold} across "
+                f">= {self.spray_min_accounts} accounts is a distributed password "
+                "spray (MITRE T1110).",
+            ],
+            artifact_sources=["evtx"],
+        )
+
     # --- Signal 2: service-account RDP logon (4624, type 10) --------------
     def _detect_service_account_rdp(self, events: list[EventLogEntry]) -> list[Finding]:
         findings: list[Finding] = []
@@ -274,7 +450,7 @@ class LateralMovementDetector:
             account = _target_account(e)
             if not _is_real_account(account):
                 continue
-            if not _looks_like_service_account(account):
+            if not _looks_like_service_account(account, self.service_account_markers):
                 continue
             key = (account, e.computer)
             if key in seen:
@@ -318,32 +494,86 @@ class LateralMovementDetector:
 
     # --- Signal 3: cross-host account spread (4624/4648) ------------------
     def _detect_cross_host_spread(self, events: list[EventLogEntry]) -> list[Finding]:
-        acct_hosts: dict[str, set[str]] = defaultdict(set)
+        # Track the earliest logon time to each distinct host per account so we
+        # can reason about *how fast* the account fanned out, not just how wide.
+        first_touch: dict[str, dict[str, datetime]] = defaultdict(dict)
         for e in events:
             if e.event_id not in (_SUCCESS_LOGON, _EXPLICIT_CRED):
                 continue
             account = _target_account(e)
             if not _is_real_account(account):
                 continue
-            if e.computer:
-                acct_hosts[account].add(e.computer)
+            if not e.computer:
+                continue
+            seen = first_touch[account].get(e.computer)
+            if seen is None or e.time_created < seen:
+                first_touch[account][e.computer] = e.time_created
 
         findings: list[Finding] = []
-        for account, hosts in acct_hosts.items():
-            if len(hosts) >= self.cross_host_threshold:
-                findings.append(self._cross_host_finding(account, hosts))
+        for account, host_times in first_touch.items():
+            if len(host_times) < self.cross_host_threshold:
+                continue
+            span_seconds = self._min_span_seconds(
+                list(host_times.values()), self.cross_host_threshold
+            )
+            # Opt-in temporal gate: a spread that unfolds slower than the window
+            # is routine admin/monitoring reach, not a burst pivot -> suppress.
+            if (
+                self.cross_host_window_seconds is not None
+                and span_seconds > self.cross_host_window_seconds
+            ):
+                continue
+            findings.append(
+                self._cross_host_finding(account, set(host_times), span_seconds)
+            )
         return findings
 
-    def _cross_host_finding(self, account: str, hosts: set[str]) -> Finding:
+    @staticmethod
+    def _min_span_seconds(times: list[datetime], k: int) -> float:
+        """Smallest span (seconds) covering ``k`` of the given timestamps.
+
+        With per-host first-touch times, this is the tightest window in which
+        the account reached ``k`` distinct hosts — the rate the temporal gate
+        and the ``hosts_per_hour`` evidence are computed from.
+
+        Callers must supply at least ``k`` timestamps; the cross-host caller
+        guarantees this via the host-count threshold check. Fewer than ``k``
+        cannot yield a ``k``-host window, so it is a precondition violation
+        rather than a silent zero (which would falsely read as an infinite
+        fan-out rate downstream).
+
+        Raises:
+            ValueError: when fewer than ``k`` timestamps are supplied.
+        """
+        ordered = sorted(times)
+        if len(ordered) < k:
+            raise ValueError(
+                f"need >= {k} timestamps to span {k} hosts, got {len(ordered)}"
+            )
+        return min(
+            (ordered[i + k - 1] - ordered[i]).total_seconds()
+            for i in range(len(ordered) - k + 1)
+        )
+
+    def _cross_host_finding(
+        self, account: str, hosts: set[str], span_seconds: float
+    ) -> Finding:
         host_list = sorted(hosts)
+        # Rate over the tightest threshold-covering window; guard the zero-span
+        # case (simultaneous logons) with an explicit sentinel.
+        if span_seconds > 0:
+            hosts_per_hour = round(self.cross_host_threshold / (span_seconds / 3600), 2)
+        else:
+            hosts_per_hour = float("inf")
         return Finding(
             title=f"Account '{account}' authenticated across {len(host_list)} hosts",
             description=(
                 f"Account '{account}' authenticated to {len(host_list)} distinct "
                 f"hosts ({', '.join(host_list)}), at or above the "
-                f"{self.cross_host_threshold}-host threshold. A single account "
-                "fanning out across many hosts is the operator's lateral pivot "
-                "footprint (MITRE T1021)."
+                f"{self.cross_host_threshold}-host threshold, reaching "
+                f"{self.cross_host_threshold} of them within {span_seconds:.0f}s. "
+                "A single account fanning out across many hosts is the operator's "
+                "lateral pivot footprint (MITRE T1021)."
             ),
             finding_type="behavior",
             severity="high",
@@ -354,6 +584,9 @@ class LateralMovementDetector:
                 "hosts": host_list,
                 "host_count": len(host_list),
                 "threshold": self.cross_host_threshold,
+                "span_seconds": span_seconds,
+                "hosts_per_hour": hosts_per_hour,
+                "window_seconds": self.cross_host_window_seconds,
                 "mitre": "T1021",
             },
             confidence=0.82,
@@ -362,6 +595,8 @@ class LateralMovementDetector:
                 f"'{account}' authenticated to {len(host_list)} hosts: "
                 f"{', '.join(host_list)}.",
                 f"That meets the cross-host threshold of {self.cross_host_threshold}.",
+                f"It reached {self.cross_host_threshold} hosts within "
+                f"{span_seconds:.0f}s ({hosts_per_hour} hosts/hr).",
                 "Broad cross-host authentication is a lateral-movement footprint "
                 "(MITRE T1021).",
             ],

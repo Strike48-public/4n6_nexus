@@ -1,3 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sift-find-evil"
+version = "1.0.0"
+description = "DFIR detection engine with multi-agent self-correction"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "yara-python>=4.5.0",
+    # Cross-artifact / cross-host correlation graph (sift_find_evil/graph/).
+    "networkx>=3.0",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sift_find_evil*"]
+exclude = ["tests*", "scenarios*", "demo*", "logs*", "cases*", "rules*", "analysis*", "evidence*"]
+
 [tool.black]
 line-length = 88
 target-version = ["py312"]
@@ -15,13 +37,28 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-extend-exclude = ["rules/yara/community"]
+# the .proto and are not hand-maintained; excluding them keeps generated-code
+# lint/format noise out of CI. Vendored YARA community rules likewise. The ui/
+# subtree is a Rust workspace (the DFIR WebGUI); its stray Python (e.g. an
+# inherited sidecar shim) is not part of the engine and must not gate Python CI.
+extend-exclude = ["rules/yara/community", "ui"]
 
 [tool.pytest.ini_options]
+# Collect only the engine's own tests. testpaths scopes default collection to
+# tests/; norecursedirs keeps the Rust ui/ subtree (and vendored rules) out even
+# if a path is passed explicitly, so folding the WebGUI in never perturbs the
+# Python test run.
+testpaths = ["tests"]
+norecursedirs = ["ui", "rules/yara/community", ".git", ".venv"]
 markers = [
     "unit: Fast, isolated unit test",
     "integration: Crosses module boundaries or touches real artifacts",
 ]
+# Pin the async-fixture loop scope pytest-asyncio 1.3 warns about (it will
+# change the default to "function" in a future release). All async fixtures
+# here are function-scoped already, so this fixes the value without changing
+# behavior.
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 source = ["sift_find_evil"]

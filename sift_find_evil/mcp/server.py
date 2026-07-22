@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..audit.logger import AuditLogger
+from ..injection_defense import scan_and_wrap
 from .guardrails import CircuitBreakerOpen, GuardrailViolation, ToolGuard, ToolPolicy
 
 
@@ -149,7 +150,8 @@ class EvidenceMCPServer:
         else:
             self.guard.record_failure()
 
-        # 4. Audit, returning the traceable entry_id.
+        # 4. Audit, returning the traceable entry_id. The RAW stdout is hashed
+        # (tamper-evidence needs the real bytes an analyst would otherwise see).
         entry_id = self.audit_logger.log_tool_invocation(
             tool=tool,
             command=f"{tool} {' '.join(args)}",
@@ -161,6 +163,30 @@ class EvidenceMCPServer:
             agent=agent,
         )
         result["entry_id"] = entry_id
+
+        # 5. Injection defense at the tool-output boundary. Tool stdout is hostile
+        # input: an attacker who knows an LLM reads it can plant role-token
+        # injection, BIDI reordering, or forged verdict JSON. Sanitize + sentinel-
+        # wrap it into ``sanitized_stdout`` (what an analyst should consume);
+        # preserve raw ``stdout`` (already hashed above). Any detected attempt is
+        # surfaced on the result AND logged as its own auditable event -
+        # counts-only, so the raw hostile payload is never re-emitted.
+        scan = scan_and_wrap(result["stdout"])
+        result["sanitized_stdout"] = scan.wrapped_text
+        result["injection_meta"] = scan.findings_meta
+        result["injection_detected"] = bool(scan.findings_meta)
+        if scan.findings_meta:
+            self.audit_logger.log_action(
+                action="prompt_injection_attempt",
+                details={
+                    "tool": tool,
+                    "source_entry_id": entry_id,
+                    # Counts-only: never the raw payload (injection-defense contract).
+                    "indicators": scan.findings_meta,
+                },
+                correlation_id=correlation_id,
+                agent=agent,
+            )
         return result
 
     def _execute(self, tool: str, args: list[str]) -> dict:
@@ -212,7 +238,7 @@ def build_fastmcp(server: EvidenceMCPServer):
     """
     from mcp.server.fastmcp import FastMCP
 
-    mcp = FastMCP("sift-find-evil")
+    mcp = FastMCP("forensics_nexus")
 
     @mcp.tool()
     def volatility(

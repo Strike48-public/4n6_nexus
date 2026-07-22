@@ -13,7 +13,7 @@ This guide covers deploying the sift_find_evil detection engine on the SANS SIFT
 - **Autonomous self-correction** - Detects and resolves artifact contradictions
 - **Multi-artifact correlation** - MFT + Prefetch + Event Logs + Registry + Memory
 - **MITRE ATT&CK mapping** - Technique-tagged findings
-- **Perfect accuracy** - F1=1.00 on 12/12 synthetic scenarios
+- **Perfect accuracy** - F1=1.00 on 16/16 synthetic scenarios
 - **Real evidence tested** - Validated against CIRCL, M57, and Digital Corpora cases
 
 ---
@@ -26,7 +26,7 @@ Clone and install directly on SIFT:
 
 ```bash
 cd ~
-git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
+git clone https://github.com/Strike48-public/4n6_nexus.git
 cd sift_find_evil
 pip3 install --user -r requirements.txt
 pip3 install --user -e .
@@ -93,7 +93,7 @@ docker run --rm -v /cases:/evidence \
 ```bash
 # 1. Clone repository
 cd ~
-git clone https://github.com/Strike48-public/4n6_nexus.git sift_find_evil
+git clone https://github.com/Strike48-public/4n6_nexus.git
 cd sift_find_evil
 
 # 2. Install dependencies
@@ -325,7 +325,7 @@ cd ~/sift_find_evil
 pytest tests/ -v
 ```
 
-Expected: All 12 synthetic scenarios pass with F1=1.00
+Expected: All 16 synthetic scenarios pass with F1=1.00
 
 ### 2. Run Real Evidence Tests
 
