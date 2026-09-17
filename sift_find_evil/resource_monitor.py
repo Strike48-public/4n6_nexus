@@ -13,6 +13,10 @@ try:
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
+    # Keep ``psutil`` bound as a module attribute so tests can mock.patch it
+    # (mock.patch requires the target attribute to exist even when psutil is
+    # absent from the environment; see tests/test_resource_monitor.py).
+    psutil = None  # type: ignore[assignment]
 
 
 class ResourceMonitor:
