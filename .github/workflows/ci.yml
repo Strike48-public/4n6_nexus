@@ -63,7 +63,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
-          pip install ruff 'black==25.9.0'
+          # Pin both linters to the same versions private CI uses, or the float
+          # breaks nothing in private but turns public red: an unpinned ruff
+          # floats to the newest release, which stabilized new rules (ISC004 et
+          # al.) that fire 1500+ times across this tree. Same rationale as the
+          # black pin below (kept in lockstep with [tool.ruff] in pyproject).
+          pip install 'ruff==0.15.11' 'black==25.9.0'
+          # Public-only TUI code under sift_find_evil/tui/ (NOT in the private
+          # repo, so private never sees it) hard-imports textual. Installed here,
+          # not in requirements-dev.txt, because that file is a private-owned
+          # sync surface the next backfill overwrites (SFE-nx7w - TUI ownership
+          # still undecided). Floor only: the widgets/API used are stable.
+          pip install 'textual>=0.80'
 
       - name: Install forensic extras (forensic tier only)
         # Native bindings (pyewf/pytsk3/pypff/rbloom). System libs installed above.
