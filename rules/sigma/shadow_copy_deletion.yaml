@@ -1,0 +1,18 @@
+title: Shadow Copy Deletion via vssadmin
+id: 4n6-sigma-0001
+status: stable
+description: >
+  Detects deletion of Volume Shadow Copies via vssadmin, a near-universal
+  precursor to ransomware encryption (inhibits recovery). Matches the process
+  command line of a 4688 process-creation event.
+level: high
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    EventID: 4688
+    CommandLine|contains: 'delete shadows'
+  condition: selection
+mitre_attack:
+  - T1490
