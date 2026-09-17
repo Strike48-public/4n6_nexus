@@ -1,0 +1,4 @@
+TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
+2025-06-05T14:00:00.1000000Z,4688,60001,OPS-DB-02,Security,Information,S-1-5-21-7001,C:\Program Files\HelpDeskCorp\RemoteSupport\remote_support.exe,%%1936,0xCC33,C:\Windows\System32\services.exe,0xD001,remote_support.exe --session,Process Create (Event ID 4688)
+2025-06-05T02:00:00.1000000Z,4688,60002,OPS-DB-02,Security,Information,S-1-5-18,C:\Program Files\Acme Backup\backup_runner.exe,%%1936,0xDD44,C:\Windows\System32\svchost.exe,0xD002,backup_runner.exe,Process Create (Event ID 4688)
+2025-06-05T09:00:00.1000000Z,4688,60003,OPS-DB-02,Security,Information,S-1-5-21-7042,C:\Windows\System32\cscript.exe,%%1936,0xEE55,C:\Windows\System32\taskeng.exe,0xD003,cscript.exe //B C:\Scripts\inventory.vbs,Process Create (Event ID 4688)

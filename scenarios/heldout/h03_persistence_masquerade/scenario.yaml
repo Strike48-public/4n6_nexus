@@ -1,0 +1,33 @@
+name: h03_persistence_masquerade
+tier: heldout
+category: persistence
+difficulty: intermediate
+description: >
+  HELD-OUT (SFE-i7l7): a malicious loader (svchost_helper.exe) masquerading near a
+  system path shows an MFT modify AFTER its Prefetch execution (causality violation
+  = timestomp to backdate the drop). A genuine system binary (svchost.exe) sits in
+  the same evidence as a name-collision decoy and is causally clean: the engine must
+  flag the impostor and NOT the real svchost.exe. Hand-authored held-out corpus;
+  detectors not tuned against it. NOT part of the F1 harness.
+
+source:
+  provider: synthetic-heldout
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables:
+    - svchost_helper.exe
+  # The real system binary present in the same evidence. A name-similarity
+  # heuristic ("looks like svchost") would over-call it; it is causally clean.
+  false_positive_traps:
+    - svchost.exe
+
+notes: |
+  Name-collision over-call probe. svchost_helper.exe (impostor) has Modify after
+  its run (violation, flagged). svchost.exe (genuine, System32, Modify before run)
+  must not be flagged despite the confusable name.

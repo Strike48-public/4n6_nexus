@@ -1,0 +1,36 @@
+name: h02_clean_admin_decoys
+tier: heldout
+category: benign
+difficulty: intermediate
+description: >
+  HELD-OUT (SFE-i7l7): a genuinely clean host during a maintenance window. Every
+  executable present is benign and causally consistent (Modify precedes execution),
+  including artifacts an over-eager agent loves to flag by name/path alone: a
+  vendor remote-support helper (remote_support.exe), a nightly backup job, and a
+  scripting host running an inventory script. None matches a malicious command-line
+  pattern and none has a causality violation. There is NOTHING to flag; anything
+  flagged here is a pure hallucination. Hand-authored held-out corpus, detectors
+  not tuned against it. NOT part of the F1 harness.
+
+source:
+  provider: synthetic-heldout
+  license: internal
+
+fixtures:
+  mft: mft.csv
+  prefetch: prefetch.csv
+  evtx: evtx.csv
+
+expected:
+  malicious_executables: []
+  # Every present artifact is a benign trap: loud names / admin tools that a
+  # name-or-path heuristic would over-call. None has a causality violation.
+  false_positive_traps:
+    - remote_support.exe
+    - backup_runner.exe
+    - cscript.exe
+
+notes: |
+  Pure over-call probe: malicious set is empty, so precision is only meaningful
+  as "flag nothing". All three executables have Modify timestamps BEFORE their
+  Prefetch run (causally clean) and legitimate parents in the 4688 events.
