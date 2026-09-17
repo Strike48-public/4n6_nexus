@@ -69,12 +69,6 @@ jobs:
           # al.) that fire 1500+ times across this tree. Same rationale as the
           # black pin below (kept in lockstep with [tool.ruff] in pyproject).
           pip install 'ruff==0.15.11' 'black==25.9.0'
-          # Public-only TUI code under sift_find_evil/tui/ (NOT in the private
-          # repo, so private never sees it) hard-imports textual. Installed here,
-          # not in requirements-dev.txt, because that file is a private-owned
-          # sync surface the next backfill overwrites (SFE-nx7w - TUI ownership
-          # still undecided). Floor only: the widgets/API used are stable.
-          pip install 'textual>=0.80'
 
       - name: Install forensic extras (forensic tier only)
         # Native bindings (pyewf/pytsk3/pypff/rbloom). System libs installed above.
