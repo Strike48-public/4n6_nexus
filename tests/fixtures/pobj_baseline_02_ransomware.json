@@ -1,0 +1,354 @@
+{
+  "findings": [
+    {
+      "absence_metric": null,
+      "absence_pattern": [],
+      "artifact_sources": [
+        "MFT",
+        "Prefetch",
+        "EventLog"
+      ],
+      "asserts_absence": false,
+      "category": "timeline_tampering",
+      "confidence": 0.75,
+      "confidence_calculation": {
+        "calculation_steps": [
+          {
+            "confidence": 0.95,
+            "reason": "3 artifacts, 3 types",
+            "step": "initial"
+          },
+          {
+            "confidence_after": 0.44999999999999996,
+            "confidence_before": 0.95,
+            "impact": -0.5,
+            "step": "contradiction",
+            "type": "causality_violation"
+          },
+          {
+            "confidence_after": 0.75,
+            "confidence_before": 0.44999999999999996,
+            "method": "event_log_confirms_prefetch",
+            "recovery": 0.3,
+            "step": "resolution"
+          }
+        ],
+        "final_confidence": 0.75,
+        "initial_confidence": 0.95,
+        "total_contradictions": 1,
+        "total_resolutions": 1
+      },
+      "confidence_label": "Medium",
+      "contradictions": [
+        {
+          "confidence_impact": -0.5,
+          "description": "File ransom_note.exe modified at 2025-03-15 10:45:00+00:00 but executed at 2025-03-15 10:30:00+00:00 (causality violation)",
+          "details": {
+            "file_path": "C:\\Users\\victim\\Downloads\\ransom_note.exe",
+            "mft_modified": "2025-03-15T10:45:00+00:00",
+            "prefetch_last_run": "2025-03-15T10:30:00+00:00",
+            "time_delta_seconds": 900.0
+          },
+          "severity": "high",
+          "type": "causality_violation"
+        }
+      ],
+      "description": "Analysis of ransom_note.exe detected 1 contradiction(s):\n- File ransom_note.exe modified at 2025-03-15 10:45:00+00:00 but executed at 2025-03-15 10:30:00+00:00 (causality violation)\n\nApplied 1 resolution(s):\n- event_log_confirms_prefetch",
+      "evidence": {
+        "artifact_types": [
+          "MFT",
+          "Prefetch",
+          "EventLog"
+        ],
+        "contradictions_detected": 1,
+        "event_time": "2025-03-15T10:30:00+00:00",
+        "executable": "ransom_note.exe",
+        "resolutions_applied": 1
+      },
+      "reasoning_chain": [
+        "Found 3 artifact types for ransom_note.exe: MFT, Prefetch, EventLog",
+        "Initial confidence: 0.45 (3 artifacts, 3 types)",
+        "Detected causality_violation: File ransom_note.exe modified at 2025-03-15 10:45:00+00:00 but executed at 2025-03-15 10:30:00+00:00 (causality violation) (impact: -0.50)",
+        "Resolved via Event Log: event_log_confirms_prefetch (recovery: +0.30)",
+        "Final confidence: 0.75 (Medium)"
+      ],
+      "resolutions": [
+        {
+          "evidence": {
+            "event_id": 4688,
+            "event_log_time": "2025-03-15T10:30:00.123456+00:00",
+            "prefetch_time": "2025-03-15T10:30:00+00:00",
+            "time_delta_seconds": 0.123456
+          },
+          "method": "event_log_confirms_prefetch",
+          "recovery": 0.3,
+          "type": "causality_violation"
+        }
+      ],
+      "severity": "high",
+      "title": "Suspicious Activity: ransom_note.exe",
+      "type": "indicator",
+      "techniques": [
+        "T1070.006"
+      ],
+      "source_exec_id": "mft:138cefe657cf",
+      "observation": "File ransom_note.exe modified at 2025-03-15 10:45:00+00:00 but executed at 2025-03-15 10:30:00+00:00 (causality violation)",
+      "interpretation": "ransom_note.exe shows 1 cross-artifact contradiction(s) consistent with timeline manipulation, partially resolved by 1 Event-Log tiebreaker(s)."
+    },
+    {
+      "absence_metric": null,
+      "absence_pattern": [],
+      "artifact_sources": [
+        "MFT",
+        "Prefetch",
+        "EventLog"
+      ],
+      "asserts_absence": false,
+      "category": "timeline_tampering",
+      "confidence": 0.75,
+      "confidence_calculation": {
+        "calculation_steps": [
+          {
+            "confidence": 0.95,
+            "reason": "3 artifacts, 3 types",
+            "step": "initial"
+          },
+          {
+            "confidence_after": 0.44999999999999996,
+            "confidence_before": 0.95,
+            "impact": -0.5,
+            "step": "contradiction",
+            "type": "causality_violation"
+          },
+          {
+            "confidence_after": 0.75,
+            "confidence_before": 0.44999999999999996,
+            "method": "event_log_confirms_prefetch",
+            "recovery": 0.3,
+            "step": "resolution"
+          }
+        ],
+        "final_confidence": 0.75,
+        "initial_confidence": 0.95,
+        "total_contradictions": 1,
+        "total_resolutions": 1
+      },
+      "confidence_label": "Medium",
+      "contradictions": [
+        {
+          "confidence_impact": -0.5,
+          "description": "File crypt_engine.exe modified at 2025-03-15 11:00:00+00:00 but executed at 2025-03-15 10:45:00.500000+00:00 (causality violation)",
+          "details": {
+            "file_path": "C:\\Users\\victim\\AppData\\Roaming\\crypt_engine.exe",
+            "mft_modified": "2025-03-15T11:00:00+00:00",
+            "prefetch_last_run": "2025-03-15T10:45:00.500000+00:00",
+            "time_delta_seconds": 899.5
+          },
+          "severity": "high",
+          "type": "causality_violation"
+        }
+      ],
+      "description": "Analysis of crypt_engine.exe detected 1 contradiction(s):\n- File crypt_engine.exe modified at 2025-03-15 11:00:00+00:00 but executed at 2025-03-15 10:45:00.500000+00:00 (causality violation)\n\nApplied 1 resolution(s):\n- event_log_confirms_prefetch",
+      "evidence": {
+        "artifact_types": [
+          "MFT",
+          "Prefetch",
+          "EventLog"
+        ],
+        "contradictions_detected": 1,
+        "event_time": "2025-03-15T10:45:00.500000+00:00",
+        "executable": "crypt_engine.exe",
+        "resolutions_applied": 1
+      },
+      "reasoning_chain": [
+        "Found 3 artifact types for crypt_engine.exe: MFT, Prefetch, EventLog",
+        "Initial confidence: 0.45 (3 artifacts, 3 types)",
+        "Detected causality_violation: File crypt_engine.exe modified at 2025-03-15 11:00:00+00:00 but executed at 2025-03-15 10:45:00.500000+00:00 (causality violation) (impact: -0.50)",
+        "Resolved via Event Log: event_log_confirms_prefetch (recovery: +0.30)",
+        "Final confidence: 0.75 (Medium)"
+      ],
+      "resolutions": [
+        {
+          "evidence": {
+            "event_id": 4688,
+            "event_log_time": "2025-03-15T10:45:00.567890+00:00",
+            "prefetch_time": "2025-03-15T10:45:00.500000+00:00",
+            "time_delta_seconds": 0.06789
+          },
+          "method": "event_log_confirms_prefetch",
+          "recovery": 0.3,
+          "type": "causality_violation"
+        }
+      ],
+      "severity": "high",
+      "title": "Suspicious Activity: crypt_engine.exe",
+      "type": "indicator",
+      "techniques": [
+        "T1070.006"
+      ],
+      "source_exec_id": "mft:13b978d82996",
+      "observation": "File crypt_engine.exe modified at 2025-03-15 11:00:00+00:00 but executed at 2025-03-15 10:45:00.500000+00:00 (causality violation)",
+      "interpretation": "crypt_engine.exe shows 1 cross-artifact contradiction(s) consistent with timeline manipulation, partially resolved by 1 Event-Log tiebreaker(s)."
+    },
+    {
+      "absence_metric": null,
+      "absence_pattern": [],
+      "artifact_sources": [
+        "MFT",
+        "Prefetch",
+        "EventLog"
+      ],
+      "asserts_absence": false,
+      "category": "timeline_tampering",
+      "confidence": 0.75,
+      "confidence_calculation": {
+        "calculation_steps": [
+          {
+            "confidence": 0.95,
+            "reason": "3 artifacts, 3 types",
+            "step": "initial"
+          },
+          {
+            "confidence_after": 0.44999999999999996,
+            "confidence_before": 0.95,
+            "impact": -0.5,
+            "step": "contradiction",
+            "type": "causality_violation"
+          },
+          {
+            "confidence_after": 0.75,
+            "confidence_before": 0.44999999999999996,
+            "method": "event_log_confirms_prefetch",
+            "recovery": 0.3,
+            "step": "resolution"
+          }
+        ],
+        "final_confidence": 0.75,
+        "initial_confidence": 0.95,
+        "total_contradictions": 1,
+        "total_resolutions": 1
+      },
+      "confidence_label": "Medium",
+      "contradictions": [
+        {
+          "confidence_impact": -0.5,
+          "description": "File persist.exe modified at 2025-03-15 11:30:00+00:00 but executed at 2025-03-15 11:15:00+00:00 (causality violation)",
+          "details": {
+            "file_path": "C:\\ProgramData\\persist.exe",
+            "mft_modified": "2025-03-15T11:30:00+00:00",
+            "prefetch_last_run": "2025-03-15T11:15:00+00:00",
+            "time_delta_seconds": 900.0
+          },
+          "severity": "high",
+          "type": "causality_violation"
+        }
+      ],
+      "description": "Analysis of persist.exe detected 1 contradiction(s):\n- File persist.exe modified at 2025-03-15 11:30:00+00:00 but executed at 2025-03-15 11:15:00+00:00 (causality violation)\n\nApplied 1 resolution(s):\n- event_log_confirms_prefetch",
+      "evidence": {
+        "artifact_types": [
+          "MFT",
+          "Prefetch",
+          "EventLog"
+        ],
+        "contradictions_detected": 1,
+        "event_time": "2025-03-15T11:15:00+00:00",
+        "executable": "persist.exe",
+        "resolutions_applied": 1
+      },
+      "reasoning_chain": [
+        "Found 3 artifact types for persist.exe: MFT, Prefetch, EventLog",
+        "Initial confidence: 0.45 (3 artifacts, 3 types)",
+        "Detected causality_violation: File persist.exe modified at 2025-03-15 11:30:00+00:00 but executed at 2025-03-15 11:15:00+00:00 (causality violation) (impact: -0.50)",
+        "Resolved via Event Log: event_log_confirms_prefetch (recovery: +0.30)",
+        "Final confidence: 0.75 (Medium)"
+      ],
+      "resolutions": [
+        {
+          "evidence": {
+            "event_id": 4688,
+            "event_log_time": "2025-03-15T11:15:00+00:00",
+            "prefetch_time": "2025-03-15T11:15:00+00:00",
+            "time_delta_seconds": 0.0
+          },
+          "method": "event_log_confirms_prefetch",
+          "recovery": 0.3,
+          "type": "causality_violation"
+        }
+      ],
+      "severity": "high",
+      "title": "Suspicious Activity: persist.exe",
+      "type": "indicator",
+      "techniques": [
+        "T1070.006"
+      ],
+      "source_exec_id": "mft:c4420dee1ba5",
+      "observation": "File persist.exe modified at 2025-03-15 11:30:00+00:00 but executed at 2025-03-15 11:15:00+00:00 (causality violation)",
+      "interpretation": "persist.exe shows 1 cross-artifact contradiction(s) consistent with timeline manipulation, partially resolved by 1 Event-Log tiebreaker(s)."
+    }
+  ],
+  "summary": {
+    "artifacts_supplied": [
+      "evtx",
+      "mft",
+      "prefetch"
+    ],
+    "artifacts_synthesized_empty": [],
+    "event_log_entries": 4,
+    "mft_entries": 4,
+    "prefetch_entries": 4,
+    "subject_risk": [
+      {
+        "band": "medium",
+        "contributors": [
+          {
+            "category": "timeline_tampering",
+            "confidence": 0.75,
+            "pre_trust_contribution": 0.225,
+            "spoofability": 0.6,
+            "title": "Suspicious Activity: crypt_engine.exe",
+            "weight": 0.75
+          }
+        ],
+        "distinct_sources": 3,
+        "score": 0.225,
+        "subject": "crypt_engine.e",
+        "subject_kind": "process"
+      },
+      {
+        "band": "medium",
+        "contributors": [
+          {
+            "category": "timeline_tampering",
+            "confidence": 0.75,
+            "pre_trust_contribution": 0.225,
+            "spoofability": 0.6,
+            "title": "Suspicious Activity: persist.exe",
+            "weight": 0.75
+          }
+        ],
+        "distinct_sources": 3,
+        "score": 0.225,
+        "subject": "persist.exe",
+        "subject_kind": "process"
+      },
+      {
+        "band": "medium",
+        "contributors": [
+          {
+            "category": "timeline_tampering",
+            "confidence": 0.75,
+            "pre_trust_contribution": 0.225,
+            "spoofability": 0.6,
+            "title": "Suspicious Activity: ransom_note.exe",
+            "weight": 0.75
+          }
+        ],
+        "distinct_sources": 3,
+        "score": 0.225,
+        "subject": "ransom_note.ex",
+        "subject_kind": "process"
+      }
+    ],
+    "total_findings": 3
+  }
+}

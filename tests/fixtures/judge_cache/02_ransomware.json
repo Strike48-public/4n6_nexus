@@ -1,0 +1,82 @@
+{
+  "3f29ba86dc02afd3afb06c0eb10e16ffea3796e6b2835d96714f3af20ea2ca04": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "entailment-rederivation",
+      "falsifier_status": "survived",
+      "outcome": "sustained",
+      "rationale": "Survived adversarial challenge with 2 corroborating sources."
+    }
+  },
+  "69e3fbc86fa0be66eea27cff54b8678d3162661496531321858ad3f986d5b8ed": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "null-corroborated",
+      "falsifier_status": "survived",
+      "outcome": "sustained",
+      "rationale": "Survived adversarial challenge with 3 corroborating sources."
+    }
+  },
+  "85eb832a8970bd01ca5e090e780d13be3cdacf248d39633ac1b6413e776aff95": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "entailment-rederivation",
+      "falsifier_status": "survived",
+      "outcome": "flagged_human",
+      "rationale": "Analyst verdict is not affirmative; a falsifier cannot rescue it. Remand budget exhausted -> flagged for human review."
+    }
+  },
+  "8f21a7146fc77ba94399b2d95a088ea8a3418e295b8e22fe028bd3f3e1839588": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "null-corroborated",
+      "falsifier_status": "survived",
+      "outcome": "sustained",
+      "rationale": "Survived adversarial challenge with 3 corroborating sources."
+    }
+  },
+  "a17354834e94242b92a1323a068b53f2606e14669ea1c6cfaa1e45ee55117f26": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "entailment-rederivation",
+      "falsifier_status": "survived",
+      "outcome": "remanded",
+      "rationale": "Analyst verdict is not affirmative; a falsifier cannot rescue it."
+    }
+  },
+  "a65e1d47daeeec188521fef77c7a414bfcb20cf8735c93fcf6aa9f274d5e180c": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "entailment-rederivation",
+      "falsifier_status": "survived",
+      "outcome": "sustained",
+      "rationale": "Survived adversarial challenge with 3 corroborating sources."
+    }
+  },
+  "b4f5bc81ed96afd5d312fe19f9d3542f4e8d330009b58807b575da0947172c95": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "null-corroborated",
+      "falsifier_status": "survived",
+      "outcome": "sustained",
+      "rationale": "Survived adversarial challenge with 3 corroborating sources."
+    }
+  },
+  "f150a1cf133df10f070f1014b22128f9c2a2785f9cc48b51b8fc646b0ae0b058": {
+    "prompt_hash": "9f3d5ff7e5c2fec975c1c8787540632e3aeacf1e9a1d785eaa4c96f36113347c",
+    "verdict": {
+      "architectural_distance": 1.0,
+      "falsifier_family": "entailment-rederivation",
+      "falsifier_status": "survived",
+      "outcome": "remanded",
+      "rationale": "Analyst verdict is not affirmative; a falsifier cannot rescue it."
+    }
+  }
+}

@@ -75,6 +75,7 @@ class ReportGenerator:
             executive_summary=self._generate_executive_summary(findings),
             recommendations=self._generate_recommendations(findings),
             case_description=case.description,
+            hypothesis_ledger=self._read_hypothesis_ledger(case_dir),
         )
 
         # Generate report in requested format
@@ -93,6 +94,16 @@ class ReportGenerator:
 
     def _extract_iocs(self, findings) -> dict:
         """Extract IOCs from findings.
+
+        NOTE: this is a DISPLAY-ONLY extractor for the human-readable report -- it
+        reads structured evidence keys and groups them (including ``processes``,
+        which are report context, not hunt indicators). For SIEM/TIP-grade IOC
+        extraction (free-text scanning, private/reserved-range exclusion, and
+        sha256>md5 collision subtraction) use the canonical
+        :func:`sift_find_evil.interop.iocs.extract_iocs`. The two contracts differ
+        deliberately; do not "unify" one into the other without reconciling that
+        the report wants processes and unfiltered addresses while the interop
+        exporters must not emit RFC1918 or duplicate-hash indicators.
 
         Args:
             findings: List of FindingWithApproval objects
@@ -305,6 +316,17 @@ class ReportGenerator:
             )
             L.append("")
             L.append(mermaid_finding_flow(rows))
+            L.append("")
+
+        # --- Candidate elimination & self-correction (SFE-fibx.13) ----------
+        # The retraction trail (from the case's hardened sibling) sits right after
+        # the findings, matching SIFT++'s red REFUTED placement, so the investigator
+        # sees which candidates the verifier confirmed then withdrew. Rendered ONLY
+        # when a ledger was actually loaded: an absent ledger is not an empty trail.
+        if report.hypothesis_ledger is not None:
+            from .retractions import render_retraction_section
+
+            L.append(render_retraction_section(report.hypothesis_ledger))
             L.append("")
 
         # --- Evidence & chain of custody ------------------------------------
@@ -551,6 +573,32 @@ class ReportGenerator:
             or finding.get("confidence_after"),
             "confidence": finding.get("confidence"),
         }
+
+    @staticmethod
+    def _read_hypothesis_ledger(case_dir: Path) -> dict | None:
+        """Best-effort load of the case's candidate-elimination ledger (SFE-fibx.13).
+
+        Reads ``findings.hardened.json`` (written by ``analyze --harden`` next to
+        ``findings.json``) and returns its ``hypothesis_ledger`` summary, or None
+        when no hardened report exists / it carries no ledger. Returning None (not
+        an empty dict) lets the report OMIT the retraction section rather than
+        render "nothing was retracted", which would overclaim that a
+        self-correction pass ran when none did.
+
+        We load the AUTHORITATIVE persisted ledger rather than recomputing one from
+        ``findings.json``: the ledger is derived from each finding's exonerating
+        ``resolutions``, and ``Finding.from_dict`` drops resolutions on the case
+        round-trip, so any recompute from ``findings.json`` would be silently empty.
+        """
+        hardened_path = case_dir / "findings.hardened.json"
+        if not hardened_path.is_file():
+            return None
+        try:
+            data = json.loads(hardened_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        ledger = data.get("hypothesis_ledger")
+        return ledger if isinstance(ledger, dict) else None
 
     def _read_audit_entries(self, case) -> list[dict]:
         """Best-effort load of the case's A2A audit log (empty list on any issue)."""

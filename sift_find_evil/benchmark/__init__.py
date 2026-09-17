@@ -12,6 +12,20 @@ from .hallucination import (
     score_case,
     score_suite,
 )
+from .heldout import (
+    detector_logic_hash,
+    discover_heldout,
+    score_engine_over_heldout,
+)
+from .ablation import run_injection_ablation
+from .red_team import (
+    IterationScore,
+    PlantedScenario,
+    RedTeamObservation,
+    RedTeamReport,
+    run_red_team,
+    score_iteration,
+)
 
 __all__ = [
     "BenchmarkCase",
@@ -19,4 +33,14 @@ __all__ = [
     "SuiteResult",
     "score_case",
     "score_suite",
+    "detector_logic_hash",
+    "discover_heldout",
+    "score_engine_over_heldout",
+    "run_injection_ablation",
+    "IterationScore",
+    "PlantedScenario",
+    "RedTeamObservation",
+    "RedTeamReport",
+    "run_red_team",
+    "score_iteration",
 ]

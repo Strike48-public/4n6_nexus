@@ -31,6 +31,29 @@ CATALOG: dict[str, dict[str, str]] = {
     },
     "T1021": {"name": "Remote Services", "tactic": "Lateral Movement"},
     "T1486": {"name": "Data Encrypted for Impact", "tactic": "Impact"},
+    # SFE-katy: techniques emitted by the linux/usn/lateral detectors that now
+    # reach the matrix via legacy-key normalization. Names/tactics verified
+    # against attack.mitre.org; for multi-tactic techniques the tactic matching
+    # the emitting detector's context is chosen (TA0005 = Defense Evasion).
+    "T1543.002": {
+        "name": "Create or Modify System Process: Systemd Service",
+        "tactic": "Persistence",
+    },
+    "T1053.003": {"name": "Scheduled Task/Job: Cron", "tactic": "Persistence"},
+    "T1574.006": {
+        "name": "Hijack Execution Flow: Dynamic Linker Hijacking",
+        "tactic": "Persistence",
+    },
+    "T1548.003": {
+        "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching",
+        "tactic": "Privilege Escalation",
+    },
+    "T1546.004": {
+        "name": "Event Triggered Execution: Unix Shell Configuration Modification",
+        "tactic": "Persistence",
+    },
+    "T1110": {"name": "Brute Force", "tactic": "Credential Access"},
+    "T1078": {"name": "Valid Accounts", "tactic": "Defense Evasion"},
 }
 
 _UNKNOWN = "unknown"
@@ -62,12 +85,50 @@ def _catalog_entry(technique_id: str) -> dict[str, str]:
     return CATALOG.get(technique_id, {"name": _UNKNOWN, "tactic": _UNKNOWN})
 
 
+# MITRE technique evidence keys, in descending authority. Detectors historically
+# emitted under three different keys; the guardrail only ever read the first, so
+# techniques carried under the legacy keys (a scalar ``mitre_technique`` from the
+# linux/usn detectors, a scalar ``mitre`` from lateral_movement) silently never
+# reached the matrix (SFE-katy). The canonical key wins when more than one is
+# present so a single finding's techniques are never double-counted.
+_MITRE_KEYS = ("mitre_attack", "mitre_technique", "mitre")
+
+
+def _finding_techniques(finding: dict) -> list[str]:
+    """Extract technique ids from a finding dict, field-first then legacy keys.
+
+    The first-class ``techniques`` field (SFE-fibx.4) is authoritative when
+    present. Otherwise falls back to the first present of :data:`_MITRE_KEYS`
+    (canonical first) in ``evidence``, accepting either a single id or a list, so
+    a scalar-valued legacy key and the documented ``mitre_attack`` list are both
+    honored. Never merges across sources: the highest-authority present source is
+    authoritative for that finding.
+    """
+    field_value = finding.get("techniques")
+    if field_value:
+        return list(field_value)
+    evidence = finding.get("evidence")
+    # A well-formed finding carries a dict evidence (Finding normalizes it at
+    # construction). Guard defensively so a malformed non-dict evidence yields no
+    # techniques instead of AttributeError on ``evidence.get`` -- this extractor is
+    # the single source both confirmed_matrix and the kill-chain gate call.
+    if not isinstance(evidence, dict):
+        return []
+    for key in _MITRE_KEYS:
+        value = evidence.get(key)
+        if value is None or value == "":
+            continue
+        return list(value) if isinstance(value, (list, tuple)) else [value]
+    return []
+
+
 def confirmed_matrix(findings: list[dict]) -> MitreReport:
     """Build the confirmed MITRE matrix from detector findings only.
 
     Args:
-        findings: Detector findings, each optionally carrying
-            ``evidence["mitre_attack"]`` as a list of technique ids.
+        findings: Detector findings, each optionally carrying MITRE technique ids
+            under ``evidence["mitre_attack"]`` (canonical, a list) or a legacy key
+            (``mitre_technique`` / ``mitre``, scalar) - see :func:`_finding_techniques`.
 
     Returns:
         A MitreReport whose ``confirmed`` list is grounded solely by findings.
@@ -80,8 +141,7 @@ def confirmed_matrix(findings: list[dict]) -> MitreReport:
 
     for finding in findings:
         title = str(finding.get("title", ""))
-        evidence = finding.get("evidence") or {}
-        techniques = evidence.get("mitre_attack") or []
+        techniques = _finding_techniques(finding)
         for raw_id in techniques:
             technique_id = str(raw_id)
             if not _is_valid_technique(technique_id):

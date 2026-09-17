@@ -35,7 +35,9 @@ notes: |
   Twenty-seven expected findings covering MITRE memory + obfuscation techniques:
 
   Non-cmdline findings (6):
-    - Windows malfind PAGE_EXECUTE_READWRITE VAD in svchost.exe (T1055)
+    - Windows malfind PAGE_EXECUTE_READWRITE VAD in powershell.exe PID 5580
+      (T1055) - the SAME injected LOLBAS process that beacons to C2 in netscan,
+      so malfind + netscan correlate as one actor (SFE-1fkn cross-source overlap)
     - Hidden process rootkit.exe present in psscan but not pslist (T1014)
     - Windows netscan powershell.exe ESTABLISHED to public:4444 (T1071)
     - Linux bash history curl|sh download-execute (T1059.004)

@@ -373,18 +373,27 @@ class ContradictionDetector:
         """
         contradictions = []
 
+        # Index the MFT by lowercased file name in ONE pass, so each prefetch
+        # lookup below is O(1) instead of a full MFT scan (SFE-cj4n). The old code
+        # took ``matching_mft[0]`` -- the FIRST entry (by list order) whose name
+        # matched -- so we keep the FIRST occurrence per name and never overwrite
+        # it, preserving that behavior exactly. On a 10GB image (millions of MFT
+        # rows) this turns detect_all's dominant cost from O(prefetch x MFT) into
+        # O(MFT + prefetch).
+        mft_by_name: dict[str, Any] = {}
+        for mft in mft_entries:
+            key = mft.file_name.lower()
+            if key not in mft_by_name:
+                mft_by_name[key] = mft
+
         # For each Prefetch entry, try to find matching MFT entry
         for prefetch_entry in prefetch_entries:
             exe_name = prefetch_entry.executable
 
-            # Find matching MFT entry
-            matching_mft = [
-                mft for mft in mft_entries if mft.file_name.lower() == exe_name.lower()
-            ]
+            # Find matching MFT entry (first occurrence, O(1) via the index).
+            mft_entry = mft_by_name.get(exe_name.lower())
 
-            if matching_mft:
-                mft_entry = matching_mft[0]
-
+            if mft_entry is not None:
                 # Check for causality violation
                 causality = self.detect_causality_violation(mft_entry, prefetch_entry)
                 if causality:

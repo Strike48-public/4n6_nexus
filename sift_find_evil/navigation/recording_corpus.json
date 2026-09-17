@@ -1,0 +1,170 @@
+[
+  {
+    "action_id": "tamper_compare",
+    "category": "timeline_tampering",
+    "finding": {
+      "absence_metric": null,
+      "absence_pattern": [],
+      "artifact_sources": [
+        "MFT",
+        "Prefetch",
+        "EventLog"
+      ],
+      "asserts_absence": false,
+      "category": "timeline_tampering",
+      "confidence": 0.75,
+      "confidence_calculation": {
+        "calculation_steps": [
+          {
+            "confidence": 0.95,
+            "reason": "3 artifacts, 3 types",
+            "step": "initial"
+          },
+          {
+            "confidence_after": 0.44999999999999996,
+            "confidence_before": 0.95,
+            "impact": -0.5,
+            "step": "contradiction",
+            "type": "causality_violation"
+          },
+          {
+            "confidence_after": 0.75,
+            "confidence_before": 0.44999999999999996,
+            "method": "event_log_confirms_prefetch",
+            "recovery": 0.3,
+            "step": "resolution"
+          }
+        ],
+        "final_confidence": 0.75,
+        "initial_confidence": 0.95,
+        "total_contradictions": 1,
+        "total_resolutions": 1
+      },
+      "confidence_label": "Medium",
+      "contradictions": [
+        {
+          "confidence_impact": -0.5,
+          "description": "File ransom_note.exe modified at 2025-03-15 10:45:00+00:00 but executed at 2025-03-15 10:30:00+00:00 (causality violation)",
+          "details": {
+            "file_path": "C:\\Users\\victim\\Downloads\\ransom_note.exe",
+            "mft_modified": "2025-03-15T10:45:00+00:00",
+            "prefetch_last_run": "2025-03-15T10:30:00+00:00",
+            "time_delta_seconds": 900.0
+          },
+          "severity": "high",
+          "type": "causality_violation"
+        }
+      ],
+      "description": "Analysis of ransom_note.exe detected 1 contradiction(s):\n- File ransom_note.exe modified at 2025-03-15 10:45:00+00:00 but executed at 2025-03-15 10:30:00+00:00 (causality violation)\n\nApplied 1 resolution(s):\n- event_log_confirms_prefetch",
+      "evidence": {
+        "artifact_types": [
+          "MFT",
+          "Prefetch",
+          "EventLog"
+        ],
+        "contradictions_detected": 1,
+        "executable": "ransom_note.exe",
+        "resolutions_applied": 1
+      },
+      "reasoning_chain": [
+        "Found 3 artifact types for ransom_note.exe: MFT, Prefetch, EventLog",
+        "Initial confidence: 0.45 (3 artifacts, 3 types)",
+        "Detected causality_violation: File ransom_note.exe modified at 2025-03-15 10:45:00+00:00 but executed at 2025-03-15 10:30:00+00:00 (causality violation) (impact: -0.50)",
+        "Resolved via Event Log: event_log_confirms_prefetch (recovery: +0.30)",
+        "Final confidence: 0.75 (Medium)"
+      ],
+      "resolutions": [
+        {
+          "evidence": {
+            "event_id": 4688,
+            "event_log_time": "2025-03-15T10:30:00.123456+00:00",
+            "prefetch_time": "2025-03-15T10:30:00+00:00",
+            "time_delta_seconds": 0.123456
+          },
+          "method": "event_log_confirms_prefetch",
+          "recovery": 0.3,
+          "type": "causality_violation"
+        }
+      ],
+      "severity": "high",
+      "title": "Suspicious Activity: ransom_note.exe",
+      "type": "indicator"
+    },
+    "prompt": "Compare this artifact's timestamps across sources ($STANDARD_INFORMATION vs $FILE_NAME, log vs MFT) to expose the manipulation.",
+    "scenario": "02_ransomware",
+    "severity": "high"
+  },
+  {
+    "action_id": "af_mechanism",
+    "category": "anti_forensics",
+    "finding": {
+      "absence_metric": null,
+      "absence_pattern": [],
+      "artifact_sources": [
+        "MFT",
+        "EventLog"
+      ],
+      "asserts_absence": false,
+      "category": "anti_forensics",
+      "confidence": 0.8,
+      "confidence_calculation": {
+        "calculation_steps": [
+          {
+            "confidence": 0.9,
+            "reason": "2 artifacts, 2 types",
+            "step": "initial"
+          },
+          {
+            "confidence_after": 0.8,
+            "confidence_before": 0.9,
+            "impact": -0.1,
+            "step": "contradiction",
+            "type": "missing_artifact"
+          }
+        ],
+        "final_confidence": 0.8,
+        "initial_confidence": 0.9,
+        "total_contradictions": 1,
+        "total_resolutions": 0
+      },
+      "confidence_label": "High",
+      "contradictions": [
+        {
+          "confidence_impact": -0.1,
+          "description": "Executable data_exfil.exe exists in MFT but has no Prefetch artifact (confirmed by Event Log)",
+          "details": {
+            "event_log_confirmations": 1,
+            "file_path": "C:\\Users\\insider\\Documents\\data_exfil.exe",
+            "mft_created": "2025-03-15T13:00:00+00:00",
+            "note": "Event Log confirms execution; Prefetch may be disabled"
+          },
+          "severity": "low",
+          "type": "missing_artifact"
+        }
+      ],
+      "description": "Analysis of data_exfil.exe detected 1 contradiction(s):\n- Executable data_exfil.exe exists in MFT but has no Prefetch artifact (confirmed by Event Log)",
+      "evidence": {
+        "artifact_types": [
+          "MFT",
+          "EventLog"
+        ],
+        "contradictions_detected": 1,
+        "executable": "data_exfil.exe",
+        "resolutions_applied": 0
+      },
+      "reasoning_chain": [
+        "Found 2 artifact types for data_exfil.exe: MFT, EventLog",
+        "Initial confidence: 0.80 (2 artifacts, 2 types)",
+        "Detected missing_artifact: Executable data_exfil.exe exists in MFT but has no Prefetch artifact (confirmed by Event Log) (impact: -0.10)",
+        "Final confidence: 0.80 (High)"
+      ],
+      "resolutions": [],
+      "severity": "low",
+      "title": "Suspicious Activity: data_exfil.exe",
+      "type": "indicator"
+    },
+    "prompt": "Identify the anti-forensic technique used here (log clearing, secure wipe, timestomping, journal truncation) and what it targeted.",
+    "scenario": "05_missing_prefetch",
+    "severity": "low"
+  }
+]

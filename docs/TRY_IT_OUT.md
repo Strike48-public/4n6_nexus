@@ -30,9 +30,9 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> **Verified:** all core dependencies (`pyyaml`, `pydantic`, `rich`, `textual`,
-> `psutil`, `pandas`, `numpy`, `yara-python`, `mcp`, `python-dateutil`, `pytz`)
-> import cleanly on Python 3.12 from `requirements.txt` alone.
+> **Verified:** all core dependencies (`pyyaml`, `pydantic`, `rich`, `pandas`,
+> `numpy`, `yara-python`, `mcp`, `python-dateutil`, `pytz`) import cleanly on
+> Python 3.12 from `requirements.txt` alone.
 
 For processing **real** disk/memory/PST evidence (not needed for the demo or
 validation), also install the native extras:
@@ -183,7 +183,7 @@ Expected: one CRITICAL finding (wiped GPT partition table, confidence 0.95).
 | CLI help (all subcommands) | `python3 -m sift_find_evil.cli --help` |
 
 All commands are run from the repository root with `PYTHONPATH=.` (or after
-`pip install -e .`). See [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) for
+`pip install -e .`). See [ARCHITECTURE.md](ARCHITECTURE.md) for
 how the pieces connect, [ACCURACY_REPORT.md](ACCURACY_REPORT.md) for the
 accuracy self-assessment, and [EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md) for
 what was tested and found.

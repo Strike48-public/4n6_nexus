@@ -81,16 +81,22 @@ class TestCaseManagerTimestamps:
 
 
 class TestMcpClientTimestamps:
-    def test_last_failure_time_is_timezone_aware_on_failure(self, tmp_path):
+    def test_last_failure_time_is_timezone_aware_on_failure(
+        self, tmp_path, monkeypatch
+    ):
         from sift_find_evil.mcp.client import MCPClient
 
-        client = MCPClient()
-        # A tool that does not exist makes execution fail, stamping
-        # last_failure_time. The exact exception is irrelevant.
+        client = MCPClient(evidence_root=tmp_path)
+
+        # A guard-valid command (in-evidence input) that fails to SPAWN stamps
+        # last_failure_time. We force the spawn failure so the test exercises the
+        # execution-failure path, not the guard-denial path (which raises before
+        # any subprocess and is not an execution failure).
+        def _boom(*_a, **_k):
+            raise FileNotFoundError("binary missing")
+
+        monkeypatch.setattr("sift_find_evil.mcp.client.subprocess.run", _boom)
         with pytest.raises(Exception):  # noqa: B017 - failure path stamps the time
-            client.execute_tool(
-                "definitely-not-a-real-tool-xyz",
-                ["definitely-not-a-real-tool-xyz", "-r", "x"],
-            )
+            client.execute_tool("mftecmd", ["mftecmd", "-f", str(tmp_path / "$MFT")])
         assert client.last_failure_time is not None
         assert client.last_failure_time.tzinfo is not None

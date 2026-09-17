@@ -17,20 +17,17 @@ from typing import Any, Optional
 
 import yaml
 
+from sift_find_evil.correlation.hidden_process import detect_hidden_linux_processes
 from sift_find_evil.hardening import HardeningReport, harden_findings
+from sift_find_evil.injection_defense import finding_from_scan, scan_and_wrap
 from sift_find_evil.detectors import NetworkDetector
 from sift_find_evil.detectors.memory_detector import MemoryDetector
 from sift_find_evil.detectors.registry_detector import RegistryDetector
+from sift_find_evil.detectors.sigma_scan.evtx_adapter import event_to_sigma
+from sift_find_evil.detectors.sigma_scan.loader import load_sigma_corpus
+from sift_find_evil.detectors.sigma_scan.matcher import match_events
 from sift_find_evil.detectors.webmail_exfil_detector import MFTAccessRecord
-from sift_find_evil.memory.volatility_runner import (
-    _to_bash_history_row,
-    _to_cmdline_row,
-    _to_injection_row,
-    _to_linux_network_row,
-    _to_linux_process_row,
-    _to_network_row,
-    _to_process_row,
-)
+from sift_find_evil.memory.analysis import PLUGIN_COERCERS, coerce_streams
 from sift_find_evil.detectors.lateral_movement_detector import (
     LateralMovementDetector,
 )
@@ -52,6 +49,11 @@ except ImportError:  # pragma: no cover — hosts without libyara
     MissingYaraError = RuntimeError  # type: ignore[assignment,misc]
     _YARA_AVAILABLE = False
 
+# Repository root, used to locate committed config-as-data (e.g. the pinned
+# Sigma corpus under rules/sigma). Scenario discovery still takes an explicit
+# repo_root argument; this is only for corpora that live at a fixed path.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
 
 @dataclass(frozen=True)
 class ScenarioExpectation:
@@ -72,6 +74,8 @@ class ScenarioExpectation:
     run_keys_fixture: Optional[str] = None
     yara_rules_fixture: Optional[str] = None
     yara_scan_dir_fixture: Optional[str] = None
+    injection_fixture: Optional[str] = None
+    linux_artifacts_fixture: Optional[str] = None
     memory_fixtures: dict[str, str] = field(default_factory=dict)
     finding_counts: dict[str, int] = field(default_factory=dict)
     # Benign artifacts PRESENT in this scenario's evidence that the engine must
@@ -97,6 +101,10 @@ class ScenarioResult:
     # shared pipeline so the recall path carries the same guarantees as the
     # orchestrator; None only for a result built without hardening.
     hardening: Optional["HardeningReport"] = None
+    # The raw Finding objects this scenario produced, in emission order. Exposed
+    # for tests/consumers that assert on finding shape (category, evidence keys)
+    # rather than the tp/fp/fn accounting. Additive; does not affect scoring.
+    findings: list[Finding] = field(default_factory=list)
 
     @property
     def precision(self) -> float:
@@ -132,57 +140,88 @@ def discover_scenarios(repo_root: Path) -> list[ScenarioExpectation]:
         if "_schemas" in manifest_path.parts:
             continue
 
-        with manifest_path.open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
-
-        fixtures = data.get("fixtures") or {}
-        mft_fixture = fixtures.get("mft")
-        prefetch_fixture = fixtures.get("prefetch")
-        evtx_fixture = fixtures.get("evtx")
-        browser_history_fixture = fixtures.get("browser_history")
-        yara_rules_fixture = fixtures.get("yara_rules")
-        yara_scan_dir_fixture = fixtures.get("yara_scan_dir")
-        memory_fixtures_raw = fixtures.get("memory") or {}
-        memory_fixtures = {
-            str(key): str(value) for key, value in memory_fixtures_raw.items() if value
-        }
-        has_causality = bool(mft_fixture and prefetch_fixture and evtx_fixture)
-        has_yara = bool(yara_rules_fixture and yara_scan_dir_fixture)
-        has_memory = bool(memory_fixtures)
-        if not has_causality and not has_yara and not has_memory:
+        # Skip the held-out benchmark corpus (scenarios/heldout/*). It is scored
+        # ONLY by the blind hallucination benchmark (benchmark/heldout.py), never
+        # by the F1 recall harness - the two corpora must stay disjoint so a
+        # held-out case can neither inflate F1 nor be inflated by it (SFE-i7l7).
+        if "heldout" in manifest_path.parts:
             continue
 
-        expected = data.get("expected") or {}
-        malicious = expected.get("malicious_executables") or []
-        finding_counts = expected.get("finding_counts") or {}
-        fp_traps = expected.get("false_positive_traps") or []
-
-        expectations.append(
-            ScenarioExpectation(
-                name=data.get("name") or manifest_path.parent.name,
-                directory=manifest_path.parent,
-                malicious_executables=frozenset(str(m).lower() for m in malicious),
-                description=str(data.get("description") or "").strip(),
-                mft_fixture=str(mft_fixture) if mft_fixture else "",
-                prefetch_fixture=str(prefetch_fixture) if prefetch_fixture else "",
-                evtx_fixture=str(evtx_fixture) if evtx_fixture else "",
-                browser_history_fixture=(
-                    str(browser_history_fixture) if browser_history_fixture else None
-                ),
-                shimcache_fixture=_optional_str(fixtures.get("shimcache")),
-                amcache_fixture=_optional_str(fixtures.get("amcache")),
-                bam_fixture=_optional_str(fixtures.get("bam")),
-                userassist_fixture=_optional_str(fixtures.get("userassist")),
-                run_keys_fixture=_optional_str(fixtures.get("run_keys")),
-                yara_rules_fixture=_optional_str(yara_rules_fixture),
-                yara_scan_dir_fixture=_optional_str(yara_scan_dir_fixture),
-                memory_fixtures=memory_fixtures,
-                finding_counts={k: int(v) for k, v in finding_counts.items()},
-                false_positive_traps=frozenset(str(t).lower() for t in fp_traps),
-            )
-        )
+        expectation = expectation_from_manifest(manifest_path)
+        if expectation is not None:
+            expectations.append(expectation)
 
     return expectations
+
+
+def expectation_from_manifest(manifest_path: Path) -> Optional[ScenarioExpectation]:
+    """Parse one ``scenario.yaml`` into a ScenarioExpectation, or None if it is not
+    a CSV/fixture-driven scenario this harness can run.
+
+    Extracted so the held-out benchmark corpus (``scenarios/heldout/``), which
+    ``discover_scenarios`` deliberately skips, can be parsed by the SAME loader
+    without duplicating the fixture schema (SFE-i7l7). Returns None for a manifest
+    with no causality/yara/memory/injection fixtures (e.g. a PCAP/E01 scenario).
+    """
+    with manifest_path.open(encoding="utf-8") as handle:
+        data = yaml.safe_load(handle) or {}
+
+    fixtures = data.get("fixtures") or {}
+    mft_fixture = fixtures.get("mft")
+    prefetch_fixture = fixtures.get("prefetch")
+    evtx_fixture = fixtures.get("evtx")
+    browser_history_fixture = fixtures.get("browser_history")
+    yara_rules_fixture = fixtures.get("yara_rules")
+    yara_scan_dir_fixture = fixtures.get("yara_scan_dir")
+    injection_fixture = fixtures.get("injection")
+    linux_artifacts_fixture = fixtures.get("linux_artifacts")
+    memory_fixtures_raw = fixtures.get("memory") or {}
+    memory_fixtures = {
+        str(key): str(value) for key, value in memory_fixtures_raw.items() if value
+    }
+    has_causality = bool(mft_fixture and prefetch_fixture and evtx_fixture)
+    has_yara = bool(yara_rules_fixture and yara_scan_dir_fixture)
+    has_memory = bool(memory_fixtures)
+    has_injection = bool(injection_fixture)
+    has_linux = bool(linux_artifacts_fixture)
+    if (
+        not has_causality
+        and not has_yara
+        and not has_memory
+        and not has_injection
+        and not has_linux
+    ):
+        return None
+
+    expected = data.get("expected") or {}
+    malicious = expected.get("malicious_executables") or []
+    finding_counts = expected.get("finding_counts") or {}
+    fp_traps = expected.get("false_positive_traps") or []
+
+    return ScenarioExpectation(
+        name=data.get("name") or manifest_path.parent.name,
+        directory=manifest_path.parent,
+        malicious_executables=frozenset(str(m).lower() for m in malicious),
+        description=str(data.get("description") or "").strip(),
+        mft_fixture=str(mft_fixture) if mft_fixture else "",
+        prefetch_fixture=str(prefetch_fixture) if prefetch_fixture else "",
+        evtx_fixture=str(evtx_fixture) if evtx_fixture else "",
+        browser_history_fixture=(
+            str(browser_history_fixture) if browser_history_fixture else None
+        ),
+        shimcache_fixture=_optional_str(fixtures.get("shimcache")),
+        amcache_fixture=_optional_str(fixtures.get("amcache")),
+        bam_fixture=_optional_str(fixtures.get("bam")),
+        userassist_fixture=_optional_str(fixtures.get("userassist")),
+        run_keys_fixture=_optional_str(fixtures.get("run_keys")),
+        yara_rules_fixture=_optional_str(yara_rules_fixture),
+        yara_scan_dir_fixture=_optional_str(yara_scan_dir_fixture),
+        injection_fixture=_optional_str(injection_fixture),
+        linux_artifacts_fixture=_optional_str(linux_artifacts_fixture),
+        memory_fixtures=memory_fixtures,
+        finding_counts={k: int(v) for k, v in finding_counts.items()},
+        false_positive_traps=frozenset(str(t).lower() for t in fp_traps),
+    )
 
 
 def _optional_str(value: Any) -> Optional[str]:
@@ -250,45 +289,24 @@ def _run_yara_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
     return YaraDetector(scanner=scanner).analyze_directory(scan_dir)
 
 
-_MEMORY_FIXTURE_COERCERS = {
-    "windows_pslist": _to_process_row,
-    "windows_psscan": _to_process_row,
-    "windows_malfind": _to_injection_row,
-    "windows_cmdline": _to_cmdline_row,
-    "windows_netscan": _to_network_row,
-    "linux_bash": _to_bash_history_row,
-    "linux_pslist": _to_linux_process_row,
-    "linux_sockstat": _to_linux_network_row,
-}
-
-_MEMORY_FIXTURE_TO_ANALYZE_KWARG = {
-    "windows_pslist": "pslist",
-    "windows_psscan": "psscan",
-    "windows_malfind": "malfind",
-    "windows_cmdline": "cmdline",
-    "windows_netscan": "netscan",
-    "linux_bash": "linux_bash",
-    "linux_pslist": "linux_pslist",
-    "linux_sockstat": "linux_sockstat",
-}
-
-
 def _run_memory_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
     """Run MemoryDetector on the scenario's pre-parsed Volatility JSON fixtures.
 
     Each fixture file contains the raw row list Volatility 3's ``-r json``
-    renderer produces for one plugin. We coerce them into the runner's
-    typed dataclasses via the same ``_to_*_row`` helpers the live runner
-    uses, so a shape change in Volatility surfaces in one place.
+    renderer produces for one plugin. Coercion into the runner's typed
+    dataclasses is delegated to :func:`sift_find_evil.memory.analysis.coerce_streams`
+    — the SAME coercer map the connector adapter uses — so a Volatility shape
+    change surfaces in exactly one place. Only the coercers are shared, not path
+    resolution: unlike the connector's ``analyze_memory_dir`` (which globs
+    ``<plugin_key>.json`` in a directory), the harness honors the per-plugin
+    relative paths declared in each ``scenario.yaml``.
     """
     if not expectation.memory_fixtures:
         return []
     directory = expectation.directory
-    analyze_kwargs: dict[str, Any] = {}
+    raw_by_plugin: dict[str, list] = {}
     for plugin_key, fixture_rel in expectation.memory_fixtures.items():
-        coercer = _MEMORY_FIXTURE_COERCERS.get(plugin_key)
-        analyze_key = _MEMORY_FIXTURE_TO_ANALYZE_KWARG.get(plugin_key)
-        if coercer is None or analyze_key is None:
+        if plugin_key not in PLUGIN_COERCERS:
             continue
         fixture_path = directory / fixture_rel
         if not fixture_path.is_file():
@@ -297,10 +315,131 @@ def _run_memory_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
             raw_rows = json.load(handle)
         if not isinstance(raw_rows, list):
             continue
-        analyze_kwargs[analyze_key] = [coercer(row) for row in raw_rows]
+        raw_by_plugin[plugin_key] = raw_rows
+    analyze_kwargs = coerce_streams(raw_by_plugin)
     if not analyze_kwargs:
         return []
     return MemoryDetector().analyze(**analyze_kwargs)
+
+
+def _run_sigma_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
+    """Run the pinned Sigma corpus over the scenario's EVTX events.
+
+    Parses the scenario's EVTX fixture, flattens each entry to a Sigma event
+    (:func:`event_to_sigma`), and evaluates the committed ``rules/sigma`` corpus.
+    Returns ``[]`` when no EVTX fixture is declared or the corpus is empty, so
+    Sigma is opportunistic and never required. Findings carry no ``executable``
+    key, so they never enter the named-executable tp/fp/fn accounting; they are
+    scored only via the opt-in ``sigma_match`` finding_counts category.
+    """
+    if not expectation.evtx_fixture:
+        return []
+    fixture_path = expectation.directory / expectation.evtx_fixture
+    if not fixture_path.is_file():
+        return []
+    rules = load_sigma_corpus(_REPO_ROOT / "rules" / "sigma")
+    if not rules:
+        return []
+    events = [
+        event_to_sigma(entry) for entry in EventLogParser().parse_csv(fixture_path)
+    ]
+    return match_events(rules, events)
+
+
+def _run_injection_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
+    """Scan the scenario's injection fixture and emit a finding if it is hostile.
+
+    Evidence text can carry adversarial content crafted to manipulate an
+    automated analyst. ``scan_and_wrap`` sanitizes + sentinel-wraps it and
+    ``finding_from_scan`` promotes any detected attempt to a scoreable
+    ANTI_FORENSICS finding (counts-only; the raw payload is never re-emitted).
+    Returns ``[]`` when no injection fixture is declared or the text is clean.
+    """
+    if not expectation.injection_fixture:
+        return []
+    fixture_path = expectation.directory / expectation.injection_fixture
+    if not fixture_path.is_file():
+        return []
+    text = fixture_path.read_text(encoding="utf-8", errors="ignore")
+    finding = finding_from_scan(scan_and_wrap(text))
+    return [finding] if finding is not None else []
+
+
+def _run_linux_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
+    """Run the Linux detectors on the scenario's linux_artifacts fixture.
+
+    The fixture may be either a **directory** (a synthetic mounted-image root,
+    walked by the raw Linux parsers to produce the detector dict) or a JSON
+    **file** already shaped like the detector's contract (systemd_units,
+    cron_entries, ld_preload, sudoers, bashrc_entries, auth_events,
+    shell_history). ``LinuxPersistenceDetector``, ``LinuxAuthDetector``,
+    ``LinuxExecutionDetector``, ``LinuxLoginSessionDetector`` and
+    ``LinuxProcessDetector`` all consume the same collected dict. Returns
+    ``[]`` when no linux_artifacts fixture is declared.
+    """
+    from sift_find_evil.detectors import (
+        LinuxAuthDetector,
+        LinuxExecutionDetector,
+        LinuxLoginSessionDetector,
+        LinuxPersistenceDetector,
+        LinuxProcessDetector,
+    )
+
+    artifacts = _load_linux_artifacts(expectation)
+    if artifacts is None:
+        return []
+    findings = LinuxPersistenceDetector().analyze(artifacts)
+    findings.extend(LinuxAuthDetector().analyze(artifacts))
+    findings.extend(LinuxExecutionDetector().analyze(artifacts))
+    findings.extend(LinuxLoginSessionDetector().analyze(artifacts))
+    findings.extend(LinuxProcessDetector().analyze(artifacts))
+    return findings
+
+
+def _load_linux_artifacts(expectation: ScenarioExpectation) -> Optional[dict]:
+    """Load the scenario's linux_artifacts fixture into the detector dict.
+
+    Directory fixtures are walked by the raw Linux parsers; JSON fixtures are
+    already shaped like the detector contract. Returns ``None`` when no fixture
+    is declared or the path resolves to neither a directory nor a file.
+    """
+    if not expectation.linux_artifacts_fixture:
+        return None
+    fixture_path = expectation.directory / expectation.linux_artifacts_fixture
+    if fixture_path.is_dir():
+        from sift_find_evil.parsers import collect_linux_artifacts
+
+        return collect_linux_artifacts(fixture_path)
+    if fixture_path.is_file():
+        with fixture_path.open(encoding="utf-8") as handle:
+            return json.load(handle)
+    return None
+
+
+def _run_hidden_process_for_scenario(expectation: ScenarioExpectation) -> list[Finding]:
+    """Cross-source T1014 check: PID in the ``linux.pslist`` memory view but
+    absent from the ``/proc`` capture (a getdents-hook rootkit signal).
+
+    Needs BOTH a ``memory.linux_pslist`` fixture and a ``linux_artifacts`` /proc
+    capture; returns ``[]`` otherwise. Mirrors the two assembly points on the
+    shipping CLI path where ``--memory`` and ``--linux-artifacts`` coexist.
+    """
+    pslist_rel = expectation.memory_fixtures.get("linux_pslist")
+    if not pslist_rel:
+        return []
+    pslist_path = expectation.directory / pslist_rel
+    if not pslist_path.is_file():
+        return []
+    with pslist_path.open(encoding="utf-8") as handle:
+        raw_rows = json.load(handle)
+    if not isinstance(raw_rows, list):
+        return []
+    pslist_rows = coerce_streams({"linux_pslist": raw_rows}).get("linux_pslist")
+
+    artifacts = _load_linux_artifacts(expectation)
+    proc_rows = artifacts.get("proc_processes") if artifacts else None
+
+    return detect_hidden_linux_processes(proc_rows, pslist_rows)
 
 
 def _scenario_raw_evidence(directory: Path) -> str:
@@ -381,6 +520,21 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     memory_findings = _run_memory_for_scenario(expectation)
     findings.extend(memory_findings)
 
+    injection_findings = _run_injection_for_scenario(expectation)
+    findings.extend(injection_findings)
+
+    linux_findings = _run_linux_for_scenario(expectation)
+    findings.extend(linux_findings)
+
+    # Cross-source T1014: a PID in the linux.pslist memory view but absent from
+    # the /proc capture is hidden by a userland getdents hook. Needs both the
+    # memory pslist rows and the /proc rows, so it runs after both are loaded.
+    hidden_process_findings = _run_hidden_process_for_scenario(expectation)
+    findings.extend(hidden_process_findings)
+
+    sigma_findings = _run_sigma_for_scenario(expectation)
+    findings.extend(sigma_findings)
+
     detected = [f.evidence.get("executable", "").lower() for f in findings]
     expected = set(expectation.malicious_executables)
 
@@ -402,6 +556,11 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         tp.extend(["webmail_exfiltration"] * min(webmail_expected, len(matched)))
         missing = max(webmail_expected - len(matched), 0)
         fn.extend(["webmail_exfiltration"] * missing)
+        # Extras beyond the expected count are false positives, not free passes:
+        # the count block otherwise only ever adds tp/fn, so an over-emitting
+        # detector would mask a precision regression as precision=1.00.
+        extra = max(len(matched) - webmail_expected, 0)
+        fp.extend(["webmail_exfiltration"] * extra)
 
     cloud_expected = expectation.finding_counts.get("cloud_upload", 0)
     if cloud_expected:
@@ -414,6 +573,9 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         tp.extend(["cloud_upload"] * min(cloud_expected, len(matched)))
         missing = max(cloud_expected - len(matched), 0)
         fn.extend(["cloud_upload"] * missing)
+        # Extras beyond the expected count are false positives (see webmail).
+        extra = max(len(matched) - cloud_expected, 0)
+        fp.extend(["cloud_upload"] * extra)
 
     yara_expected = expectation.finding_counts.get("yara_match", 0)
     if yara_expected:
@@ -423,6 +585,9 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         tp.extend(["yara_match"] * min(yara_expected, len(matched)))
         missing = max(yara_expected - len(matched), 0)
         fn.extend(["yara_match"] * missing)
+        # Extras beyond the expected count are false positives (see webmail).
+        extra = max(len(matched) - yara_expected, 0)
+        fp.extend(["yara_match"] * extra)
 
     lateral_expected = expectation.finding_counts.get("lateral_movement", 0)
     if lateral_expected:
@@ -444,6 +609,110 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         extra = max(matched_count - memory_expected, 0)
         fp.extend(["memory_finding"] * extra)
 
+    injection_expected = expectation.finding_counts.get("injection_attempt", 0)
+    matched_count = len(injection_findings)
+    if injection_expected:
+        tp.extend(["injection_attempt"] * min(injection_expected, matched_count))
+        missing = max(injection_expected - matched_count, 0)
+        fn.extend(["injection_attempt"] * missing)
+        extra = max(matched_count - injection_expected, 0)
+        fp.extend(["injection_attempt"] * extra)
+    elif matched_count:
+        # An injection finding fired where none was expected: a false positive
+        # (e.g. a benign scenario whose text tripped the detector).
+        fp.extend(["injection_attempt"] * matched_count)
+
+    sigma_expected = expectation.finding_counts.get("sigma_match", 0)
+    sigma_matched = len(sigma_findings)
+    if sigma_expected:
+        tp.extend(["sigma_match"] * min(sigma_expected, sigma_matched))
+        missing = max(sigma_expected - sigma_matched, 0)
+        fn.extend(["sigma_match"] * missing)
+        extra = max(sigma_matched - sigma_expected, 0)
+        fp.extend(["sigma_match"] * extra)
+    elif sigma_matched:
+        # A Sigma rule fired where none was expected (e.g. the clean baseline):
+        # a false positive. This is the guard that keeps a mis-tuned rule from
+        # silently degrading precision - it must show up as an FP, not vanish.
+        fp.extend(["sigma_match"] * sigma_matched)
+
+    persistence_expected = expectation.finding_counts.get("persistence", 0)
+    if persistence_expected:
+        matched = [f for f in findings if f.category.value == "persistence"]
+        tp.extend(["persistence"] * min(persistence_expected, len(matched)))
+        missing = max(persistence_expected - len(matched), 0)
+        fn.extend(["persistence"] * missing)
+        # Extras beyond the expected count are false positives, not free passes:
+        # without this a detector that hallucinates persistence findings would
+        # score precision=1.00 (the count block otherwise only ever adds tp/fn).
+        extra = max(len(matched) - persistence_expected, 0)
+        fp.extend(["persistence"] * extra)
+
+    credential_expected = expectation.finding_counts.get("credential_access", 0)
+    if credential_expected:
+        matched = [f for f in findings if f.category.value == "credential_access"]
+        tp.extend(["credential_access"] * min(credential_expected, len(matched)))
+        missing = max(credential_expected - len(matched), 0)
+        fn.extend(["credential_access"] * missing)
+        # Extras beyond the expected count are false positives (see persistence).
+        extra = max(len(matched) - credential_expected, 0)
+        fp.extend(["credential_access"] * extra)
+
+    execution_expected = expectation.finding_counts.get("execution", 0)
+    if execution_expected:
+        matched = [f for f in findings if f.category.value == "execution"]
+        tp.extend(["execution"] * min(execution_expected, len(matched)))
+        missing = max(execution_expected - len(matched), 0)
+        fn.extend(["execution"] * missing)
+        # Extras beyond the expected count are false positives (see persistence).
+        extra = max(len(matched) - execution_expected, 0)
+        fp.extend(["execution"] * extra)
+
+    # Linux /proc hidden/suspicious-process surface (LinuxProcessDetector,
+    # SFE-4fnv.6). Matched by a ``proc``-only artifact source (proc present,
+    # memory absent) rather than by category, so it collides neither with the
+    # memory detector's own PROCESS_INJECTION findings (artifact_sources=
+    # ["memory"]) nor with the cross-source divergence finding below
+    # (artifact_sources=["memory", "proc"], SFE-6mqd) -- the memory-absent clause
+    # keeps the two keys mutually exclusive.
+    hidden_process_expected = expectation.finding_counts.get("hidden_process", 0)
+    if hidden_process_expected:
+        matched = [
+            f
+            for f in findings
+            if "proc" in (f.artifact_sources or [])
+            and "memory" not in (f.artifact_sources or [])
+        ]
+        tp.extend(["hidden_process"] * min(hidden_process_expected, len(matched)))
+        missing = max(hidden_process_expected - len(matched), 0)
+        fn.extend(["hidden_process"] * missing)
+        # Extras beyond the expected count are false positives (see persistence).
+        extra = max(len(matched) - hidden_process_expected, 0)
+        fp.extend(["hidden_process"] * extra)
+
+    # Cross-source hidden-process divergence (SFE-6mqd): a PID in the linux.pslist
+    # memory view but absent from the /proc capture (T1014 getdents hook). Matched
+    # by carrying BOTH the ``memory`` AND ``proc`` artifact sources, which uniquely
+    # selects the correlation finding: the /proc detector emits ``proc`` only and
+    # the memory detector emits ``memory`` only, so this never collides with the
+    # ``hidden_process`` key above or the ``memory_finding`` key.
+    divergence_expected = expectation.finding_counts.get("hidden_process_divergence", 0)
+    if divergence_expected:
+        matched = [
+            f
+            for f in findings
+            if "memory" in (f.artifact_sources or [])
+            and "proc" in (f.artifact_sources or [])
+        ]
+        tp.extend(
+            ["hidden_process_divergence"] * min(divergence_expected, len(matched))
+        )
+        missing = max(divergence_expected - len(matched), 0)
+        fn.extend(["hidden_process_divergence"] * missing)
+        # Extras beyond the expected count are false positives (see persistence).
+        extra = max(len(matched) - divergence_expected, 0)
+        fp.extend(["hidden_process_divergence"] * extra)
+
     avg_conf = sum(f.confidence for f in findings) / len(findings) if findings else 0.0
 
     # Execution-path convergence: harden this scenario's findings through the
@@ -455,15 +724,22 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
     image_sha256 = hashlib.sha256(
         str(expectation.directory.name).encode("utf-8")
     ).hexdigest()
-    # Raw evidence for INDEPENDENT anchor re-derivation: the concatenated text of
-    # the scenario's own fixture files (the bytes the detectors consumed). The
-    # adversarial falsifier re-derives a finding's asserted IP/PID against THIS,
-    # not the finding's narrative - so a hallucinated anchor is killed even if the
-    # finding's own reasoning cites it. Every finding maps to the same evidence
-    # blob (a per-finding split would need detector-level provenance we don't yet
-    # emit; the blob is still genuinely independent of any single finding's prose).
+    # Raw evidence for INDEPENDENT anchor re-derivation: the adversarial falsifier
+    # re-derives a finding's asserted IP/PID against the RAW tool output, not the
+    # finding's narrative - so a hallucinated anchor is killed even if the finding's
+    # own reasoning cites it.
+    #
+    # Per-finding PROVENANCE (SFE-fsno): when a finding carries a ``source_span``
+    # (the specific tool-output record it was derived from), re-derive against THAT
+    # span, not the whole-corpus blob. This upgrades the check from "anchor exists
+    # somewhere in the corpus" to "anchor exists in THIS finding's own source", so a
+    # real-but-MISATTRIBUTED anchor (a PID/IP that belongs to a different finding's
+    # record) is caught. Findings without a span fall back to the corpus blob, so
+    # un-instrumented detectors keep their existing (blob-wide) behavior unchanged.
     raw_evidence = _scenario_raw_evidence(expectation.directory)
-    evidence_texts = {f.title: raw_evidence for f in findings}
+    evidence_texts = {
+        f.title: (f.evidence.get("source_span") or raw_evidence) for f in findings
+    }
     hardening = harden_findings(
         findings,
         image_sha256=image_sha256,
@@ -481,6 +757,7 @@ def run_scenario(expectation: ScenarioExpectation) -> ScenarioResult:
         false_negatives=fn,
         average_confidence=avg_conf,
         hardening=hardening,
+        findings=findings,
     )
 
 
@@ -494,6 +771,31 @@ def aggregate(results: list[ScenarioResult]) -> dict[str, Any]:
     recall = tp / (tp + fn) if (tp + fn) else 1.0
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
 
+    # Cross-source correlation is a hardening overlay, not part of P/R/F1. Surface
+    # its totals so the report shows the capability is load-bearing on the real
+    # corpus (SFE-1fkn) rather than only exercised by a unit test.
+    correlations = sum(len(r.hardening.correlations) for r in results)
+    co_occurrences = sum(len(r.hardening.co_occurrences) for r in results)
+    # Entity-keyed cross-artifact corroboration overlay (SFE-fx8o), surfaced so
+    # the report shows it is load-bearing on the real corpus, not only unit-tested.
+    corroborations = sum(len(r.hardening.corroborations) for r in results)
+    # Sigma matches (SFE-katy), surfaced for the same reason: proof the wired
+    # Sigma corpus fires on the real corpus rather than only in unit tests.
+    sigma_matches = sum(
+        sum(1 for f in r.findings if "sigma_scan" in (f.artifact_sources or []))
+        for r in results
+    )
+    # Subject-risk band totals (SFE-dkfr): count scored subjects per band across
+    # the run, so the report shows the risk overlay discriminates on the real
+    # corpus (clean baseline scores no subjects; incident scenarios raise CRIT/
+    # HIGH) rather than only firing in unit tests.
+    band_totals = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for r in results:
+        for subject in r.hardening.subject_risk:
+            band = subject.get("band")
+            if band in band_totals:
+                band_totals[band] += 1
+
     return {
         "true_positives": tp,
         "false_positives": fp,
@@ -501,6 +803,14 @@ def aggregate(results: list[ScenarioResult]) -> dict[str, Any]:
         "precision": precision,
         "recall": recall,
         "f1": f1,
+        "cross_source_correlations": correlations,
+        "cross_source_co_occurrences": co_occurrences,
+        "cross_artifact_corroborations": corroborations,
+        "sigma_matches": sigma_matches,
+        "subjects_critical": band_totals["critical"],
+        "subjects_high": band_totals["high"],
+        "subjects_medium": band_totals["medium"],
+        "subjects_low": band_totals["low"],
     }
 
 
@@ -549,6 +859,22 @@ def main() -> None:
                         "recall": r.recall,
                         "f1": r.f1,
                         "average_confidence": r.average_confidence,
+                        "cross_source_correlations": len(r.hardening.correlations),
+                        "cross_source_co_occurrences": len(r.hardening.co_occurrences),
+                        # Highest-risk subject for this scenario (SFE-dkfr), or
+                        # None when nothing scored (e.g. a clean baseline). The
+                        # full list lives in the scenario's HardeningReport.
+                        "top_risk_subject": (
+                            r.hardening.subject_risk[0]
+                            if r.hardening.subject_risk
+                            else None
+                        ),
+                        # Receipts (SFE-cahy): count of publicly-verifiable
+                        # Ed25519 receipts and the Merkle root binding the set,
+                        # so the report shows public-key receipts are the
+                        # load-bearing default on the scored path.
+                        "signed_receipts": r.hardening.signed_receipts,
+                        "merkle_root": r.hardening.merkle_root,
                     }
                     for r in results
                 ],

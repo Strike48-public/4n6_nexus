@@ -1,0 +1,9 @@
+[
+  { "PID": 1,     "PPID": 0,    "COMM": "systemd",       "EUID": 0,    "CreationTime": "2026-05-01 08:00:00.000000 UTC" },
+  { "PID": 2,     "PPID": 0,    "COMM": "kthreadd",      "EUID": 0,    "CreationTime": "2026-05-01 08:00:00.000000 UTC" },
+  { "PID": 900,   "PPID": 1,    "COMM": "sshd",          "EUID": 0,    "CreationTime": "2026-05-01 08:00:05.000000 UTC" },
+  { "PID": 1200,  "PPID": 900,  "COMM": "bash",          "EUID": 1000, "CreationTime": "2026-05-01 08:15:00.000000 UTC" },
+  { "PID": 4444,  "PPID": 900,  "COMM": "httpd",         "EUID": 0,    "CreationTime": "2026-05-01 08:20:00.000000 UTC" },
+  { "PID": 6666,  "PPID": 2,    "COMM": "[kworker/1:0]", "EUID": 0,    "CreationTime": "2026-05-01 08:00:01.000000 UTC" },
+  { "PID": 31337, "PPID": 1200, "COMM": "kdevtmpfsi",    "EUID": 0,    "CreationTime": "2026-05-01 09:42:00.000000 UTC" }
+]

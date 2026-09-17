@@ -5,7 +5,6 @@ from .tools import (
     VolatilityTool,
     SleuthKitTool,
     EZToolsTool,
-    PlasoTool,
 )
 
 __all__ = [
@@ -13,5 +12,4 @@ __all__ = [
     "VolatilityTool",
     "SleuthKitTool",
     "EZToolsTool",
-    "PlasoTool",
 ]

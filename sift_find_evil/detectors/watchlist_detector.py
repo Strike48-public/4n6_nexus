@@ -227,6 +227,7 @@ class SuspiciousHostDetector:
                 f"{src_ip} accessed it {count} time(s) in the capture window.",
             ],
             artifact_sources=["pcap"],
+            techniques=["T1071.001"],  # Application Layer Protocol: Web Protocols
         )
 
 
@@ -342,6 +343,7 @@ class OffensivePackageInstallDetector:
                 f"Host(s): {', '.join(hosts)}",
             ],
             artifact_sources=["pcap"],
+            techniques=["T1105"],  # Ingress Tool Transfer (host downloads tooling)
         )
 
 
@@ -415,4 +417,5 @@ class CleartextProtocolDetector:
                 f"{len(pairs)} host pair(s).",
             ],
             artifact_sources=["pcap"],
+            techniques=["T1071"],  # Application Layer Protocol (cleartext)
         )

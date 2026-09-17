@@ -21,7 +21,7 @@
 
 ### Community Edition
 
-**License:** MIT (Open Source)
+**License:** MPL-2.0 (Open Source)
 **Price:** Free Forever
 **Target:** Individual analysts, researchers, students, security enthusiasts
 **Support:** Community (GitHub Issues, Discussions)
@@ -313,7 +313,7 @@
 
 ### Community Edition
 - **Price:** Free Forever
-- **Licensing:** MIT (permissive open source)
+- **Licensing:** MPL-2.0 (weak-copyleft open source)
 - **Support:** Community-driven (GitHub Issues, Discussions, Stack Overflow)
 - **Updates:** Open source development cadence (monthly releases)
 
@@ -364,7 +364,7 @@
 4. **Customer relationships** - Enterprise customers, training materials, playbooks
 
 ### Risk Mitigation:
-- **Forking risk:** Accepted (MIT license allows it), but enterprise features aren't available
+- **Forking risk:** Accepted (MPL-2.0 allows forks; modifications to covered files stay open source), but enterprise features aren't available
 - **Competitors copying:** Core concepts are publishable (self-correction), implementation quality and enterprise features differentiate
 - **Free riders:** Expected (community edition is generous), conversion to enterprise is key
 - **Support burden:** Community self-support (GitHub), enterprise gets priority support
@@ -408,7 +408,7 @@
 A: It's our key innovation for the competition. Publishing it builds credibility and trust. The real value is in advanced detectors + enterprise features.
 
 **Q: What if a competitor builds a commercial product on our Community Edition?**
-A: That's allowed (MIT license). Our advantage is advanced detectors, ongoing innovation, support, and enterprise features.
+A: That's allowed (MPL-2.0), but any modifications they make to covered files must stay open source. Our advantage is advanced detectors, ongoing innovation, support, and enterprise features.
 
 **Q: Can Community users contribute advanced detectors?**
 A: Yes, and we'll evaluate if they belong in Community or Enterprise tier. If Enterprise-level, we'll offer the contributor compensation or recognition.

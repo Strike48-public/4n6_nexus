@@ -202,6 +202,7 @@ class ExfilRatioDetector:
                 ),
             ],
             artifact_sources=["pcap"],
+            techniques=["T1048"],  # Exfiltration Over Alternative Protocol
         )
 
     @staticmethod

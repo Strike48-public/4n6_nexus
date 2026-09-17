@@ -1,0 +1,6 @@
+[Unit]
+Description=nginx
+
+[Service]
+ExecStartPre=/usr/sbin/nginx -t
+ExecStart=/usr/sbin/nginx -g 'daemon off;'

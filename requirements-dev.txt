@@ -21,3 +21,12 @@ cryptography>=42
 pyjwt>=2.8
 requests>=2.31
 websockets>=13.0
+
+# Cross-artifact entity correlation engine (correlation/sql_artifact.py, SFE-fx8o).
+# OPTIONAL at runtime: the module lazy-imports duckdb and no-ops when it is
+# absent, so the zero-dep core install still runs. Declared here so CI EXERCISES
+# the real DuckDB path instead of silently skipping it (mirrors scapy above).
+# Ships prebuilt manylinux wheels (no compiler). Major-version capped: the
+# aggregation uses list()/list_sort()/HAVING COUNT(DISTINCT ...) whose semantics
+# are stable within 1.x; a 2.0 could change them, so cap rather than float.
+duckdb>=1.1.0,<2

@@ -20,15 +20,17 @@ pydantic>=2.0.0
 # Model Context Protocol server (Custom MCP Server architecture lane). The agent
 # layer reaches forensic tools only through this server, where the architectural
 # guardrails (read-only allowlist, path containment, circuit breaker) are enforced.
-mcp>=1.14.0
+#
+# Upper-bounded below 2.0: mcp 2.0.0 renamed `FastMCP` -> `MCPServer` and dropped
+# the `mcp.server.fastmcp` import path this codebase uses (sift_find_evil/mcp/
+# server.py:431). The v1.x line (in maintenance mode per the SDK's v2 release
+# notes) keeps that path. Lifting this bound requires the v2 API migration, not a
+# version bump. Tracked: SFE-o2ey.
+mcp>=1.14.0,<2
 starlette>=0.27.0
 
-# Terminal UI and rich output
+# Rich terminal output
 rich>=13.0.0
-textual>=0.47.0
-
-# System resource monitoring (TUI progress tracking)
-psutil>=5.9.0
 
 # Data processing (detector analytics)
 pandas>=2.0.0

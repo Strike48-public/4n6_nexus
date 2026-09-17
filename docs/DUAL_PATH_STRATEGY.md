@@ -175,9 +175,6 @@ python -m sift_find_evil.cli case analyze \
   --case-id INC-2026-001 \
   --mft-file /evidence/image.E01 \
   --memory-file /evidence/memory.raw
-
-# TUI interface
-python -m sift_find_evil.tui_app
 ```
 
 ### What's Different

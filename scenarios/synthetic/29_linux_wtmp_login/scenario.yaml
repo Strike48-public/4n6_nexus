@@ -1,0 +1,51 @@
+name: 29_linux_wtmp_login
+tier: synthetic
+category: credential_access
+difficulty: intermediate
+description: >
+  Linux dead-disk valid-account login abuse scored off a RAW binary wtmp. The
+  linux_artifacts fixture is a synthetic mounted-image root; the wtmp/utmp
+  parser binary-decodes /var/log/wtmp (384-byte glibc utmp records) and the
+  collector assembles login_sessions, which LinuxLoginSessionDetector scans for
+  an interactive privileged login from an external address (T1078, Valid
+  Accounts). The wtmp holds one malicious session -- an interactive root login
+  from public IP 45.83.122.10 -- plus a BOOT_TIME pseudo-record and three benign
+  decoys that exercise both precision axes: a local console root login (no
+  source address), a remote non-root user (analyst) login from the same public
+  IP, and a remote root login from an RFC1918 private IP (10.10.0.5). Only the
+  external + privileged session may fire; any decoy that fires scores as a false
+  positive.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  linux_artifacts: root
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    credential_access: 1
+    total: 1
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Exercises the wtmp/utmp binary parser + LinuxLoginSessionDetector path
+  end-to-end (SFE-fjla), the Tranche-2 companion to 27_linux_auth_bruteforce
+  (auth.log brute-force, T1110.001) and 28_linux_history_execution. The two
+  credential_access surfaces dedupe: a (ip, user) pair the auth surface already
+  owns as a brute-force compromise is suppressed here (this scenario carries no
+  auth.log, so only the login-session finding fires).
+
+  RFC-5737 caveat: the malicious source IP is a genuine public address
+  (45.83.122.10), NOT a documentation range (192.0.2/198.51.100/203.0.113),
+  because Python's ipaddress classifies the doc ranges as non-global -- planting
+  one would make _is_external_ip return False and the scenario pass vacuously.
+
+  Fixture regeneration (root/var/log/wtmp, 5 x 384-byte utmp records, little
+  endian struct "<hxxi32s4s32s256shhiii4i20s"): BOOT_TIME(reboot); USER_PROCESS
+  root@tty1 no-addr; USER_PROCESS analyst@pts/0 45.83.122.10; USER_PROCESS
+  root@pts/1 10.10.0.5; USER_PROCESS root@pts/2 45.83.122.10. IPv4 stored in
+  ut_addr_v6[0] as network-order bytes (a0 = unpack("<I", ip.packed)[0]).

@@ -24,6 +24,7 @@ expected:
     - persist.exe
   finding_counts:
     causality_violation: 3
+    sigma_match: 4
     total: 3
   min_precision: 1.0
   min_recall: 1.0

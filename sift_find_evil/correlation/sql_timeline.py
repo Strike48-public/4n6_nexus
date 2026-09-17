@@ -6,10 +6,14 @@ forensic sources (mft/evtx/pcap/registry/memory). Two events correlate when
 they fall within ``window_seconds`` of each other, come from different sources,
 and share either an actor or a target.
 
-A CONTRADICTION is a special correlation: the SAME actor performing DIFFERENT
-event types inside an overlapping window. Contradictions are NEVER auto-resolved
-- they are surfaced with ``status='UNRESOLVED'`` for a downstream verifier
-(human or LLM) to adjudicate.
+A CO-OCCURRENCE is a special correlation: the SAME actor performing DIFFERENT
+event types inside an overlapping window. This detector cannot tell a genuine
+conflict (presence-vs-absence, mutually-exclusive states) from mutually
+REINFORCING behaviour -- on the real corpus the pair it surfaces (one injected
+process both rwx-injecting in memory AND beaconing to C2 in the pcap) is
+corroborating, the scenario's strongest signal, not a contradiction. So it is
+labelled honestly as ``relation='same_actor_multi_behavior'`` rather than an
+``UNRESOLVED`` conflict. Downstream consumers treat it as metadata only.
 
 Security posture: the built-in correlation uses only parameterized, static SQL.
 Any user- or LLM-supplied rule string must pass :func:`validate_rule_string`,
@@ -166,12 +170,17 @@ def correlate_timeline(
             "e1.target AS target, e1.type AS type, e1.raw AS raw, "
             "e2.ts AS ts2, e2.source AS source2, e2.actor AS actor2, "
             "e2.target AS target2, e2.type AS type2, e2.raw AS raw2, "
-            "CASE WHEN e1.actor = e2.actor THEN 'actor' ELSE 'target' END AS relation "
+            "CASE WHEN e1.actor = e2.actor AND e1.actor <> '' AND e1.actor IS NOT NULL "
+            "THEN 'actor' ELSE 'target' END AS relation "
             "FROM events e1 "
             "JOIN events e2 ON e1.rowid_ < e2.rowid_ "
             "WHERE e1.source <> e2.source "
             "AND abs((julianday(e1.ts) - julianday(e2.ts)) * 86400) <= ? "
-            "AND (e1.actor = e2.actor OR e1.target = e2.target) "
+            # A shared key only counts when it is non-empty/non-NULL: two events
+            # that both merely LACK an actor (or a target) must not correlate on
+            # the blank they share.
+            "AND ((e1.actor = e2.actor AND e1.actor <> '' AND e1.actor IS NOT NULL) "
+            "OR (e1.target = e2.target AND e1.target <> '' AND e1.target IS NOT NULL)) "
             "ORDER BY e1.rowid_, e2.rowid_"
         )
         cursor = conn.execute(query, (window_seconds,))
@@ -187,32 +196,35 @@ def correlate_timeline(
         conn.close()
 
 
-def find_contradictions(
+def find_co_occurrences(
     events: List[Dict[str, Any]],
     window_seconds: int = _DEFAULT_WINDOW_SECONDS,
 ) -> List[Dict[str, Any]]:
-    """Surface UNRESOLVED contradictions across sources.
+    """Surface same-actor multi-behavior CO-OCCURRENCES across sources.
 
-    A contradiction is the SAME actor with DIFFERENT event types across
-    different sources within the overlapping window. These are never
-    auto-resolved; each is tagged ``status='UNRESOLVED'`` so a downstream
-    verifier can adjudicate.
+    A co-occurrence is the SAME actor with DIFFERENT event types across
+    different sources within the overlapping window. This overlap is
+    corroborating by default (one actor exhibiting several behaviours at once),
+    NOT a conflict: the detector has no signal to distinguish a genuine
+    contradiction (presence-vs-absence, mutually-exclusive states) from mutually
+    reinforcing behaviour, so it is labelled ``relation='same_actor_multi_behavior'``
+    rather than an ``UNRESOLVED`` conflict (SFE-nh4h). Report metadata only.
 
     Args:
         events: Normalized event dicts (see :func:`correlate_timeline`).
         window_seconds: Maximum absolute time gap (seconds).
 
     Returns:
-        A list of dicts, each describing one contradiction with keys: actor,
-        type_a, type_b, source_a, source_b, ts_a, ts_b, status, and the raw
+        A list of dicts, each describing one co-occurrence with keys: actor,
+        type_a, type_b, source_a, source_b, ts_a, ts_b, relation, and the raw
         event pair under a/b.
     """
-    contradictions: List[Dict[str, Any]] = []
+    co_occurrences: List[Dict[str, Any]] = []
     for corr in correlate_timeline(events, window_seconds=window_seconds):
         same_actor = corr.a["actor"] is not None and corr.a["actor"] == corr.b["actor"]
         different_type = corr.a["type"] != corr.b["type"]
         if same_actor and different_type:
-            contradictions.append(
+            co_occurrences.append(
                 {
                     "actor": corr.a["actor"],
                     "type_a": corr.a["type"],
@@ -223,7 +235,7 @@ def find_contradictions(
                     "ts_b": corr.b["ts"],
                     "a": corr.a,
                     "b": corr.b,
-                    "status": "UNRESOLVED",
+                    "relation": "same_actor_multi_behavior",
                 }
             )
-    return contradictions
+    return co_occurrences

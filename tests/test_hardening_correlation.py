@@ -4,10 +4,11 @@ SQL cross-artifact + graph cross-host correlation existed with 100% coverage but
 were never invoked in an investigation. This wires SQL timeline correlation into
 the shared hardening pipeline: findings that carry timeline evidence
 (timestamp/source/actor) are correlated across sources, and same-actor
-different-type overlaps surface as UNRESOLVED contradictions in the report.
-Additive only - findings are never changed, so F1 is unaffected.
+different-type overlaps surface as same-actor multi-behavior CO-OCCURRENCES in
+the report (SFE-nh4h: corroborating, not conflicts). Additive only - findings
+are never changed, so F1 is unaffected.
 
-RED-first: HardeningReport had no correlation/contradiction fields.
+RED-first: HardeningReport had no correlation/co-occurrence fields.
 """
 
 from sift_find_evil.findings import Finding, FindingCategory
@@ -49,14 +50,16 @@ def test_cross_source_findings_correlate():
     assert report.correlations, "expected a cross-source correlation"
 
 
-def test_same_actor_different_type_surfaces_unresolved_contradiction():
+def test_same_actor_different_type_surfaces_co_occurrence():
     findings = [
         _f("a", "mft", "svc.exe", "2026-07-20T10:00:00", "created"),
         _f("b", "evtx", "svc.exe", "2026-07-20T10:00:01", "deleted"),
     ]
     report = harden_findings(findings, image_sha256=IMAGE, receipt_key=KEY)
-    assert report.contradictions, "expected an UNRESOLVED contradiction"
-    assert all(c.get("status") == "UNRESOLVED" for c in report.contradictions)
+    assert report.co_occurrences, "expected a same-actor multi-behavior co-occurrence"
+    assert all(
+        c.get("relation") == "same_actor_multi_behavior" for c in report.co_occurrences
+    )
 
 
 def test_findings_without_timeline_evidence_do_not_break_correlation():
@@ -73,7 +76,7 @@ def test_findings_without_timeline_evidence_do_not_break_correlation():
     )
     report = harden_findings([f], image_sha256=IMAGE, receipt_key=KEY)
     assert report.correlations == []
-    assert report.contradictions == []
+    assert report.co_occurrences == []
     # Hardening itself still happened (receipt minted).
     assert report.receipts_minted == 1
 
@@ -95,7 +98,7 @@ def test_finding_with_malformed_timeline_is_skipped():
     )
     report = harden_findings([bad], image_sha256=IMAGE, receipt_key=KEY)
     assert report.correlations == []
-    assert report.contradictions == []
+    assert report.co_occurrences == []
     assert report.receipts_minted == 1
 
 

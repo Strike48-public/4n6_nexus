@@ -6,8 +6,8 @@
 > guardrail bypass test. **Honesty is valued over perfection** - this report
 > documents what was measured, what is synthetic, and what is not yet wired.
 
-**See also:** [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) for the
-guardrail taxonomy, [PERFORMANCE_BENCHMARK.md](PERFORMANCE_BENCHMARK.md) for speed.
+**See also:** [ARCHITECTURE.md](ARCHITECTURE.md) for the
+guardrail model, [PERFORMANCE_BENCHMARK.md](PERFORMANCE_BENCHMARK.md) for speed.
 
 ## How to reproduce
 
@@ -52,9 +52,10 @@ Scenario harness run, all figures from the live run that writes
 16 scenarios, 62 true-positive findings, **0 false positives, 0 false
 negatives** (micro-averaged F1 = 1.00). The full unit + integration suite is
 **over 1,800 tests** (1,815 in the public Community tier, ~1,990 with the private
-Enterprise connector suite) at ~99% line coverage in both tiers. CI enforces a
-`--cov-fail-under=85` floor on every commit; a stricter `fail_under = 100` report
-gate also lives in `pyproject.toml`.
+Enterprise connector suite) at ~98-99% line coverage across tiers. The coverage
+floor is enforced by CI from a single source -- the `[tool.coverage.report]
+fail_under` value in `pyproject.toml` (currently 97.5, with `precision = 2`); CI
+passes no `--cov-fail-under`, so pytest-cov inherits that one value.
 
 ### Real evidence
 

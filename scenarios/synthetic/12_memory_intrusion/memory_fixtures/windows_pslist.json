@@ -19,5 +19,12 @@
     "ImageFileName": "svchost.exe",
     "CreateTime": "2026-04-22 10:05:10.000000 UTC",
     "ExitTime": null
+  },
+  {
+    "PID": 5580,
+    "PPID": 3120,
+    "ImageFileName": "powershell.exe",
+    "CreateTime": "2026-04-22 10:05:10.000000 UTC",
+    "ExitTime": null
   }
 ]

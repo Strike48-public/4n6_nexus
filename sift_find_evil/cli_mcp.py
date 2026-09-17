@@ -9,11 +9,46 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from .mcp.example_integration import MCPDetectionPipeline
 from .self_correction.engine import SelfCorrectionEngine
+
+
+def _derive_evidence_root(args) -> Path:
+    """Resolve the evidence root ToolGuard contains every tool call within.
+
+    A ``--windows-mount`` is itself the root. Otherwise the root is the common
+    ancestor of whichever individual evidence inputs were supplied, so a scatter
+    of ``--mft-file``/``--evtx-file`` paths under one tree still yields a single
+    containing directory (SFE-fibx.14). This must run AFTER windows-mount
+    auto-detection has populated the individual paths.
+    """
+    if args.windows_mount:
+        return Path(args.windows_mount).resolve()
+    inputs = [args.mft_file, args.prefetch_dir, args.evtx_file, args.memory_file]
+    paths = [str(Path(p).resolve()) for p in inputs if p]
+    # commonpath returns the common ancestor directory for multiple inputs, or
+    # the single path itself for one input -- both are valid containment roots
+    # (a lone file resolves relative-to itself). No existence check: the root
+    # need not exist yet, and an is_dir() fallback would wrongly broaden a
+    # not-yet-mounted ancestor up to its parent.
+    root = Path(os.path.commonpath(paths))
+    # Reject the degenerate case where inputs from different trees share only the
+    # filesystem root: containing to "/" makes input path-containment a no-op, so
+    # the guard would accept any path on the box. This is reachable from the CLI
+    # (e.g. --mft-file /home/.../x --evtx-file /tmp/y), so fail loudly and make
+    # the operator co-locate evidence or pass --windows-mount. A shallow but
+    # non-root common dir (e.g. /evidence) is operator-scoped and allowed.
+    if root == Path(root.anchor):
+        raise ValueError(
+            "Evidence inputs share no common directory (the derived root is the "
+            "filesystem root). ToolGuard containment would be a no-op. Place all "
+            "inputs under one case directory, or pass --windows-mount."
+        )
+    return root
 
 
 def cmd_analyze_live(args):
@@ -74,8 +109,11 @@ def cmd_analyze_live(args):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     audit_log = output_dir / "audit.jsonl"
+    evidence_root = _derive_evidence_root(args)
+    print(f"  Evidence root (ToolGuard containment): {evidence_root}")
     pipeline = MCPDetectionPipeline(
         case_id=args.case_id,
+        evidence_root=evidence_root,
         audit_log_path=audit_log,
         timeout_seconds=args.timeout,
     )
@@ -106,8 +144,21 @@ def cmd_analyze_live(args):
                 )
                 print(f"    Parsed {len(prefetch_entries)} Prefetch entries")
             except RuntimeError as e:
-                # Handle known Windows-only error gracefully
-                if "Non-Windows platforms" in str(e) or "PECmd" in str(e):
+                # Handle known Windows-only error gracefully.
+                #
+                # The platform gate (SFE-ybki) is what actually raises here now:
+                # before it existed, PECmd exited 0 while refusing to work, so
+                # nothing raised and this handler was dead code. Match its message
+                # case-insensitively -- the gate names the tool by its lowercase
+                # logical key ("pecmd"), which the case-sensitive "PECmd" test
+                # below would miss. The older substrings are kept for the case
+                # where PECmd itself does surface its own refusal text.
+                message = str(e)
+                if (
+                    "not supported on this platform" in message.lower()
+                    or "Non-Windows platforms" in message
+                    or "PECmd" in message
+                ):
                     print(f"    ⚠️  PECmd skipped (requires Windows): {str(e)[:100]}")
                     print("    Continuing analysis without Prefetch data...")
                 else:

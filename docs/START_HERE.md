@@ -2,7 +2,7 @@
 
 **Welcome to 4n6 Nexus** (submitted to SANS FIND EVIL! as *SIFT Find Evil*; code module `sift_find_evil`)**!**
 
-This repository contains **73 documentation files** organized for different audiences. This guide helps you find what you need quickly.
+This repository contains **53 tracked documentation files** organized for different audiences (competition-/session-era docs were retired to `docs/archive/` — see [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)). This guide helps you find what you need quickly.
 
 ---
 
@@ -26,7 +26,7 @@ graph TD
     
     USER --> U1[CLI_USAGE.md<br/>Command Reference]
     USER --> U2[EXAMPLES.md<br/>Real-World Cases]
-    USER --> U3[DATASETS.md<br/>Test Data]
+    USER --> U3[EVIDENCE_DATASETS.md<br/>Test Data]
     USER --> U4[DEPLOY_TO_SIFT.md<br/>Installation]
     
     DEV --> D1[CONTRIBUTING.md<br/>Dev Guide]
@@ -36,8 +36,8 @@ graph TD
     
     RESEARCH --> R1[SELF_CORRECTION.md<br/>Algorithm Details]
     RESEARCH --> R2[DETECTION_TAXONOMY.md<br/>Finding Categories]
-    RESEARCH --> R3[ADVERSARIAL_VALIDATOR_DESIGN.md<br/>Validation Logic]
-    RESEARCH --> R4[PRD.md<br/>Product Vision]
+    RESEARCH --> R3[PROOF_METHODOLOGY.md<br/>Validation Logic]
+    RESEARCH --> R4[PRD_MATRIX_INTEGRATION.md<br/>Product Vision]
     
     style START fill:#f9f,stroke:#333,stroke-width:4px
     style HACKATHON fill:#bfb,stroke:#333,stroke-width:2px
@@ -56,7 +56,12 @@ graph TD
 
 **Read in this order:**
 
-1. **[../README.md](../README.md)** (5 min)
+1. **[CAPABILITIES.md](CAPABILITIES.md)** (2 min)
+   - One-page map: what it does, how to drive each part, the 60-second tour
+   - The three independent offline verifiers (chain / receipts / verification)
+   - Where it stands on the hostile-audit scale (47/50, outright #1)
+
+2. **[../README.md](../README.md)** (5 min)
    - Detection accuracy table (F1=1.00)
    - Self-correction example
    - Architecture overview
@@ -79,7 +84,7 @@ graph TD
 **Key metrics to note:**
 - F1 Score: **1.00** (perfect precision and recall)
 - Scenarios: **16/16 passing** (62 true positives, 0 false positives/negatives)
-- Test coverage: **85%**
+- Test coverage: **~99%** (CI floor single-sourced in `pyproject.toml`)
 - Self-correction instances: **247** from real evidence
 
 ---
@@ -167,9 +172,9 @@ sift_find_evil/
 
 1. **[SELF_CORRECTION.md](SELF_CORRECTION.md)** - Self-correction algorithm detailed walkthrough
 2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and design patterns
-3. **[ADVERSARIAL_VALIDATOR_DESIGN.md](ADVERSARIAL_VALIDATOR_DESIGN.md)** - Validation logic
+3. **[PROOF_METHODOLOGY.md](PROOF_METHODOLOGY.md)** - Validation logic
 4. **[DETECTION_TAXONOMY.md](DETECTION_TAXONOMY.md)** - Finding categorization system
-5. **[PRD.md](PRD.md)** - Product vision and requirements
+5. **[PRD_MATRIX_INTEGRATION.md](PRD_MATRIX_INTEGRATION.md)** - Product vision and requirements
 
 **Algorithm details:**
 
@@ -211,7 +216,7 @@ sift_find_evil/
 |----------|-------------|
 | [CLI_USAGE.md](CLI_USAGE.md) | Command-line interface reference |
 | [EXAMPLES.md](EXAMPLES.md) | Real-world case walkthroughs (M57 Jean, etc.) |
-| [DATASETS.md](DATASETS.md) | Test datasets and evidence sources |
+| [EVIDENCE_DATASETS.md](EVIDENCE_DATASETS.md) | Test datasets and evidence sources |
 | [../DEPLOY_TO_SIFT.md](../DEPLOY_TO_SIFT.md) | SIFT Workstation deployment guide |
 | [../INSTALL_SIFT.md](../INSTALL_SIFT.md) | SIFT installation instructions |
 
@@ -222,7 +227,7 @@ sift_find_evil/
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, coding standards, PR workflow |
 | [../BATCH_TESTING.md](../BATCH_TESTING.md) | Systematic testing approach |
 | [../REGRESSION_TESTING.md](../REGRESSION_TESTING.md) | Regression testing setup |
-| [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Complete documentation map (all 73 files) |
+| [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Complete documentation map (53 live + archived) |
 
 ### Technical Deep Dives
 
@@ -230,7 +235,7 @@ sift_find_evil/
 |----------|-------------|
 | [SELF_CORRECTION.md](SELF_CORRECTION.md) | Self-correction algorithm details |
 | [DETECTION_TAXONOMY.md](DETECTION_TAXONOMY.md) | Finding categories and taxonomy |
-| [ADVERSARIAL_VALIDATOR_DESIGN.md](ADVERSARIAL_VALIDATOR_DESIGN.md) | Validation logic and bypass testing |
+| [PROOF_METHODOLOGY.md](PROOF_METHODOLOGY.md) | Validation logic and bypass testing |
 | [ERROR_HANDLING_ARCHITECTURE.md](ERROR_HANDLING_ARCHITECTURE.md) | Error handling system design |
 
 ### Integration Guides
@@ -244,9 +249,8 @@ sift_find_evil/
 
 | Document | Description |
 |----------|-------------|
-| [PRD.md](PRD.md) | Product Requirements Document |
+| [PRD_MATRIX_INTEGRATION.md](PRD_MATRIX_INTEGRATION.md) | Product Requirements Document (connector integration) |
 | [OPEN_SOURCE_STRATEGY.md](OPEN_SOURCE_STRATEGY.md) | Open source approach |
-| [DEVELOPMENT_TIMELINE.md](DEVELOPMENT_TIMELINE.md) | Phase-by-phase progress |
 | [enterprise/](enterprise/) | Community/Enterprise split planning (6 docs) |
 
 ### Demo & Submission
@@ -281,7 +285,7 @@ The repository includes detailed planning for splitting into Community (open sou
 
 ## Complete Documentation Index
 
-For a **complete list of all 73 documentation files**, see:
+For a **complete list of the documentation files** (live + archived), see:
 
 **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Comprehensive documentation map
 
@@ -323,7 +327,7 @@ sift_find_evil/
 ├── BATCH_TESTING.md             ← Testing approach
 ├── REGRESSION_TESTING.md        ← Regression testing
 │
-├── docs/                        ← All documentation (73 files)
+├── docs/                        ← All documentation (53 live, +archive/)
 │   ├── START_HERE.md            ← You are here!
 │   ├── DOCUMENTATION_INDEX.md   ← Complete docs map
 │   ├── ARCHITECTURE.md          ← System design
@@ -373,7 +377,7 @@ sift_find_evil/
 - **Judge?** [../README.md](../README.md) → [ACCURACY_REPORT.md](ACCURACY_REPORT.md) → [ARCHITECTURE.md](ARCHITECTURE.md)
 - **User?** [../README.md](../README.md) → [CLI_USAGE.md](CLI_USAGE.md) → [EXAMPLES.md](EXAMPLES.md)
 - **Developer?** [CONTRIBUTING.md](CONTRIBUTING.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [BATCH_TESTING.md](../BATCH_TESTING.md)
-- **Researcher?** [SELF_CORRECTION.md](SELF_CORRECTION.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [PRD.md](PRD.md)
+- **Researcher?** [SELF_CORRECTION.md](SELF_CORRECTION.md) → [ARCHITECTURE.md](ARCHITECTURE.md) → [PRD_MATRIX_INTEGRATION.md](PRD_MATRIX_INTEGRATION.md)
 
 ### "How accurate is this tool?"
 
@@ -393,7 +397,7 @@ Yes! See [CONTRIBUTING.md](CONTRIBUTING.md) - Development setup, coding standard
 
 ### "What's the roadmap?"
 
-See [PRD.md](PRD.md) and [../README.md](../README.md) - Roadmap section (v1.0 complete, v2.0 planned, v3.0 future).
+See [PRD_MATRIX_INTEGRATION.md](PRD_MATRIX_INTEGRATION.md) and [../README.md](../README.md) - Roadmap section (v1.0 complete, v2.0 planned, v3.0 future).
 
 ### "Where are the test results?"
 

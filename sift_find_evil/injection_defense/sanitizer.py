@@ -25,6 +25,10 @@ from hashlib import sha256
 from typing import Dict, List, Optional
 
 from sift_find_evil.findings import Finding, FindingCategory
+from sift_find_evil.injection_defense.confusables import (
+    fold_confusables,
+    has_confusables,
+)
 
 # Invisible / bidirectional / zero-width codepoints stripped in step 1.
 _INVISIBLE_CODEPOINTS = (
@@ -122,15 +126,70 @@ def detect_injection(text: str) -> List[Dict[str, object]]:
     # Neutralization operates on invisible-stripped text so hidden reordering
     # cannot hide a live token from the role-token matcher.
     stripped = _INVISIBLE_RE.sub("", text)
-    role_count = sum(len(pattern.findall(stripped)) for pattern in _ROLE_TOKEN_PATTERNS)
-    if role_count:
-        metas.append({"type": "role-token", "count": role_count})
+    raw_role_count = sum(
+        len(pattern.findall(stripped)) for pattern in _ROLE_TOKEN_PATTERNS
+    )
+    if raw_role_count:
+        metas.append({"type": "role-token", "count": raw_role_count})
+
+    # Trojan-Source confusables: fold homoglyphs (Cyrillic/Greek/fullwidth look-
+    # alikes) to their ASCII skeleton and re-match. A role token that appears ONLY
+    # after folding was disguised - report the delta as a distinct 'confusable'
+    # indicator. Folding is a detection lens here; the output rewrite in
+    # scan_and_wrap only touches text where folding reveals a token, so benign
+    # non-Latin evidence (no revealed token) is never corrupted.
+    if has_confusables(stripped):
+        folded = fold_confusables(stripped)
+        folded_role_count = sum(
+            len(pattern.findall(folded)) for pattern in _ROLE_TOKEN_PATTERNS
+        )
+        revealed = folded_role_count - raw_role_count
+        if revealed > 0:
+            metas.append({"type": "confusable", "count": revealed})
 
     close_count = len(_SENTINEL_CLOSE_ATTEMPT_RE.findall(stripped))
     if close_count:
         metas.append({"type": "sentinel-close", "count": close_count})
 
     return metas
+
+
+def _fold_role_token_spans(text: str) -> str:
+    """Fold confusables ONLY inside role-token spans that folding reveals.
+
+    ``fold_confusables`` is length-preserving (one codepoint -> one char), so a
+    role-token match found on the fully-folded text occupies the SAME index range
+    in ``text``. We therefore rebuild ``text`` with only those revealed spans
+    replaced by their folded form, and every other character (benign confusables
+    included) copied verbatim. This surgically defangs a homoglyph-disguised
+    control token without transliterating the surrounding evidence.
+
+    Args:
+        text: Invisible-stripped evidence text (never mutated).
+
+    Returns:
+        ``text`` with only revealed role-token spans folded to ASCII; identical to
+        ``text`` when folding reveals no new token.
+    """
+    folded = fold_confusables(text)
+    if folded == text:
+        return text  # nothing folded at all
+
+    # Collect the index ranges of role tokens visible only AFTER folding. A span
+    # already matching in the raw text needs no folding (it is caught in step 2).
+    reveal_spans: List[tuple[int, int]] = []
+    for pattern in _ROLE_TOKEN_PATTERNS:
+        for match in pattern.finditer(folded):
+            span = match.span()
+            if not pattern.search(text[span[0] : span[1]]):
+                reveal_spans.append(span)
+    if not reveal_spans:
+        return text  # confusables present, but none formed a hidden token
+
+    chars = list(text)
+    for start, end in reveal_spans:
+        chars[start:end] = folded[start:end]
+    return "".join(chars)
 
 
 def scan_and_wrap(text: str, session_nonce: Optional[str] = None) -> ScanResult:
@@ -149,6 +208,14 @@ def scan_and_wrap(text: str, session_nonce: Optional[str] = None) -> ScanResult:
 
     # Step 1: strip invisibles first.
     cleaned = _INVISIBLE_RE.sub("", text)
+
+    # Step 1b: Trojan-Source confusable disguise (e.g. Cyrillic "ѕуѕtem:"). Fold
+    # ONLY the characters inside a role-token span that folding reveals, leaving
+    # every other character - including benign confusables elsewhere in the same
+    # evidence string - byte-for-byte unchanged. We defang the disguised token; we
+    # do NOT transliterate the surrounding evidence.
+    if has_confusables(cleaned):
+        cleaned = _fold_role_token_spans(cleaned)
 
     # Step 2: neutralize role / system injection tokens.
     for pattern in _ROLE_TOKEN_PATTERNS:
@@ -182,6 +249,25 @@ def finding_from_scan(result: ScanResult) -> Optional[Finding]:
     total = sum(int(meta["count"]) for meta in result.findings_meta)
     types = sorted(str(meta["type"]) for meta in result.findings_meta)
 
+    # Build the reasoning chain from what ACTUALLY fired, so the finding never
+    # claims a defense step (e.g. confusable folding) that this input did not
+    # trigger - a counts-only finding must not overstate the work done.
+    reasoning_chain = [
+        f"Detected {total} injection indicator(s) across types: {', '.join(types)}.",
+        "Invisible/BIDI codepoints were stripped before token neutralization.",
+    ]
+    if "confusable" in types:
+        reasoning_chain.append(
+            "Confusable/homoglyph disguises were folded to ASCII so a role token "
+            "written with look-alike characters could not evade the matcher."
+        )
+    reasoning_chain.extend(
+        [
+            "Role/system tokens were replaced with inert markers.",
+            "Content was wrapped in a nonce-keyed untrusted-evidence sentinel.",
+        ]
+    )
+
     return Finding(
         title="Prompt-injection attempt in evidence",
         description=(
@@ -195,11 +281,6 @@ def finding_from_scan(result: ScanResult) -> Optional[Finding]:
         evidence={"indicator_counts": result.findings_meta, "total_indicators": total},
         confidence=0.9,
         confidence_label="High",
-        reasoning_chain=[
-            f"Detected {total} injection indicator(s) across types: {', '.join(types)}.",
-            "Invisible/BIDI codepoints were stripped before token neutralization.",
-            "Role/system tokens were replaced with inert markers.",
-            "Content was wrapped in a nonce-keyed untrusted-evidence sentinel.",
-        ],
+        reasoning_chain=reasoning_chain,
         artifact_sources=["injection_defense.sanitizer"],
     )

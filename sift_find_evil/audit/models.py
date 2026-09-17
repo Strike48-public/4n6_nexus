@@ -197,6 +197,12 @@ class FindingEmitted:
     source_tool_invocations: list[str] = field(default_factory=list)
     source_message_id: Optional[str] = None
     artifact_refs: list[dict] = field(default_factory=list)
+    # Per-finding content receipt (SFE-ec5x): a SHA-256 over the finding's
+    # content + the tool outputs it cites + the evidence image sha (see
+    # judge_cache.finding_receipt). Binds the logged finding to exactly the bytes
+    # that produced it, so a post-hoc edit to the finding breaks the receipt.
+    # Optional so tool-only / legacy callers are unaffected.
+    content_receipt: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -208,6 +214,7 @@ class FindingEmitted:
             "source_message_id": self.source_message_id,
             "source_tool_invocations": self.source_tool_invocations,
             "artifact_refs": self.artifact_refs,
+            "content_receipt": self.content_receipt,
         }
 
     @classmethod
@@ -221,6 +228,7 @@ class FindingEmitted:
             source_tool_invocations=data.get("source_tool_invocations", []),
             source_message_id=data.get("source_message_id"),
             artifact_refs=data.get("artifact_refs", []),
+            content_receipt=data.get("content_receipt"),
         )
 
 

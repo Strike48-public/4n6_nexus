@@ -1,0 +1,37 @@
+name: 26_linux_intrusion_raw
+tier: synthetic
+category: persistence
+difficulty: intermediate
+description: >
+  Linux dead-disk intrusion scored off RAW artifacts (not a pre-shaped JSON
+  bundle). The linux_artifacts fixture is a synthetic mounted-image root that
+  the raw Linux parsers walk and the collector assembles into the detector
+  contract. All five persistence surfaces carry one malicious entry plus benign
+  decoys (a legit nginx unit, a benign @reboot/@daily user crontab, a logrotate
+  cron.daily script, a %wheel + NOPASSWD:/usr/bin/systemctl sudoers pair, and
+  benign shell inits) so precision is exercised, not assumed: a decoy that fires
+  scores as an extra -> false positive.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  linux_artifacts: root
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    persistence: 5
+    total: 5
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Exercises the raw-parser + collector path end-to-end (SFE-4fnv -> SFE-tvkd),
+  complementing 25_linux_persistence which feeds the SAME detector from a
+  pre-shaped JSON bundle. Malicious hits: systemd reverse shell (T1543.002),
+  cron curl|sh (T1053.003), /tmp ld.so.preload object (T1574.006),
+  NOPASSWD:ALL to a non-system principal (T1548.003), and a .bashrc reverse
+  shell (T1546.004). No Windows artifacts, so it runs through the has_linux
+  gate.

@@ -1,0 +1,25 @@
+{
+  "7791fe82a96440da8d8def7658c78ef7e377034353f364f60d4ebe2319e98cbd": {
+    "prompt_hash": "0e53c90db029a7e493a7b0300b6ec9211c31e5558f5232af857a026b1ecfb298",
+    "step": {
+      "grounded_in": [
+        "MFT",
+        "Prefetch"
+      ],
+      "rationale": "The finding shows a causality violation where the MFT modification time (10:45:00) is 15 minutes after the Prefetch execution time (10:30:00), suggesting the file's $STANDARD_INFORMATION timestamps were backdated after execution; comparing against the immutable $FILE_NAME attribute will reveal the manipulation.",
+      "source": "live",
+      "summary": "Extract and compare $STANDARD_INFORMATION and $FILE_NAME timestamps from the MFT entry for C:\\Users\\victim\\Downloads\\ransom_note.exe to identify which timestamp attribute was manipulated."
+    }
+  },
+  "b06a8eec7ae2ff858d76d465ad134d6be4faf81bc9cb3da7bc86cdd57ea78cb2": {
+    "prompt_hash": "0e53c90db029a7e493a7b0300b6ec9211c31e5558f5232af857a026b1ecfb298",
+    "step": {
+      "grounded_in": [
+        "EventLog"
+      ],
+      "rationale": "The finding confirms data_exfil.exe executed (EventLog evidence) but lacks Prefetch artifacts despite MFT creation timestamp, suggesting deliberate Prefetch suppression rather than natural absence; EventLog may contain service control events, policy changes, or registry modifications that disabled the Prefetch mechanism before or during execution.",
+      "source": "live",
+      "summary": "Query the EventLog for Prefetch service state changes, GPO modifications, or registry edits targeting Superfetch/Prefetch between 2025-03-15T13:00:00Z and the present to determine if Prefetch was administratively disabled."
+    }
+  }
+}

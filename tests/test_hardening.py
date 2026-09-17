@@ -59,6 +59,40 @@ def test_every_finding_gets_a_verifiable_receipt():
     assert verify_receipt(item["finding"], item["receipt"], key=KEY) is True
 
 
+def test_coverage_is_empty_by_default_f1_safe():
+    # No supplied_classes -> no coverage claim, so the F1 harness (which passes
+    # none) is untouched. An empty dict, not a vacuous "no gaps" pass.
+    report = harden_findings([_finding()], image_sha256=IMAGE, receipt_key=KEY)
+    assert report.coverage == {}
+
+
+def test_coverage_flags_supplied_but_uncited_class():
+    # A disk finding cites 'disk'; 'registry' was supplied but no finding cites
+    # it -> a blind spot the coverage audit must surface.
+    findings = [_finding(sources=["MFT"])]
+    report = harden_findings(
+        findings,
+        image_sha256=IMAGE,
+        receipt_key=KEY,
+        supplied_classes={"disk", "registry"},
+    )
+    assert "registry" in report.coverage["uncited"]
+    assert "disk" not in report.coverage["uncited"]
+
+
+def test_coverage_does_not_change_finding_count():
+    # Coverage is a read-only overlay: supplying classes must not add/drop findings.
+    findings = [_finding(title="a.exe"), _finding(title="b.exe")]
+    report = harden_findings(
+        findings,
+        image_sha256=IMAGE,
+        receipt_key=KEY,
+        supplied_classes={"disk"},
+    )
+    assert report.finding_count == 2
+    assert len(report.hardened) == 2
+
+
 def test_hardening_does_not_change_which_executables_are_detected():
     # The invariant that protects F1: hardening must not add/drop/rename findings.
     findings = [_finding(title="a.exe"), _finding(title="b.exe")]

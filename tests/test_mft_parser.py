@@ -446,3 +446,48 @@ def test_get_recently_modified(parser: MFTParser) -> None:
     result = parser.get_recently_modified(entries, within_hours=24)
     assert len(result) == 1
     assert result[0].file_name == "recent.txt"
+
+
+def test_mftentry_uses_slots_no_instance_dict(sample_entry: MFTEntry) -> None:
+    """MFTEntry is slotted, so millions of resident entries don't each carry a
+    per-instance ``__dict__`` (SFE-s0nb bounded-ingestion win).
+
+    This is the crisp, non-flaky guard for the ``slots=True`` optimization -- the
+    memory benchmark's per-entry ceiling only catches gross bloat, not the ~5%
+    slots delta. Mutation check: dropping ``slots=True`` from the dataclass gives
+    entries a ``__dict__`` and makes arbitrary attributes settable, turning both
+    assertions below red.
+    """
+    assert not hasattr(sample_entry, "__dict__"), (
+        "MFTEntry grew a per-instance __dict__ -- slots=True was dropped, "
+        "inflating the resident footprint of every parsed entry"
+    )
+    # A slotted instance rejects undeclared attributes; a __dict__-backed one
+    # would silently accept this, so the raise is the positive proof of slots.
+    with pytest.raises(AttributeError):
+        sample_entry.some_undeclared_attribute = 1  # type: ignore[attr-defined]
+
+
+def test_mftentry_post_init_still_builds_file_path_under_slots(
+    sample_entry: MFTEntry,
+) -> None:
+    """``__post_init__`` sets ``file_path`` (a declared field) -- confirm slots
+    didn't break that write path, since a stray non-field write would raise."""
+    entry = MFTEntry(
+        entry_number=1,
+        file_name="evil.exe",
+        parent_path=r"C:\Temp",
+        file_path="",  # rebuilt in __post_init__ from parent_path + file_name
+        file_size=10,
+        is_directory=False,
+        in_use=True,
+        si_created=None,
+        si_modified=None,
+        si_accessed=None,
+        si_mft_modified=None,
+        fn_created=None,
+        fn_modified=None,
+        fn_accessed=None,
+        fn_mft_modified=None,
+    )
+    assert entry.file_path == r"C:\Temp\evil.exe"

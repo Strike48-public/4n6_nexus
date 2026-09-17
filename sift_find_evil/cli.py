@@ -6,7 +6,9 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +28,8 @@ from .detectors import (
     RegistryDetector,
 )
 from .detectors.webmail_exfil_detector import MFTAccessRecord
+from .correlation.hidden_process import detect_hidden_linux_processes
+from .findings.negatives import credential_dump_negative
 from .parsers.lnk_jumplist_parser import JumpListParser, LnkParser
 from .parsers.registry_parser import RegistryParser
 from .scenario_runner import ScenarioLoadError, run_scenario_path
@@ -35,6 +39,7 @@ from .approval.manager import APPROVAL_HMAC_KEY_ENV
 from .audit import AuditLogger
 from .case import CaseManager
 from .reporting import ReportFormat, ReportGenerator
+from .reporting.retractions import render_retraction_section
 
 try:
     from .detectors.yara_detector import YaraDetector
@@ -62,8 +67,14 @@ def print_section(title: str):
 
 
 def print_finding(finding, index: int, validation_status: Optional[str] = None):
-    """Print a finding in a readable format."""
-    print(f"\n[Finding {index}] {finding.title}")
+    """Print a finding in a readable format.
+
+    Evidence-derived strings (title, description, contradiction text, reasoning
+    steps, evidence values) are adversary-controlled, so each is routed through
+    ``_terminal_safe`` before printing - a crafted artifact cannot inject ANSI
+    escapes or control chars into the examiner's terminal.
+    """
+    print(f"\n[Finding {index}] {_terminal_safe(finding.title)}")
     print(f"  Severity: {finding.severity.upper()}")
     print(f"  Category: {finding.category.value}")
     print(f"  Confidence: {finding.confidence:.2f} ({finding.confidence_label})")
@@ -73,7 +84,7 @@ def print_finding(finding, index: int, validation_status: Optional[str] = None):
     print()
 
     print("  Description:")
-    for line in finding.description.split("\n"):
+    for line in _terminal_safe(finding.description).split("\n"):
         print(f"    {line}")
     print()
 
@@ -84,24 +95,24 @@ def print_finding(finding, index: int, validation_status: Optional[str] = None):
                 f"    {i}. {contradiction.type.value} ({contradiction.severity.value})"
             )
             print(f"       Impact: {contradiction.confidence_impact:.2f}")
-            print(f"       {contradiction.description}")
+            print(f"       {_terminal_safe(contradiction.description)}")
         print()
 
     if finding.resolutions:
         print(f"  Resolutions Applied: {len(finding.resolutions)}")
         for i, resolution in enumerate(finding.resolutions, 1):
-            print(f"    {i}. {resolution.resolution_method}")
+            print(f"    {i}. {_terminal_safe(resolution.resolution_method)}")
             print(f"       Recovery: +{resolution.confidence_recovery:.2f}")
         print()
 
     print("  Reasoning Chain:")
     for i, step in enumerate(finding.reasoning_chain, 1):
-        print(f"    {i}. {step}")
+        print(f"    {i}. {_terminal_safe(step)}")
     print()
 
     print("  Evidence:")
     for key, value in finding.evidence.items():
-        print(f"    - {key}: {value}")
+        print(f"    - {_terminal_safe(key)}: {_terminal_safe(value)}")
     print()
 
 
@@ -113,6 +124,7 @@ def analyze_artifacts(
     verbose: bool = False,
     pst_path: Optional[Path] = None,
     image_path: Optional[Path] = None,
+    mft_entries: Optional[list] = None,
 ) -> list:
     """Analyze forensic artifacts and detect contradictions.
 
@@ -122,6 +134,12 @@ def analyze_artifacts(
         evtx_path: Path to Event Log CSV file
         output_json: Optional path to write JSON output
         verbose: Print verbose output
+        mft_entries: Pre-parsed MFT entries. When supplied, the MFT CSV is NOT
+            re-parsed here -- a caller that already parsed it (e.g. for network
+            correlation) passes the list to avoid a second full parse of the
+            largest artifact on a big image (SFE-fibx.8). When None (the default),
+            the MFT is parsed from ``mft_path`` as before, so every existing caller
+            is unchanged.
 
     Returns:
         List of findings
@@ -134,11 +152,16 @@ def analyze_artifacts(
     prefetch_parser = PrefetchParser()
     evtx_parser = EventLogParser()
 
-    if verbose:
-        print(f"  Loading MFT entries from: {mft_path}")
-    mft_entries = mft_parser.parse_csv(mft_path)
-    if verbose:
-        print(f"    Loaded {len(mft_entries)} MFT entries")
+    if mft_entries is None:
+        if verbose:
+            print(f"  Loading MFT entries from: {mft_path}")
+        mft_entries = mft_parser.parse_csv(mft_path)
+        if verbose:
+            print(f"    Loaded {len(mft_entries)} MFT entries")
+    elif verbose:
+        # Reusing a caller-parsed list: report the reuse rather than a bare
+        # "Loaded N" with no preceding "Loading from:" line.
+        print(f"    Reusing {len(mft_entries)} pre-parsed MFT entries")
 
     if verbose:
         print(f"  Loading Prefetch entries from: {prefetch_path}")
@@ -228,9 +251,15 @@ def analyze_artifacts(
 
 
 def _write_output(findings: list, output_path: Optional[Path]) -> None:
-    """Serialize findings to JSON with approval workflow support."""
+    """Serialize findings to JSON with approval workflow support.
+
+    Central write backstop: refuses any output path resolving into an evidence
+    directory (so every ``_write_output`` caller - analyze, demo - is guarded,
+    not just the ones that check up front).
+    """
     if output_path is None:
         return
+    _guard_output_path(output_path)
 
     # Wrap findings in FindingWithApproval objects (DRAFT status by default)
     findings_with_approval = []
@@ -253,6 +282,370 @@ def _write_output(findings: list, output_path: Optional[Path]) -> None:
     }
     with open(output_path, "w") as fh:
         json.dump(payload, fh, indent=2, default=str)
+
+
+# Evidence directories are read-only by policy (project CLAUDE.md): the engine
+# must never write findings/reports back into the tree it is analyzing. Output
+# routes to ./analysis, ./exports, ./reports, or an explicit non-evidence path.
+_EVIDENCE_ROOTS = ("/cases", "/mnt", "/media")
+
+
+def _resolves_into_evidence_dir(path: Path) -> bool:
+    """True iff ``path`` resolves into a read-only evidence directory.
+
+    Resolves symlinks and relative components FIRST (``Path.resolve``), so a
+    symlink whose target lands in an evidence dir is caught - a path-string check
+    alone would miss it. Matches an absolute evidence root (`/cases`, `/mnt`,
+    `/media`) or any ``evidence`` path component. ``strict=False`` so a
+    not-yet-created output file still resolves against its real parent.
+    """
+    resolved = path.resolve()
+    for root in _EVIDENCE_ROOTS:
+        try:
+            if resolved.is_relative_to(root):
+                return True
+        except ValueError:  # pragma: no cover - is_relative_to never raises here
+            pass
+    return any(part == "evidence" for part in resolved.parts)
+
+
+def _guard_output_path(output_path: Path) -> None:
+    """Exit(1) if an output path would write into a read-only evidence dir.
+
+    Central guard for every CLI write target (the findings ``--output`` and the
+    derived ``.hardened.json`` sibling), so evidence integrity cannot be
+    violated by an operator pointing output at the evidence tree.
+    """
+    if _resolves_into_evidence_dir(output_path):
+        print(
+            f"Error: refusing to write into an evidence directory: {output_path}\n"
+            "Evidence is read-only. Route --output to ./analysis, ./exports, or "
+            "./reports (or another non-evidence path).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+# Matches ANSI/VT escape sequences (CSI, OSC, and bare ESC-prefixed) so a crafted
+# evidence string cannot drive the examiner's terminal (clear screen, recolor,
+# move cursor) when a finding is printed.
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[@-Z\\-_]|\x1b.")
+
+
+def _terminal_safe(value: object) -> str:
+    """Render ``value`` for stdout with ANSI escapes and C0 control chars removed.
+
+    Evidence content (registry values, command lines, file paths) is
+    adversary-controlled; printing it verbatim lets a crafted artifact emit
+    terminal control sequences. This strips ESC-based sequences and C0 control
+    characters, preserving only ``\\t`` and ``\\n`` (legitimate layout). Ordinary
+    text is returned unchanged. Non-str inputs are coerced via ``str`` first.
+    """
+    text = str(value)
+    text = _ANSI_ESCAPE_RE.sub("", text)
+    return "".join(c for c in text if c in "\t\n" or ord(c) >= 0x20)
+
+
+def _evidence_image_digest(evidence_paths: list) -> str:
+    """SHA-256 binding receipts to this run's real evidence artifacts.
+
+    Hashes, in sorted-path order, each present artifact's basename AND full
+    streamed contents - so two runs over the same CSVs get the SAME 64-hex
+    digest (receipts stay reproducible across machines, since only the basename,
+    not the absolute path, enters the hash), and any byte change flips it.
+
+    Like the orchestrator's ``_evidence_digest`` this is a CONTENT hash (both
+    stream every byte), but it differs deliberately in the path component: the
+    orchestrator walks a directory tree and hashes each file's path RELATIVE to
+    the root, whereas this takes a flat list of explicit artifact paths from
+    argparse and hashes only the basename. The trade-off: two distinct files
+    with the SAME basename passed as different artifacts (e.g.
+    ``--mft /a/x.csv --prefetch /b/x.csv``) would not be disambiguated by the
+    path component - but each file's full contents still enter the digest, so any
+    byte difference still produces a different image and tampering is still
+    caught. Basename-only keeps the digest stable regardless of where the
+    operator stored the evidence.
+    """
+    digest = hashlib.sha256()
+    for path in sorted(Path(p) for p in evidence_paths if p):
+        if not path.is_file():
+            continue
+        digest.update(path.name.encode("utf-8"))
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _harden_report(
+    findings: list,
+    evidence_paths: list,
+    tool: str = "engine",
+    supplied_classes: set | None = None,
+) -> dict:
+    """Route real-evidence findings through the shared custody chain.
+
+    Reuses the scored path's ``hardening.harden_findings`` so a real MFT/EVTX
+    run produces the full productionization chain - per-finding Ed25519 receipts
+    plus a set-level Merkle anchor - that the standalone offline verifier
+    (``tools/verify_receipts.py``) re-checks with no engine imports. The report
+    is ``HardeningReport.to_dict()`` verbatim, the exact shape the verifier
+    consumes (SFE-13yw).
+
+    Signing follows the engine default: with ``cryptography`` present every
+    finding gets a publicly-verifiable Ed25519 receipt (an ephemeral per-run key
+    unless ``$SFE_RECEIPT_ED25519_KEY`` pins one for provenance); absent it, the
+    pipeline degrades to HMAC-only (no signed receipt, no anchor). We do NOT
+    expose a "don't sign" toggle: ``harden_findings`` mints an ephemeral key
+    whenever crypto is available regardless, so such a flag would be a lie.
+
+    Hardening is ADDITIVE: ``harden_findings`` never mutates or drops a finding,
+    so detection output (and thus F1) is unchanged - the receipts are an overlay.
+
+    Args:
+        findings: The Finding objects the detectors produced.
+        evidence_paths: The artifact files this run consumed; hashed into the
+            image digest every receipt and the anchor are bound to.
+        tool: Provenance label recorded in each receipt.
+
+    Returns:
+        The hardening report as a JSON-serializable dict.
+    """
+    from .hardening import harden_findings
+
+    image_sha256 = _evidence_image_digest(evidence_paths)
+    receipt_key = hashlib.sha256(image_sha256.encode("utf-8")).digest()
+    report = harden_findings(
+        findings,
+        image_sha256=image_sha256,
+        receipt_key=receipt_key,
+        tool=tool,
+        supplied_classes=supplied_classes,
+    )
+    return report.to_dict()
+
+
+# argparse dests whose values are evidence-file paths bound into the receipt
+# image digest when --harden runs. Kept in one place so a new --<artifact> flag
+# is hardened simply by listing its dest here.
+_EVIDENCE_PATH_ARGS = (
+    "mft",
+    "prefetch",
+    "evtx",
+    "pst",
+    "image",
+    "pcap",
+    "browser_history",
+    "shimcache",
+    "amcache",
+    "bam",
+    "userassist",
+    "run_keys",
+    "lnk",
+    "jumplist",
+    "memory",
+    "yara_scan",
+    "linux_artifacts",
+)
+
+
+# CLI evidence-flag dest -> coarse coverage class (coverage.harden_coverage
+# COARSE_CLASSES). Drives the harden-path coverage audit: the union of the coarse
+# classes for every flag actually supplied this run is the "what we parsed" set
+# the audit diffs against what the findings cite. A dest not listed here (e.g. a
+# non-evidence flag) contributes no class.
+_ARG_TO_COVERAGE_CLASS: dict[str, str] = {
+    "mft": "disk",
+    "prefetch": "disk",
+    "evtx": "disk",
+    "image": "disk",
+    "pst": "pst",
+    "pcap": "network",
+    "browser_history": "network",
+    "shimcache": "registry",
+    "amcache": "registry",
+    "bam": "registry",
+    "userassist": "registry",
+    "run_keys": "registry",
+    "lnk": "lnk_jumplist",
+    "jumplist": "lnk_jumplist",
+    "memory": "memory",
+    "yara_scan": "yara",
+    "linux_artifacts": "linux",
+}
+
+
+def _supplied_coverage_classes(args) -> set:
+    """The coarse coverage classes whose evidence was supplied on this run.
+
+    Reads the same argparse dests the receipt image digest binds, mapping each
+    supplied evidence flag to its coarse class. Only flags actually provided
+    contribute, so the set is exactly "what this run parsed".
+    """
+    return {
+        cls for dest, cls in _ARG_TO_COVERAGE_CLASS.items() if getattr(args, dest, None)
+    }
+
+
+def _hardened_report_path(output_path: Path) -> Path:
+    """Sibling path for the hardening report next to the findings --output.
+
+    ``findings.json`` -> ``findings.hardened.json``. The draft approval-workflow
+    findings file stays as-is; the verifiable hardening report lands alongside it.
+    """
+    return output_path.with_name(f"{output_path.stem}.hardened.json")
+
+
+# Exit code for a non-PASS report-blocking gate (SFE-fibx.5 PR-D). Distinct from
+# the exit-1 used for input/setup errors so automation can tell "the gate blocked
+# a written report" apart from "the run could not start".
+_GATE_EXIT_CODE = 2
+
+
+def _exit_on_gate(verdict: Optional[str]) -> None:
+    """Exit non-zero when the report-blocking gate did not PASS.
+
+    Called AFTER all output is written (the report ships regardless -- degrade,
+    not refuse); this only sets the process exit status so CI/automation treats a
+    BLOCKED / NEEDS_HUMAN verdict as a hard gate. A None verdict (no --harden) or
+    PASS is a no-op.
+    """
+    if verdict in (None, "PASS"):
+        return
+    print(
+        f"\n  Report-blocking gate: {verdict} "
+        f"(report written; exiting {_GATE_EXIT_CODE}).",
+        file=sys.stderr,
+    )
+    sys.exit(_GATE_EXIT_CODE)
+
+
+def _maybe_write_hardened(args, findings: list) -> Optional[str]:
+    """Emit a verifiable hardening report when --harden is set.
+
+    Collects every evidence path actually provided on this run (so the receipt
+    image digest binds the real artifacts), hardens the findings, and writes the
+    report next to --output. No-op unless --harden was passed; requires --output
+    (validated by the caller upstream).
+
+    Returns the report-blocking gate verdict (PASS / NEEDS_HUMAN / BLOCKED) so the
+    caller can set a non-zero exit code on a non-PASS, or None when --harden was
+    not requested (nothing to gate).
+    """
+    if not getattr(args, "harden", False):
+        return None
+    output = Path(args.output)
+    evidence_paths = [
+        getattr(args, name) for name in _EVIDENCE_PATH_ARGS if getattr(args, name, None)
+    ]
+    report = _harden_report(
+        findings,
+        evidence_paths=evidence_paths,
+        supplied_classes=_supplied_coverage_classes(args),
+    )
+    hardened_path = _hardened_report_path(output)
+    with hardened_path.open("w", encoding="utf-8") as fh:
+        json.dump(report, fh, indent=2, default=str)
+    print_section("Custody Chain")
+    signed = sum(1 for h in report["hardened"] if h.get("signed_receipt"))
+    print(f"  Hardened report:   {hardened_path}")
+    print(f"  Findings:          {report['finding_count']}")
+    print(f"  Ed25519 receipts:  {signed}")
+    print(f"  Merkle anchor:     {'yes' if report.get('anchor') else 'no (HMAC-only)'}")
+    # Self-correction visibility (SFE-fibx.1): surface how many candidates the
+    # verifier retracted, and write the human-readable retraction trail beside the
+    # JSON so the engine's self-correction is legible, not buried in the report.
+    ledger = report.get("hypothesis_ledger") or {}
+    retractions = ledger.get("self_correction_count", 0)
+    print(f"  Retractions:       {retractions}")
+    hardened_stem = hardened_path.stem  # "<name>.hardened"
+    retraction_md = hardened_path.with_name(f"{hardened_stem}.retractions.md")
+    _guard_output_path(retraction_md)
+    retraction_md.write_text(render_retraction_section(ledger), encoding="utf-8")
+    print(f"  Self-correction:   {retraction_md}")
+    # Coverage audit (SFE-fibx.5 PR-B): surface blind spots (parsed-but-uncited)
+    # and not-examined important classes so a reader never mistakes an unexamined
+    # class for a clean result.
+    coverage = report.get("coverage") or {}
+    uncited = coverage.get("uncited") or []
+    not_examined = coverage.get("not_examined") or []
+    if uncited:
+        print(
+            f"  Uncited evidence:  {', '.join(uncited)} (parsed, no finding cited it)"
+        )
+    if not_examined:
+        print(f"  Not examined:      {', '.join(not_examined)} (evidence not supplied)")
+    print(f"  Verify offline:    python3 tools/verify_receipts.py {hardened_path}")
+    # Report-blocking gate (SFE-fibx.5 PR-D): stamp the composed verdict + reasons.
+    # The report is already written above (degrade, not refuse); the caller turns a
+    # non-PASS verdict into a non-zero exit so automation treats it as a hard gate.
+    gate = report.get("gate") or {}
+    verdict = gate.get("verdict", "PASS")
+    print(f"  Gate verdict:      {verdict}")
+    for reason in gate.get("reasons", []):
+        print(f"    - {reason}")
+    # Advisories (e.g. coverage gaps) are flagged but never change the exit code.
+    for advisory in gate.get("advisories", []):
+        print(f"  Advisory:          {advisory}")
+    return verdict
+
+
+# Interop export kinds -> the sibling-file suffix each writes next to --output.
+# stix/ocsf are JSON; wazuh additionally emits a .wazuh-rules.xml rule stanza.
+_EXPORT_SUFFIX = {"stix": "stix.json", "ocsf": "ocsf.json", "wazuh": "wazuh.json"}
+
+
+def _export_path(output_path: Path, suffix: str) -> Path:
+    """Sibling path for an interop export next to the findings --output.
+
+    ``findings.json`` + ``stix.json`` -> ``findings.stix.json``. Mirrors
+    :func:`_hardened_report_path` so every derived write shares one naming rule.
+    """
+    return output_path.with_name(f"{output_path.stem}.{suffix}")
+
+
+def _maybe_write_export(args, findings: list) -> None:
+    """Emit a STIX/OCSF/Wazuh export when --export is set.
+
+    No-op unless --export was passed; requires --output (validated by the caller
+    upstream). Every write target is routed through :func:`_guard_output_path`,
+    so an export can never land in a read-only evidence directory.
+    """
+    kind = getattr(args, "export", None)
+    if not kind:
+        return
+    # Imported lazily so the core CLI does not pay the interop import cost on
+    # every run (and a missing optional dep can't break `analyze` without --export).
+    from .interop import build_stix_bundle, ocsf_export, wazuh_export
+
+    output = Path(args.output)
+    export_path = _export_path(output, _EXPORT_SUFFIX[kind])
+    _guard_output_path(export_path)
+
+    print_section("Standards Export")
+    if kind == "stix":
+        payload = build_stix_bundle(findings)
+        with export_path.open("w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, default=str)
+        print(f"  STIX 2.1 bundle:   {export_path}")
+        print(f"  Objects:           {len(payload['objects'])}")
+    elif kind == "ocsf":
+        payload = ocsf_export(findings)
+        with export_path.open("w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, default=str)
+        print(f"  OCSF findings:     {export_path}")
+        print(f"  Detection events:  {len(payload)}")
+    else:  # wazuh
+        export = wazuh_export(findings)
+        with export_path.open("w", encoding="utf-8") as fh:
+            for alert in export.alerts:
+                fh.write(json.dumps(alert, default=str) + "\n")
+        rules_path = _export_path(output, "wazuh-rules.xml")
+        _guard_output_path(rules_path)
+        rules_path.write_text(export.rules_xml, encoding="utf-8")
+        print(f"  Wazuh alerts:      {export_path}")
+        print(f"  Wazuh rules:       {rules_path}")
+        print(f"  Alerts:            {len(export.alerts)}")
 
 
 def _render_findings(findings: list, validation_reports: Optional[dict] = None) -> None:
@@ -475,12 +868,17 @@ def _run_yara_detector(
 def _run_memory_detector(
     memory_path: Optional[Path],
     verbose: bool,
+    raw_out: Optional[dict] = None,
 ) -> list:
     """Run Volatility 3 + MemoryDetector against a memory dump.
 
     Exits non-zero (same contract as ``--yara-rules`` / ``--nsrl-bloom``) when
     the operator asked for memory analysis but Volatility 3 or the image is
     missing. Silent fallback would let CI declare success on a malformed run.
+
+    ``raw_out``: optional sink. When provided, the raw ``linux.pslist`` rows are
+    stashed under ``raw_out["linux_pslist"]`` so the caller can run the
+    hidden-process cross-check (SFE-6mqd) WITHOUT re-running Volatility.
     """
     if memory_path is None:
         return []
@@ -553,6 +951,9 @@ def _run_memory_detector(
         elif name == "linux.sockstat":
             linux_sockstat = rows
 
+    if raw_out is not None:
+        raw_out["linux_pslist"] = linux_pslist
+
     findings = MemoryDetector().analyze(
         pslist=pslist,
         psscan=psscan,
@@ -588,6 +989,125 @@ def _run_memory_detector(
 
     if verbose:
         print(f"  Detected {len(findings)} memory finding(s)")
+    return findings
+
+
+def _run_linux_persistence_detector(
+    linux_artifacts_path: Optional[Path],
+    verbose: bool,
+    raw_out: Optional[dict] = None,
+) -> list:
+    """Load Linux artifacts and run the Linux detectors.
+
+    Accepts two input shapes at ``linux_artifacts_path``:
+
+    * a **directory** -- treated as a mounted image root (or live-response
+      bundle) and walked by the per-artifact parsers (SFE-4fnv) to PRODUCE the
+      detector dict from raw ``.service`` units, crontabs, ``sudoers``,
+      ``/etc/ld.so.preload``, shell-init files, the auth log and shell history;
+    * a **file** -- a JSON object already matching the detector dict contract
+      (``systemd_units``/``cron_entries``/``ld_preload``/``sudoers``/
+      ``bashrc_entries``/``auth_events``/``shell_history``/``login_sessions``/
+      ``proc_processes``); missing keys are treated as empty.
+
+    ``LinuxPersistenceDetector``, ``LinuxAuthDetector`` (SFE-rfhz),
+    ``LinuxExecutionDetector`` (SFE-jdii), ``LinuxLoginSessionDetector`` (wtmp)
+    and ``LinuxProcessDetector`` (/proc) all run over the same collected dict.
+    Exits non-zero on a missing or malformed bundle -- the same fail-loud
+    contract as --memory/--yara, so a bad input never silently degrades to an
+    empty run.
+    """
+    if linux_artifacts_path is None:
+        return []
+
+    if verbose:
+        print_section("Running Linux Detectors")
+        print(f"  Artifacts: {linux_artifacts_path}")
+
+    if linux_artifacts_path.is_dir():
+        from .parsers import collect_linux_artifacts
+
+        artifacts = collect_linux_artifacts(linux_artifacts_path)
+    else:
+        try:
+            with linux_artifacts_path.open("r", encoding="utf-8") as handle:
+                artifacts = json.load(handle)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(
+                f"Error: could not read --linux-artifacts bundle "
+                f"{linux_artifacts_path}: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if not isinstance(artifacts, dict):
+            print(
+                "Error: --linux-artifacts bundle must be a JSON object with keys like "
+                "systemd_units/cron_entries/ld_preload/sudoers/bashrc_entries/"
+                "auth_events/shell_history",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    # Stash the /proc capture rows for the hidden-process cross-check (SFE-6mqd)
+    # so the caller need not re-walk the mounted root.
+    if raw_out is not None and isinstance(artifacts, dict):
+        raw_out["proc_processes"] = artifacts.get("proc_processes")
+
+    return _analyze_linux_artifacts(artifacts)
+
+
+def _analyze_linux_artifacts(artifacts: dict) -> list:
+    """Run every Linux detector over one collected artifact dict.
+
+    Mirrors the scenario harness' ``_run_linux_persistence`` detector list
+    exactly (SFE-jsuq): the harness scored ``LinuxLoginSessionDetector`` (wtmp)
+    and ``LinuxProcessDetector`` (/proc, SFE-t9vq) but the shipping CLI path
+    historically ran only the first three, so those two surfaces were
+    scored-but-not-shipped. Both consume keys the collector already produces
+    (``login_sessions``/``proc_processes``), so this is pure parity, no new input.
+    """
+    from .detectors import (
+        LinuxArtifactDetector,
+        LinuxAuthDetector,
+        LinuxExecutionDetector,
+        LinuxLoginSessionDetector,
+        LinuxPersistenceDetector,
+        LinuxProcessDetector,
+    )
+
+    detectors: list[LinuxArtifactDetector] = [
+        LinuxPersistenceDetector(),
+        LinuxAuthDetector(),
+        LinuxExecutionDetector(),
+        LinuxLoginSessionDetector(),
+        LinuxProcessDetector(),
+    ]
+    findings: list = []
+    for detector in detectors:
+        findings.extend(detector.analyze(artifacts))
+    return findings
+
+
+def _run_hidden_process_correlation(
+    memory_raw: Optional[dict],
+    linux_raw: Optional[dict],
+    verbose: bool,
+) -> list:
+    """Cross-source T1014: a PID in the ``linux.pslist`` memory view but absent
+    from the ``/proc`` capture is hidden by a userland getdents hook (SFE-6mqd).
+
+    Consumes the raw rows already captured during the ``--memory`` and
+    ``--linux-artifacts`` passes (no re-run of Volatility, no re-walk of the
+    mounted root). Returns ``[]`` unless BOTH a ``linux.pslist`` view and a
+    ``/proc`` capture were supplied.
+    """
+    proc_rows = (linux_raw or {}).get("proc_processes")
+    pslist_rows = (memory_raw or {}).get("linux_pslist")
+    findings = detect_hidden_linux_processes(proc_rows, pslist_rows)
+    if verbose and findings:
+        print_section("Cross-Source Hidden-Process Check")
+        print(f"  Detected {len(findings)} hidden-process divergence(s)")
     return findings
 
 
@@ -630,9 +1150,76 @@ def _run_lnk_jumplist_detector(
     return findings
 
 
+def _evtx_command_text(evtx_path: Optional[Path]) -> Optional[str]:
+    """Concatenate Event Log 4688 command lines for negative re-verification.
+
+    Returns the newline-joined command lines the run's 4688 events carry, or None
+    when no Event Log was supplied (nothing to re-read). Re-parses with the same
+    ``EventLogParser`` the analysis used, mirroring how ``_run_network_detector``
+    re-reads the MFT -- the parse is cheap and keeps this helper self-contained.
+    """
+    if evtx_path is None:
+        return None
+    entries = EventLogParser().parse_csv(str(evtx_path), filter_event_ids=[4688])
+    lines = [e.get_command_line() for e in entries]
+    return "\n".join(line for line in lines if line)
+
+
+def _append_proven_negatives(
+    findings: list, evtx_path: Optional[Path], evtx_source: Optional[str]
+) -> list:
+    """Append mechanically-verified proven negatives to the finding list.
+
+    Surfaces the "[NEGATIVE] tool ran and found zero X" claims the demo path
+    already emits, now on the shipping ``analyze`` path (SFE-fibx.5 PR-C). Scope:
+    the credential-dumping negative over the 4688 command lines -- the one domain
+    the CLI reliably has re-readable output + a citation for. Only a negative that
+    INDEPENDENTLY re-verifies PROVEN is appended (see ``credential_dump_negative``).
+
+    Read-only over ``findings`` (returns a new list); negatives carry no
+    ``evidence['executable']`` key, so they never enter F1 tp/fp/fn accounting.
+    """
+    text = _evtx_command_text(evtx_path)
+    if text is None:
+        return list(findings)
+    fired = {getattr(f, "category", None) for f in findings}
+    negative = credential_dump_negative(
+        evtx_command_text=text,
+        fired_categories=fired,
+        tool_call_id=evtx_source or "",
+    )
+    result = list(findings)
+    if negative is not None:
+        result.append(negative)
+        print(f"  [NEGATIVE] {negative.title}")
+    return result
+
+
 def cmd_analyze(args):
     """Handle analyze command."""
     print_banner()
+
+    if getattr(args, "harden", False) and not getattr(args, "output", None):
+        print(
+            "Error: --harden requires --output (the hardening report is written "
+            "next to it as <output>.hardened.json)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if getattr(args, "export", None) and not getattr(args, "output", None):
+        print(
+            "Error: --export requires --output (the export is written next to it "
+            "as <output>.<format>.json)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Evidence is read-only: refuse any output path that resolves into an
+    # evidence directory (covers both the findings --output and its derived
+    # .hardened.json sibling). Guards symlinks too (resolve() first).
+    if getattr(args, "output", None):
+        _guard_output_path(Path(args.output))
 
     image_path: Optional[Path] = (
         Path(args.image) if getattr(args, "image", None) else None
@@ -686,6 +1273,17 @@ def cmd_analyze(args):
     if yara_scan_path is not None and not yara_scan_path.exists():
         print(f"Error: --yara-scan target not found: {yara_scan_path}", file=sys.stderr)
         sys.exit(1)
+    linux_artifacts_path: Optional[Path] = (
+        Path(args.linux_artifacts) if getattr(args, "linux_artifacts", None) else None
+    )
+    if linux_artifacts_path is not None and not linux_artifacts_path.exists():
+        print(
+            f"Error: --linux-artifacts path not found "
+            f"(expected a JSON bundle file or a mounted-root directory): "
+            f"{linux_artifacts_path}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     nsrl_db_path: Optional[Path] = (
         Path(args.nsrl_db) if getattr(args, "nsrl_db", None) else None
     )
@@ -718,6 +1316,7 @@ def cmd_analyze(args):
     has_lnk_jumplist = lnk_path is not None or jumplist_path is not None
     has_memory = memory_path is not None
     has_yara = yara_rules_path is not None and yara_scan_path is not None
+    has_linux = linux_artifacts_path is not None
 
     if (
         image_path is None
@@ -728,6 +1327,7 @@ def cmd_analyze(args):
         and not has_lnk_jumplist
         and not has_memory
         and not has_yara
+        and not has_linux
     ):
         print(
             "Error: provide --image and/or --pst and/or all of --mft/--prefetch/--evtx "
@@ -735,7 +1335,8 @@ def cmd_analyze(args):
             "--shimcache/--amcache/--bam/--userassist/--run-keys "
             "and/or --lnk/--jumplist "
             "and/or --memory "
-            "and/or --yara-rules/--yara-scan",
+            "and/or --yara-rules/--yara-scan "
+            "and/or --linux-artifacts",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -827,14 +1428,29 @@ def cmd_analyze(args):
             findings = list(findings) + _run_lnk_jumplist_detector(
                 lnk_path, jumplist_path, verbose=True
             )
+        memory_raw: dict = {}
+        linux_raw: dict = {}
         if has_memory:
-            findings = list(findings) + _run_memory_detector(memory_path, verbose=True)
+            findings = list(findings) + _run_memory_detector(
+                memory_path, verbose=True, raw_out=memory_raw
+            )
         if has_yara:
             findings = list(findings) + _run_yara_detector(
                 yara_rules_path, yara_scan_path, verbose=True
             )
+        if has_linux:
+            findings = list(findings) + _run_linux_persistence_detector(
+                linux_artifacts_path, verbose=True, raw_out=linux_raw
+            )
+        if has_memory and has_linux:
+            findings = list(findings) + _run_hidden_process_correlation(
+                memory_raw, linux_raw, verbose=True
+            )
         _write_output(findings, Path(args.output) if args.output else None)
+        gate_verdict = _maybe_write_hardened(args, findings)
+        _maybe_write_export(args, findings)
         _render_findings(findings)
+        _exit_on_gate(gate_verdict)
         return
 
     # Validate artifact paths
@@ -852,6 +1468,11 @@ def cmd_analyze(args):
         print(f"Error: Event Log file not found: {evtx_path}", file=sys.stderr)
         sys.exit(1)
 
+    # Parse the MFT once up front only when the network surface also needs it, and
+    # thread it into analyze_artifacts so the largest artifact is not parsed twice
+    # (SFE-fibx.8). Without --network the engine parses it internally as before.
+    mft_entries_for_network = MFTParser().parse_csv(mft_path) if has_network else None
+
     # Analyze
     findings = analyze_artifacts(
         mft_path,
@@ -861,13 +1482,13 @@ def cmd_analyze(args):
         verbose=True,
         pst_path=pst_path,
         image_path=image_path,
+        mft_entries=mft_entries_for_network,
     )
 
     if disk_finding is not None:
         findings = [disk_finding] + list(findings)
 
     if has_network:
-        mft_entries_for_network = MFTParser().parse_csv(mft_path)
         findings = list(findings) + _run_network_detector(
             browser_history_path,
             pcap_path,
@@ -890,12 +1511,26 @@ def cmd_analyze(args):
             lnk_path, jumplist_path, verbose=True
         )
 
+    memory_raw = {}
+    linux_raw = {}
     if has_memory:
-        findings = list(findings) + _run_memory_detector(memory_path, verbose=True)
+        findings = list(findings) + _run_memory_detector(
+            memory_path, verbose=True, raw_out=memory_raw
+        )
 
     if has_yara:
         findings = list(findings) + _run_yara_detector(
             yara_rules_path, yara_scan_path, verbose=True
+        )
+
+    if has_linux:
+        findings = list(findings) + _run_linux_persistence_detector(
+            linux_artifacts_path, verbose=True, raw_out=linux_raw
+        )
+
+    if has_memory and has_linux:
+        findings = list(findings) + _run_hidden_process_correlation(
+            memory_raw, linux_raw, verbose=True
         )
 
     # Validate CRITICAL findings
@@ -936,7 +1571,14 @@ def cmd_analyze(args):
 
     findings = validated_findings
 
+    # Proven negatives (SFE-fibx.5 PR-C): surface "[NEGATIVE] tool ran and found
+    # zero X" claims, mechanically re-verified against the 4688 command lines, so
+    # a clean domain reads as an examined-and-clear result rather than silence.
+    findings = _append_proven_negatives(findings, evtx_path, str(evtx_path))
+
     _write_output(findings, Path(args.output) if args.output else None)
+    gate_verdict = _maybe_write_hardened(args, findings)
+    _maybe_write_export(args, findings)
 
     # Display findings
     print_section("Analysis Results")
@@ -944,6 +1586,7 @@ def cmd_analyze(args):
     if not findings:
         print("\n  No suspicious findings detected.")
         print("  All artifacts are consistent with expected behavior.")
+        _exit_on_gate(gate_verdict)
         return
 
     print(f"\n  Found {len(findings)} suspicious activities:")
@@ -977,6 +1620,8 @@ def cmd_analyze(args):
 
     print(f"\n  Contradictions Detected: {contradiction_count}")
     print(f"  Resolutions Applied: {resolution_count}")
+
+    _exit_on_gate(gate_verdict)
 
     avg_confidence = sum(f.confidence for f in findings) / len(findings)
     print(f"\n  Average Confidence: {avg_confidence:.2f}")
@@ -1206,6 +1851,7 @@ def cmd_run(args):
     # Also save to custom output path if specified (backward compat)
     output_path = Path(args.output) if args.output else None
     if output_path is not None:
+        _guard_output_path(output_path)
         with output_path.open("w", encoding="utf-8") as handle:
             json.dump(report.to_dict(), handle, indent=2, default=str)
 
@@ -1628,6 +2274,7 @@ def cmd_report(args):
     generator = ReportGenerator(manager)
 
     output_path = Path(args.output)
+    _guard_output_path(output_path)
     report_format = ReportFormat(args.format)
 
     print_section("Generating Report")
@@ -1770,6 +2417,19 @@ Examples:
         ),
     )
     analyze_parser.add_argument(
+        "--linux-artifacts",
+        dest="linux_artifacts",
+        help=(
+            "Linux persistence artifacts for LinuxPersistenceDetector: either a "
+            "mounted-image root DIRECTORY (walked to parse raw .service units, "
+            "crontabs, sudoers, ld.so.preload and shell-init files) or a JSON "
+            "bundle FILE "
+            "(systemd_units/cron_entries/ld_preload/sudoers/bashrc_entries). "
+            "Standalone: does NOT require the mft/prefetch/evtx triad. MITRE "
+            "T1543.002/T1053.003/T1574.006/T1548.003/T1546.004."
+        ),
+    )
+    analyze_parser.add_argument(
         "--nsrl-db",
         dest="nsrl_db",
         help=(
@@ -1788,6 +2448,28 @@ Examples:
         ),
     )
     analyze_parser.add_argument("--output", "-o", help="Write findings to JSON file")
+    analyze_parser.add_argument(
+        "--harden",
+        action="store_true",
+        help=(
+            "Route findings through the custody chain: mint a per-finding "
+            "Ed25519 receipt + a set-level Merkle anchor, then write a hardening "
+            "report (verifiable offline with tools/verify_receipts.py). Requires "
+            "--output. Pin $SFE_RECEIPT_ED25519_KEY for provenance receipts."
+        ),
+    )
+    analyze_parser.add_argument(
+        "--export",
+        choices=["stix", "ocsf", "wazuh"],
+        help=(
+            "Also emit findings in a SIEM/TIP interchange format next to "
+            "--output: 'stix' (STIX 2.1 bundle -> <output>.stix.json), 'ocsf' "
+            "(OCSF Detection Findings -> <output>.ocsf.json), or 'wazuh' (Wazuh "
+            "alerts NDJSON + <output>.wazuh-rules.xml). Requires --output. "
+            "Bulk-push to OpenSearch separately via "
+            "python -m sift_find_evil.interop.push_opensearch."
+        ),
+    )
 
     # Run command
     run_parser = subparsers.add_parser(

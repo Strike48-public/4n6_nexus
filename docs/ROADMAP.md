@@ -1,29 +1,44 @@
 # Roadmap
 
-Tracked work is now in beads. This file previously held the roadmap because the SIFT-install beads binary was built without CGO support; that binary has since been replaced with `bd 1.0.2`, which works correctly against the Dolt-backed database in `.beads/`.
+**This file is a pointer. It is not the roadmap.**
+
+The authoritative roadmap is the **Roadmap view** of the `4n6 Nexus` GitHub
+Project, which carries `Start`/`Target` dates and a `Release` axis for the
+monthly cadence. Execution-level work lives in beads. Neither is duplicated here,
+on purpose.
 
 ## Where the work lives
 
-Run these from the repo root:
+| Question | Where | How |
+|---|---|---|
+| What is the product committing to, and when? | `4n6 Nexus` Project, Roadmap view | group by `Release` |
+| What should I pick up right now? | beads | `bd ready` |
+| What is blocked, and on what? | beads | `bd blocked`, `bd show <id>` |
+| What has already shipped? | `IDEAS.md`, "Status (prototyped so far)" | tracks 38 ranked ideas against the field |
+| Why is work tracked this way? | [ADR-0001](adr/0001-tracker-boundary.md) | the tracker boundary |
+| How is it sized, prioritized, released? | [WORKING_AGREEMENT.md](WORKING_AGREEMENT.md) | fields, views, cadence |
 
-```
-bd ready          # items you can start right now (no blockers)
-bd list           # all open issues
-bd blocked        # blocked items with what they're blocked on
-bd show SFE-1     # full issue view including dependencies and acceptance
-```
+## Current status
 
-## Current state snapshot
+**The Project exists** as Strike48 org project #105
+(https://github.com/orgs/Strike48/projects/105), created 2026-09-16 under
+`SFE-9eox` and seeded with the open beads epics. Its Roadmap view is empty until
+epics carry `Start`/`Target` dates, so **there is no dated roadmap yet**; the
+first dates land with the `v0.1.0` release planning (`SFE-uln6`). Run `bd ready`
+for available work and `bd list --status=in_progress` for active work.
 
-- **SFE-F1** feature: Email-based exfiltration detection (Jean-case autonomous pass)
-- **SFE-1** Promote PST parser to first-class artifact source (**ready**)
-- **SFE-2** Plumb a content-reader through the engine (blocked on SFE-1)
-- **SFE-3** Add EXFIL_CORRELATION contradiction type and detector (blocked on SFE-1, SFE-2, SFE-7)
-- **SFE-4** CLI wiring for `--pst` and `--image` flags (blocked on SFE-3)
-- **SFE-5** Re-run Jean case as acceptance test, case-agnostic criteria (blocked on SFE-4)
-- **SFE-6** Automate adversarial validator as post-engine check (blocked on SFE-5)
-- **SFE-7** Case-agnostic finding category taxonomy — **done**, shipped in commit `ed9e21c`
+There are also **no releases yet**: `git tag` returns zero tags and
+`gh release list` is empty. The stated cadence is monthly; building the release
+substrate (tag scheme, `CHANGELOG.md`, release workflow) is tracked as `SFE-uln6`
+and is a prerequisite for the first release, not a step within it.
 
-Dependency graph: SFE-F1 depends on SFE-5 → SFE-4 → SFE-3 → (SFE-1, SFE-2, SFE-7). SFE-2 depends on SFE-1. SFE-6 depends on SFE-5.
+## Why this file is a stub
 
-The authoritative issue descriptions, acceptance criteria, and status live in beads. Treat this file as a pointer, not a second source of truth. If beads and this file disagree, beads wins; update this file to match.
+It used to hold a snapshot of open issues. That snapshot went stale - it still
+listed `SFE-1` through `SFE-7` long after they closed, while live work had moved
+on several epics. A copy of a tracker is a second source of truth that decays
+silently, and it decayed alongside a second undated roadmap in `README.md`.
+
+The fix is to have one roadmap rather than to keep three in sync. If this file
+and the Project ever disagree, the Project wins, and this file is wrong and should
+be trimmed further.

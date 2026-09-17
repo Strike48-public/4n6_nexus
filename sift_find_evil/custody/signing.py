@@ -25,6 +25,7 @@ imports cleanly when it is absent, and the signing feature raises a clear
 from __future__ import annotations
 
 import hashlib
+import os
 
 from ..canonical import canonical_bytes
 
@@ -36,6 +37,13 @@ except ImportError:  # pragma: no cover - exercised via monkeypatch in tests
     CRYPTOGRAPHY_AVAILABLE = False
 
 _ALGORITHM = "ed25519"
+
+# Path to a PEM-encoded Ed25519 private key that PINS the receipt signer. When
+# set, receipts prove provenance (a verifier holding the matching published
+# public key confirms the engine - not just some keyholder - emitted them). When
+# unset, a fresh per-run ephemeral key is used and receipts prove only internal
+# consistency (see resolve_signing_key).
+_SIGNING_KEY_ENV = "SFE_RECEIPT_ED25519_KEY"
 _UNAVAILABLE_MSG = (
     "Ed25519 finding receipts require the 'cryptography' package "
     "(install the connector extra); it is not available in this environment."
@@ -109,6 +117,81 @@ def generate_keypair() -> tuple[bytes, bytes]:
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     )
     return private_pem, public_pem
+
+
+def public_key_pem(private_pem: bytes) -> str:
+    """Return the SubjectPublicKeyInfo/PEM public key for a private key PEM.
+
+    Lets a caller publish the pinned signer's public key (the trust root a
+    verifier checks receipts against).
+
+    Raises:
+        RuntimeError: if the ``cryptography`` package is not available.
+        ValueError: if ``private_pem`` is not a valid Ed25519 private key.
+    """
+    _require_crypto()
+    from cryptography.hazmat.primitives import serialization
+
+    private_key = serialization.load_pem_private_key(private_pem, password=None)
+    return (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
+
+
+def resolve_signing_key() -> tuple[bytes | None, bool]:
+    """Resolve the Ed25519 receipt signing key: pinned via env, else ephemeral.
+
+    A pinned key (``$SFE_RECEIPT_ED25519_KEY`` pointing at a PEM file) makes
+    receipts prove PROVENANCE: a third party holding the matching published
+    public key can confirm the engine emitted them. An ephemeral per-run key
+    proves only INTERNAL CONSISTENCY (the set was signed by one keyholder), not
+    who that keyholder is - which is the honest default when no key is published.
+
+    Returns:
+        A ``(private_pem, is_pinned)`` tuple. ``private_pem`` is None only when
+        ``cryptography`` is unavailable (HMAC-only fallback). ``is_pinned`` is
+        True iff the key came from the env pin, so callers can report provenance
+        honestly rather than overclaiming.
+
+    Raises:
+        RuntimeError: if a key is pinned but ``cryptography`` is unavailable
+            (a pin explicitly asks for signing; silently degrading would hide it).
+        ValueError: if the pinned path is unreadable or not a valid Ed25519 key
+            (fail loud rather than silently fall back to an unpinned key).
+    """
+    pinned_path = os.environ.get(_SIGNING_KEY_ENV, "").strip()
+    if pinned_path:
+        if not CRYPTOGRAPHY_AVAILABLE:
+            raise RuntimeError(
+                f"{_SIGNING_KEY_ENV} is set but the 'cryptography' package is "
+                "unavailable; install the connector extra or unset the pin."
+            )
+        from cryptography.hazmat.primitives import serialization
+
+        try:
+            with open(pinned_path, "rb") as handle:
+                private_pem = handle.read()
+            # Validate it parses as an Ed25519 key before trusting it downstream.
+            serialization.load_pem_private_key(private_pem, password=None)
+        except (OSError, ValueError, TypeError) as exc:
+            # Do NOT echo the pinned path or the raw exception (which embeds the
+            # path): on a shared host that needlessly discloses where the signing
+            # key lives. The operator can read ``$SFE_RECEIPT_ED25519_KEY``
+            # themselves; the chained ``exc`` is preserved for local debugging.
+            raise ValueError(
+                f"the file at ${_SIGNING_KEY_ENV} is not a readable Ed25519 "
+                f"private-key PEM ({type(exc).__name__})"
+            ) from exc
+        return private_pem, True
+
+    if not CRYPTOGRAPHY_AVAILABLE:
+        return None, False
+    return generate_keypair()[0], False
 
 
 def sign_finding(

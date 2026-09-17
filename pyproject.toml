@@ -23,14 +23,17 @@ exclude = ["tests*", "scenarios*", "demo*", "logs*", "cases*", "rules*", "analys
 [tool.black]
 line-length = 88
 target-version = ["py312"]
-# Match what ruff excludes: vendored YARA community submodule has many black
-# violations we don't own. Keep format surface aligned with lint surface.
+# Match what ruff excludes so the format surface equals the lint surface: the
+# vendored YARA community submodule has many black violations we don't own, the
+# proto stubs are generated, and ui/ is a Rust workspace whose stray Python is
+# not part of the engine. Kept in lockstep with [tool.ruff] extend-exclude.
 extend-exclude = '''
 /(
     \.git
   | \.venv
   | \.ruff_cache
   | rules/yara/community
+  | ui
 )/
 '''
 
@@ -49,10 +52,15 @@ extend-exclude = ["rules/yara/community", "ui"]
 # if a path is passed explicitly, so folding the WebGUI in never perturbs the
 # Python test run.
 testpaths = ["tests"]
+# Makes `import nexus_pipeline` resolve under a plain `pytest` invocation (no
+# PYTHONPATH=. needed). Required for tests/pipeline/ (bd SFE-rbje.4); without
+# it those tests fail to collect under CI's `pytest -q --cov`.
+pythonpath = ["."]
 norecursedirs = ["ui", "rules/yara/community", ".git", ".venv"]
 markers = [
     "unit: Fast, isolated unit test",
     "integration: Crosses module boundaries or touches real artifacts",
+    "benchmark: Out-of-band performance/memory benchmark; heavy body is env-gated (skips under a plain `pytest` run, CI included) and runs only when explicitly opted in",
 ]
 # Pin the async-fixture loop scope pytest-asyncio 1.3 warns about (it will
 # change the default to "function" in a future release). All async fixtures
@@ -61,28 +69,30 @@ markers = [
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
-source = ["sift_find_evil"]
-# Driver and pure-rendering layers are omitted so --cov-fail-under speaks to the
-# detection library + orchestration surface, not to UI/CLI glue:
+# TWO top-level packages are measured. `nexus_pipeline` (the autonomous-pipeline
+# containment/gates/state layer, bd SFE-rbje) is exercised by tests/pipeline/ but
+# would be INVISIBLE to the floor unless it is BOTH listed here AND run under a
+# bare `--cov` (never `--cov=<pkg>`, which discards this list). That coupling is
+# enforced by tests/test_coverage_inclusion_guard.py -- do not add a package here
+# without also confirming the enforcing invocations use bare `--cov`.
+source = ["sift_find_evil", "nexus_pipeline"]
+# Driver layers are omitted so the coverage floor speaks to the detection library +
+# orchestration surface, not to CLI glue:
 #   - cli.py / __main__.py / cli_mcp.py: thin argparse wrappers exercised E2E via
 #     scenario_runner + CLI smoke tests, not unit tests.
-#   - tui_app.py / tui/*: Textual rendering. Line coverage of widget composition
-#     is brittle and low-signal; the interactive behavior is covered by the
-#     Pilot-driven tests in tests/test_tui.py instead.
-# Note: analysis_runner.py is intentionally NOT omitted — it orchestrates the
-# detectors and is unit-tested end-to-end in tests/test_analysis_runner.py.
 omit = [
     "sift_find_evil/cli.py",
     "sift_find_evil/__main__.py",
     "sift_find_evil/cli_mcp.py",
     "sift_find_evil/mcp/*",
+    # Outbound-network driver glue, exercised via its --help smoke test, not unit
+    # tests; the pure exporters it consumes ARE fully unit-tested and counted.
+    "sift_find_evil/interop/push_opensearch.py",
     "sift_find_evil/reporting/*",
     "sift_find_evil/testing/*",
     "sift_find_evil/case/*",
     "sift_find_evil/approval/*",
     "sift_find_evil/audit/*",
-    "sift_find_evil/tui_app.py",
-    "sift_find_evil/tui/*",
 ]
 
 [tool.coverage.report]
@@ -97,8 +107,28 @@ exclude_lines = [
 ]
 show_missing = true
 skip_covered = false
-# Lock in 100% line coverage of the detection/orchestration surface (the omit
-# list above scopes this to non-UI/non-glue code). A drop fails `coverage
-# report`, so new uncovered lines must be tested or carry a justified
-# `# pragma: no cover`. (SFE-eil)
-fail_under = 100
+# Single authoritative coverage floor for the detection/orchestration surface
+# (the omit list above scopes this to non-UI/non-glue code). CI
+# (.github/workflows/ci.yml) and scripts/ci-local.sh run `pytest --cov` with NO
+# --cov-fail-under, so pytest-cov inherits THIS value -- the floor lives in
+# exactly one place and cannot drift out of sync. Keeping it duplicated on the
+# CLI is what let the earlier `fail_under = 100` lock (SFE-eil) silently regress:
+# --cov-fail-under=85 overrode it everywhere while real coverage slipped to ~99%.
+# New uncovered lines must be tested or carry a justified `# pragma: no cover`.
+# Ratchet up toward 100 as coverage rises; never lower to accommodate new code.
+#
+# precision = 2 makes the pass/fail check EXACT. Without it (coverage.py's default
+# precision 0) the total is rounded to a whole percent before comparison, so a
+# floor of 99 would print a red "FAIL Required test coverage of 99.0% not reached"
+# on a green run yet still exit 0 -- an incoherent gate. The exact check compares
+# the true total against the floor.
+#
+# Calibrate to what the ENFORCING job measures: the gate runs only in the CI
+# `core` tier, which deterministically skips the forensic-tool-gated tests, so its
+# coverage (currently 98.07%, 196 of 10155 stmts missed) is LOWER than a full local
+# run (~98.88%). 97.5 sits just below the core tier's real number, leaving a ~0.5%
+# / ~58-statement cushion -- honest (prints "reached", exits 0), yet the build
+# still fails on any real regression. Close the ~196-line core gap and ratchet to
+# 100: SFE-4q47. (SFE-oclm)
+precision = 2
+fail_under = 97.5

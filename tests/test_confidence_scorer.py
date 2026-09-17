@@ -94,12 +94,14 @@ def test_apply_resolutions_multiple() -> None:
             resolution_method="cross_validate",
             confidence_recovery=0.05,
             evidence={},
+            is_exonerating=False,
         ),
         Resolution(
             contradiction_type="temporal_mismatch",
             resolution_method="timestamp_align",
             confidence_recovery=0.10,
             evidence={},
+            is_exonerating=False,
         ),
     ]
 
