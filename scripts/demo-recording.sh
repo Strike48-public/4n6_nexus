@@ -67,16 +67,9 @@ echo ""
 PYTHONPATH=. "$PY" tests/scenario_harness.py
 pause
 
-section "Beat 3/3 - Interactive TUI"
-echo -e "${YELLOW}The terminal UI: evidence selection, live progress, findings panel.${NC}"
-if [[ "$AUTO" -eq 1 ]]; then
-  echo "(skipped in --auto mode; the TUI is interactive)"
-else
-  echo -e "${GREEN}Launch the TUI now? Press Enter to launch, or Ctrl+C to stop here.${NC}"
-  echo "(Inside the TUI, press 'q' to quit and return.)"
-  read -r
-  "$PY" demo_tui.py || true
-fi
+section "Beat 3/3 - Interactive UI"
+echo -e "${YELLOW}The Python terminal UI was retired; the interactive surface is the Prospector Studio connector GUI.${NC}"
+echo "(nothing to launch here - the GUI ships separately; see the License section of README.md)"
 
 section "Demo complete"
 echo "Key points:"
