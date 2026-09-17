@@ -194,3 +194,15 @@ TUI_*.md
 # Editor files
 *.swp
 *.swo
+
+# Synthetic scenario mounted-image roots legitimately contain var/ and lib/
+# trees (e.g. /var/log/auth.log, /var/spool/cron, /lib/systemd) and .log files
+# that the broad `var/`, `lib/` and `*.log` rules above would otherwise drop
+# from a plain `git add -A` with no warning (the SFE-e50h CI-zeros bug). Placed
+# last so these negations win; re-include the dir at each level, then its
+# contents.
+!scenarios/synthetic/**/root/var/
+!scenarios/synthetic/**/root/var/**
+!scenarios/synthetic/**/root/lib/
+!scenarios/synthetic/**/root/lib/**
+!scenarios/synthetic/**/root/**/*.log
