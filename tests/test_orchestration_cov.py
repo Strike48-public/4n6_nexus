@@ -78,7 +78,7 @@ def test_memory_analyst_returns_empty_without_fixtures(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-EMPTY",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
         scenario_dir=tmp_path,  # bare dir: no memory_fixtures/
     )
     findings, tool_ids = orch._memory_analyst()
@@ -91,7 +91,7 @@ def test_network_analyst_returns_empty_without_conversations(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-EMPTY",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
         scenario_dir=tmp_path,  # bare dir: no network_fixtures/
     )
     findings, tool_ids = orch._network_analyst()

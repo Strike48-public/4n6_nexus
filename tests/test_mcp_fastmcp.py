@@ -48,7 +48,7 @@ def server(tmp_path, evidence_root):
         case_id="INC-2026-001",
         evidence_root=evidence_root,
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
 
 
@@ -124,7 +124,7 @@ def test_stdio_launcher_builds_server_and_app(tmp_path, evidence_root):
         case_id="INC-2026-001",
         evidence_root=evidence_root,
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     registered = _registered_tool_names(mcp)
     assert EXPECTED_TOOLS.issubset(registered)

@@ -50,7 +50,7 @@ def server(tmp_path, evidence_root):
         case_id="INC-CB-001",
         evidence_root=evidence_root,
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
         job_runner=runner,
     )
 
