@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Standalone offline verifier for the 4n6 Nexus tamper-evident audit chain.
 
-Gallery idea #5. This script is DELIBERATELY self-contained: it imports nothing
+This script is DELIBERATELY self-contained: it imports nothing
 from ``sift_find_evil`` and re-implements canonicalization + hashing from the
 Python standard library alone. That gives two properties the in-product
 verifier cannot:

@@ -1,6 +1,6 @@
 """Detached background-job runner for long-running forensic tools (SFE-eiqz).
 
-Gallery idea #37 (independently built by ChainsawMCP): decouple slow mechanical
+Rationale: decouple slow mechanical
 work -- Volatility on a 4GB image, a Plaso timeline, Chainsaw over GBs of logs --
 from the interactive MCP session so a tool call never hits the transport timeout.
 

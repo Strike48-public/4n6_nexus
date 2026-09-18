@@ -1,9 +1,9 @@
 """Kill-chain coherence: protect a member of a coherent multi-phase chain.
 
-Gallery idea from Mulder's counter-analyst (SFE-fibx.5). The classic failure
+The classic failure
 mode of naive adversarial review is dismissing five correlated indicators ONE AT
 A TIME -- each looks weak alone, so each is refuted in isolation, and a genuine
-attack is talked away finding-by-finding. Mulder's rule defends against it: map
+attack is talked away finding-by-finding. The kill-chain rule defends against it: map
 every finding to its kill-chain phase FIRST, and require STRONGER counter-evidence
 to dismiss a finding that is a member of a coherent 3+-phase chain, because the
 convergent chain corroborates it.
@@ -38,7 +38,7 @@ from typing import Any
 from ..reporting.mitre_guardrail import CATALOG, _finding_techniques
 
 # Minimum distinct kill-chain phases a set of findings must span to count as a
-# coherent chain. Three phases (Mulder's threshold): a single indicator is a
+# coherent chain. Three phases: a single indicator is a
 # point, two can be coincidence, but three phases in sequence is an attack
 # narrative that no longer dismisses finding-by-finding.
 MIN_CHAIN_PHASES = 3

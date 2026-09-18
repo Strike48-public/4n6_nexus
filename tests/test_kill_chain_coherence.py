@@ -1,6 +1,6 @@
 """Kill-chain coherence primitive (SFE-fibx.5 PR-A).
 
-The rule Mulder's counter-analyst enforces: a finding that is a member of a
+The rule: a finding that is a member of a
 coherent 3+-phase kill chain is HARDER to dismiss than a lone weak finding,
 because the convergent chain corroborates it. This tests the pure, model-free
 substrate that computes chain membership; the verdict adjustment that consumes

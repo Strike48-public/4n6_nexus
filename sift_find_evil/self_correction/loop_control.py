@@ -1,6 +1,6 @@
 """Oscillation-aware loop breaker for the self-correction orchestrator (SFE-jrwx).
 
-Gallery idea #21. A plain N-consecutive-failure breaker only catches a loop that
+A plain N-consecutive-failure breaker only catches a loop that
 *errors* repeatedly; it is blind to a loop that runs cleanly forever while making
 no LOGICAL progress -- re-deriving the identical (evidence, claim, objection,
 ruling) state, or ping-ponging a verdict A-B-A-B. It is also blind to a confused

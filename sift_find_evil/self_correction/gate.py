@@ -17,7 +17,7 @@ genuinely bad state: a ``dismissed`` finding is one whose asserted identity
 anchor (an IP/PID) could not be re-derived from the evidence -- a hallucinated
 value -- and shipping that is the integrity failure the gate exists to stop.
 
-The kill-chain rule (Mulder): a ``dismissed`` finding that is a member of a
+The kill-chain rule: a ``dismissed`` finding that is a member of a
 coherent 3+-phase chain (grouped per investigative subject) is corroborated by
 that chain, so it is "harder to dismiss" -- the gate escalates it to human review
 rather than blocking outright (the chain vouches for it; a human should decide).
