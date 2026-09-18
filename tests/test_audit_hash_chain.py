@@ -1,4 +1,4 @@
-"""Tests for the hash-chained tamper-evident audit log (gallery idea #1).
+"""Tests for the hash-chained tamper-evident audit log .
 
 Upgrades the append-only audit log from independent per-entry SHA-256 output
 hashes to a genesis-anchored hash chain: each entry commits to the prior

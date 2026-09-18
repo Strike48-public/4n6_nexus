@@ -1,6 +1,6 @@
 """Tests for adversarial verification: falsifier protocol + deterministic adjudicator.
 
-Gallery idea #8. Replaces cooperative single-engine self-review with an
+Adversarial verification replaces cooperative single-engine self-review with an
 adversarial layer: a falsifier (from a different model family in production, a
 deterministic stub in CI) tries to KILL each finding, and a DETERMINISTIC rule
 ladder - not an LLM judge - consumes (analyst verdict, falsifier status,

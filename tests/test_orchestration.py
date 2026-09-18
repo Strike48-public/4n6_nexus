@@ -20,7 +20,7 @@ def test_run_produces_single_correlated_a2a_log(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=audit,
-        examiner="jtomek",
+        examiner="jdoe",
     )
 
     report = orch.run_demo_investigation()
@@ -49,7 +49,7 @@ def test_every_finding_traces_to_its_tool_executions(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     report = orch.run_demo_investigation()
 
@@ -67,7 +67,7 @@ def test_self_correction_sequence_is_present(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     orch.run_demo_investigation()
 
@@ -92,7 +92,7 @@ def test_demo_covers_all_three_domains(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     report = orch.run_demo_investigation()
 
@@ -114,7 +114,7 @@ def test_demo_shows_resolved_and_unresolved_contradictions(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     report = orch.run_demo_investigation()
 
@@ -133,7 +133,7 @@ def test_memory_and_network_findings_trace_to_tools(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     report = orch.run_demo_investigation()
 
@@ -151,7 +151,7 @@ def test_finding_ids_are_unique_and_sequential(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     report = orch.run_demo_investigation()
 
@@ -170,7 +170,7 @@ def test_demo_fixtures_trigger_expected_contradictions(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     report = orch.run_demo_investigation()
     by_domain: dict[str, list] = {}
@@ -191,7 +191,7 @@ def test_blocked_tool_attempt_is_recorded(tmp_path):
     orch = InvestigationOrchestrator(
         case_id="INC-2026-001",
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     orch.run_demo_investigation(include_bypass_attempt=True)
 

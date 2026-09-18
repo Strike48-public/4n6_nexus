@@ -716,19 +716,14 @@ sift_find_evil/
 │
 ├── yara_scan/           # YARA scanner wrapper
 │
-├── analysis_runner.py   # Analysis run driver
 ├── canonical.py         # Single source of truth for canonical JSON used by
 │                        #   every signing/hashing site
 ├── cli.py               # Command-line interface
 ├── cli_mcp.py           # MCP CLI entry point
-├── e01_mounter.py       # E01 image mounting
 ├── hardening.py         # Shared additive-metadata convergence pipeline
 │                        #   (harden_findings)
 ├── orchestration.py     # Multi-agent investigation orchestrator (A2A log)
-├── progress_tracker.py  # Progress reporting
-├── resource_monitor.py  # Resource-usage monitoring
 ├── scenario_runner.py   # Scenario execution
-├── tui_app.py           # TUI application
 └── __main__.py          # Module entry point
 ```
 

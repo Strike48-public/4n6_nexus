@@ -32,6 +32,7 @@ def _finding_with_resolved_causality() -> Finding:
         resolution_method="event_log_4688_tiebreaker",
         confidence_recovery=0.30,
         evidence={"event_id": 4688, "confirmed_time": "14:25:03"},
+        is_exonerating=False,
     )
     return Finding(
         title="Suspicious Activity: malware.exe",

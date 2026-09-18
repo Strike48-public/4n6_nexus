@@ -15,7 +15,16 @@ from typing import Any
 
 import yaml
 
-from .detectors import NetworkDetector, RegistryDetector
+from .detectors import (
+    LinuxArtifactDetector,
+    LinuxAuthDetector,
+    LinuxExecutionDetector,
+    LinuxLoginSessionDetector,
+    LinuxPersistenceDetector,
+    LinuxProcessDetector,
+    NetworkDetector,
+    RegistryDetector,
+)
 from .detectors.webmail_exfil_detector import MFTAccessRecord
 from .disk.wipe_detector import detect_from_image
 from .parsers.browser_history_parser import BrowserHistoryParser
@@ -267,15 +276,20 @@ def _run_fixture_scenario(manifest: ScenarioManifest) -> ScenarioReport:
     evtx_name = fixtures.get("evtx")
     yara_rules_name = fixtures.get("yara_rules")
     yara_scan_dir_name = fixtures.get("yara_scan_dir")
+    linux_artifacts_name = fixtures.get("linux_artifacts")
     has_causality = bool(mft_name and prefetch_name and evtx_name)
     has_yara = bool(yara_rules_name and yara_scan_dir_name)
+    has_linux = bool(linux_artifacts_name)
 
     # A scenario is YARA-only when it declares yara_rules + yara_scan_dir and
-    # omits the causality triplet. That lets SFE-86p ship scenarios that
-    # exercise malware classification without manufacturing synthetic MFT,
-    # prefetch, and event log CSVs just to pass the required-fixture gate.
-    if not has_causality and not has_yara:
-        return _skip(manifest, "fixture scenario missing required mft/prefetch/evtx")
+    # omits the causality triplet. Linux-only scenarios declare linux_artifacts
+    # and omit both causality and YARA. This lets detectors ship without
+    # manufacturing Windows fixtures just to pass the required-fixture gate.
+    if not has_causality and not has_yara and not has_linux:
+        return _skip(
+            manifest,
+            "fixture scenario missing required mft/prefetch/evtx or alternatives",
+        )
 
     findings: list = []
     mft: list = []
@@ -315,7 +329,12 @@ def _run_fixture_scenario(manifest: ScenarioManifest) -> ScenarioReport:
         yara_findings = _run_yara(manifest)
         findings.extend(yara_findings)
 
-    return _score(manifest, findings, network_findings, yara_findings)
+    linux_findings: list = []
+    if has_linux:
+        linux_findings = _run_linux_persistence(manifest)
+        findings.extend(linux_findings)
+
+    return _score(manifest, findings, network_findings, yara_findings, linux_findings)
 
 
 def _run_registry(manifest: ScenarioManifest) -> list:
@@ -347,6 +366,47 @@ def _run_registry(manifest: ScenarioManifest) -> list:
         kwargs["run_keys"] = parser.parse_run_keys_csv(directory / paths["run_keys"])
 
     return RegistryDetector().analyze(**kwargs)
+
+
+def _run_linux_persistence(manifest: ScenarioManifest) -> list:
+    """Load Linux persistence artifacts and run the detector.
+
+    The fixture (if present) is either a **directory** (a synthetic
+    mounted-image root, walked by the raw Linux parsers) or a JSON **file**
+    containing systemd_units, cron_entries, ld_preload, sudoers, bashrc_entries,
+    auth_events, shell_history, login_sessions and proc_processes keys. Missing
+    keys are treated as empty by the detectors. ``LinuxPersistenceDetector``,
+    ``LinuxAuthDetector``, ``LinuxExecutionDetector``,
+    ``LinuxLoginSessionDetector`` and ``LinuxProcessDetector`` all consume the
+    same collected artifact dict.
+    """
+    import json
+
+    fixtures = manifest.fixtures
+    linux_artifacts_name = fixtures.get("linux_artifacts")
+    if not linux_artifacts_name:
+        return []
+
+    artifacts_path = manifest.directory / linux_artifacts_name
+    if artifacts_path.is_dir():
+        from .parsers import collect_linux_artifacts
+
+        artifacts = collect_linux_artifacts(artifacts_path)
+    else:
+        with artifacts_path.open("r", encoding="utf-8") as f:
+            artifacts = json.load(f)
+
+    detectors: list[LinuxArtifactDetector] = [
+        LinuxPersistenceDetector(),
+        LinuxAuthDetector(),
+        LinuxExecutionDetector(),
+        LinuxLoginSessionDetector(),
+        LinuxProcessDetector(),
+    ]
+    findings: list = []
+    for detector in detectors:
+        findings.extend(detector.analyze(artifacts))
+    return findings
 
 
 def _run_yara(manifest: ScenarioManifest) -> list:
@@ -421,7 +481,9 @@ def _run_evidence_scenario(manifest: ScenarioManifest) -> ScenarioReport:
             "evidence present but no dispatchable kind (e01/dd/raw) found",
         )
 
-    return _score(manifest, findings, network_findings=[], yara_findings=[])
+    return _score(
+        manifest, findings, network_findings=[], yara_findings=[], linux_findings=[]
+    )
 
 
 def _score(
@@ -429,6 +491,7 @@ def _score(
     findings: list,
     network_findings: list,
     yara_findings: list,
+    linux_findings: list,
 ) -> ScenarioReport:
     detected = [f.evidence.get("executable", "").lower() for f in findings]
     expected = set(manifest.expected_malicious_executables)
@@ -448,6 +511,11 @@ def _score(
         tp.extend(["webmail_exfiltration"] * min(webmail_expected, len(matched)))
         missing = max(webmail_expected - len(matched), 0)
         fn.extend(["webmail_exfiltration"] * missing)
+        # Extras beyond the expected count are false positives, not free passes:
+        # the count block otherwise only ever adds tp/fn, so an over-emitting
+        # detector would mask a precision regression as precision=1.00.
+        extra = max(len(matched) - webmail_expected, 0)
+        fp.extend(["webmail_exfiltration"] * extra)
 
     cloud_expected = manifest.expected_finding_counts.get("cloud_upload", 0)
     if cloud_expected:
@@ -460,6 +528,9 @@ def _score(
         tp.extend(["cloud_upload"] * min(cloud_expected, len(matched)))
         missing = max(cloud_expected - len(matched), 0)
         fn.extend(["cloud_upload"] * missing)
+        # Extras beyond the expected count are false positives (see webmail).
+        extra = max(len(matched) - cloud_expected, 0)
+        fp.extend(["cloud_upload"] * extra)
 
     yara_expected = manifest.expected_finding_counts.get("yara_match", 0)
     if yara_expected:
@@ -469,6 +540,55 @@ def _score(
         tp.extend(["yara_match"] * min(yara_expected, len(matched)))
         missing = max(yara_expected - len(matched), 0)
         fn.extend(["yara_match"] * missing)
+        # Extras beyond the expected count are false positives (see webmail).
+        extra = max(len(matched) - yara_expected, 0)
+        fp.extend(["yara_match"] * extra)
+
+    persistence_expected = manifest.expected_finding_counts.get("persistence", 0)
+    if persistence_expected:
+        matched = [f for f in findings if f.category.value == "persistence"]
+        tp.extend(["persistence"] * min(persistence_expected, len(matched)))
+        missing = max(persistence_expected - len(matched), 0)
+        fn.extend(["persistence"] * missing)
+        # Extras beyond the expected count are false positives, not free passes:
+        # without this a detector that hallucinates persistence findings would
+        # score precision=1.00 (the count block otherwise only ever adds tp/fn).
+        extra = max(len(matched) - persistence_expected, 0)
+        fp.extend(["persistence"] * extra)
+
+    credential_expected = manifest.expected_finding_counts.get("credential_access", 0)
+    if credential_expected:
+        matched = [f for f in findings if f.category.value == "credential_access"]
+        tp.extend(["credential_access"] * min(credential_expected, len(matched)))
+        missing = max(credential_expected - len(matched), 0)
+        fn.extend(["credential_access"] * missing)
+        # Extras beyond the expected count are false positives (see persistence).
+        extra = max(len(matched) - credential_expected, 0)
+        fp.extend(["credential_access"] * extra)
+
+    execution_expected = manifest.expected_finding_counts.get("execution", 0)
+    if execution_expected:
+        matched = [f for f in findings if f.category.value == "execution"]
+        tp.extend(["execution"] * min(execution_expected, len(matched)))
+        missing = max(execution_expected - len(matched), 0)
+        fn.extend(["execution"] * missing)
+        # Extras beyond the expected count are false positives (see persistence).
+        extra = max(len(matched) - execution_expected, 0)
+        fp.extend(["execution"] * extra)
+
+    # Linux /proc hidden/suspicious-process surface (LinuxProcessDetector,
+    # SFE-4fnv.6). Matched by the ``proc`` artifact source rather than by
+    # category, so it never collides with the memory detector's own
+    # PROCESS_INJECTION findings (artifact_sources=["memory"]).
+    hidden_process_expected = manifest.expected_finding_counts.get("hidden_process", 0)
+    if hidden_process_expected:
+        matched = [f for f in findings if "proc" in (f.artifact_sources or [])]
+        tp.extend(["hidden_process"] * min(hidden_process_expected, len(matched)))
+        missing = max(hidden_process_expected - len(matched), 0)
+        fn.extend(["hidden_process"] * missing)
+        # Extras beyond the expected count are false positives (see persistence).
+        extra = max(len(matched) - hidden_process_expected, 0)
+        fp.extend(["hidden_process"] * extra)
 
     avg_conf = sum(f.confidence for f in findings) / len(findings) if findings else 0.0
 

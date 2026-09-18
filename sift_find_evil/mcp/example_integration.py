@@ -28,6 +28,7 @@ class MCPDetectionPipeline:
     def __init__(
         self,
         case_id: str,
+        evidence_root: Path,
         audit_log_path: Optional[Path] = None,
         timeout_seconds: int = 300,
     ):
@@ -35,6 +36,9 @@ class MCPDetectionPipeline:
 
         Args:
             case_id: Case identifier for audit logging
+            evidence_root: The case evidence directory. Passed to MCPClient's
+                ToolGuard so every tool call is path-contained to read-only
+                evidence (SFE-fibx.14). Required -- there is no unguarded mode.
             audit_log_path: Path to audit log file
             timeout_seconds: Tool timeout (default 5 minutes)
         """
@@ -47,6 +51,7 @@ class MCPDetectionPipeline:
 
         # Initialize MCP client with safety guards
         self.mcp = MCPClient(
+            evidence_root=evidence_root,
             audit_logger=self.audit_logger,
             timeout_seconds=timeout_seconds,
             max_failures=3,
@@ -225,6 +230,7 @@ def example_usage():
     # Initialize MCP pipeline
     pipeline = MCPDetectionPipeline(
         case_id="INC-2026-001",
+        evidence_root=Path("/evidence"),
         audit_log_path=Path("/cases/INC-2026-001/audit.jsonl"),
     )
 

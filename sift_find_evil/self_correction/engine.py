@@ -28,6 +28,35 @@ _CATEGORY_BY_CONTRADICTION: dict[ContradictionType, FindingCategory] = {
 }
 
 
+# MITRE ATT&CK technique ids per contradiction type (SFE-fibx.4). Causality
+# violations and timestomping are timestamp manipulation -> T1070.006 (Timestomp);
+# a missing artifact is broader indicator removal -> T1070; the memory/network
+# presence mismatches reuse the same techniques their standalone findings carry.
+_TECHNIQUES_BY_CONTRADICTION: dict[ContradictionType, list[str]] = {
+    ContradictionType.CAUSALITY_VIOLATION: ["T1070.006"],
+    ContradictionType.TIMESTOMPING: ["T1070.006"],
+    ContradictionType.TEMPORAL_MISMATCH: ["T1070.006"],
+    ContradictionType.MISSING_ARTIFACT: ["T1070"],
+    ContradictionType.MEMORY_PRESENCE_MISMATCH: ["T1014"],
+    ContradictionType.NETWORK_PRESENCE_MISMATCH: ["T1071"],
+}
+
+
+def _pick_techniques(contradictions: List[Contradiction]) -> list[str]:
+    """Union of MITRE techniques across the finding's contradictions.
+
+    First-seen order, de-duplicated, so a finding built from several contradiction
+    types carries every relevant technique exactly once. Unmapped types contribute
+    nothing (never a fabricated id).
+    """
+    techniques: list[str] = []
+    for contradiction in contradictions:
+        for technique in _TECHNIQUES_BY_CONTRADICTION.get(contradiction.type, []):
+            if technique not in techniques:
+                techniques.append(technique)
+    return techniques
+
+
 def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
     """Choose the strongest category represented among the contradictions.
 
@@ -47,6 +76,52 @@ def _pick_category(contradictions: List[Contradiction]) -> FindingCategory:
     if FindingCategory.TIMELINE_TAMPERING in categories:
         return FindingCategory.TIMELINE_TAMPERING
     return FindingCategory.UNKNOWN
+
+
+def _finding_event_time(
+    executable: str,
+    mft_entries: List[Any],
+    prefetch_entries: List[Any],
+    event_log_entries: List[Any],
+) -> Optional[str]:
+    """The forensic event time for ``executable``, as an ISO8601 string.
+
+    Additive, display-only provenance (SFE-fr7d): a finding's ``detected_at`` is
+    the analysis wall-clock (``datetime.now()``), useless for a "what happened
+    when" timeline. This surfaces the real event time the disk artifacts already
+    carry so the GUI timeline (SFE-x44t) can place the finding on an axis.
+
+    Priority is most-execution-relevant first: prefetch last-run (the process
+    actually ran) > Event ID 4688 TimeCreated (execution confirmation) > MFT
+    creation (file birth on disk). Returns ``None`` when no matching entry carries
+    a timestamp, so the finding simply omits ``event_time`` and the timeline
+    degrades rather than plotting a fabricated instant.
+
+    This is NOT the correlation ``timeline`` dict (:func:`correlation.assemble._timeline_events`);
+    it feeds no scoring or correlation, so it cannot change which findings the
+    engine produces, their confidence, or subject-risk banding.
+    """
+    target = executable.lower()
+
+    # 1. Prefetch last-run: the strongest execution signal.
+    for p in prefetch_entries:
+        if p.executable.lower() == target and p.last_run_time:
+            return p.last_run_time.isoformat()
+
+    # 2. Event ID 4688 process-creation time.
+    for e in event_log_entries:
+        name = e.get_executable_name()
+        if name and name.lower() == target and e.time_created:
+            return e.time_created.isoformat()
+
+    # 3. MFT creation time (file birth) as the last resort.
+    for m in mft_entries:
+        if m.file_name.lower() == target:
+            created = m.get_creation_time()
+            if created:
+                return created.isoformat()
+
+    return None
 
 
 # Finding class moved to findings/finding.py to enable clean Community/Enterprise split.
@@ -302,6 +377,31 @@ class SelfCorrectionEngine:
             "artifact_types": artifact_types,
         }
 
+        # Additive, display-only forensic event time for the GUI timeline
+        # (SFE-fr7d): the real "when" from the disk artifacts, distinct from the
+        # finding's analysis-wall-clock detected_at. Omitted when unavailable so
+        # the field never carries a fabricated instant.
+        event_time = _finding_event_time(
+            executable, mft_entries, prefetch_entries, event_log_entries
+        )
+        if event_time:
+            evidence["event_time"] = event_time
+
+        # Fact-vs-inference split (SFE-fibx.4 PR-B): the OBSERVATION is the raw
+        # cross-artifact discrepancy read from the tool output; the INTERPRETATION
+        # is the analytic conclusion drawn from it (tempered by any resolution).
+        observation = "; ".join(c.description for c in contradictions)
+        interpretation = (
+            f"{executable} shows {len(contradictions)} cross-artifact "
+            f"contradiction(s) consistent with timeline manipulation"
+            + (
+                f", partially resolved by {len(resolutions)} Event-Log tiebreaker(s)"
+                if resolutions
+                else " (unresolved)"
+            )
+            + "."
+        )
+
         # Create finding
         finding = Finding(
             title=f"Suspicious Activity: {executable}",
@@ -319,6 +419,9 @@ class SelfCorrectionEngine:
             resolutions=resolutions,
             confidence_calculation=calc_details,
             artifact_sources=artifact_types,
+            techniques=_pick_techniques(contradictions),
+            observation=observation,
+            interpretation=interpretation,
         )
 
         return finding
@@ -438,6 +541,9 @@ class SelfCorrectionEngine:
                     contradiction_type=contradiction.type.value,
                     resolution_method="psscan_confirms_unlinked_process",
                     confidence_recovery=0.30,
+                    # CONFIRMS the finding (a real unlinked process corroborated
+                    # by a second memory source), it does not clear the subject.
+                    is_exonerating=False,
                     evidence={
                         "pid": pid,
                         "source": "psscan",
@@ -486,6 +592,7 @@ class SelfCorrectionEngine:
             resolutions=resolutions,
             confidence_calculation=calc_details,
             artifact_sources=artifact_types,
+            techniques=["T1014"],  # Rootkit (hidden process w/ live socket)
         )
 
     def _generate_network_finding(self, contradiction: Contradiction) -> Finding:
@@ -524,6 +631,10 @@ class SelfCorrectionEngine:
                 Resolution(
                     contradiction_type=contradiction.type.value,
                     resolution_method="known_benign_direct_ip_infrastructure",
+                    # EXONERATES: a hardcoded-IP C2 candidate is downgraded to a
+                    # benign well-known resolver, clearing the subject. This is
+                    # the sole exonerating resolution the ledger acts on today.
+                    is_exonerating=True,
                     # +0.30 mirrors the disk causality tiebreaker and memory
                     # psscan recovery: enough to lift a -0.45 penalty back
                     # toward (but not above) the uncontradicted baseline, so a
@@ -573,6 +684,7 @@ class SelfCorrectionEngine:
             resolutions=resolutions,
             confidence_calculation=calc_details,
             artifact_sources=artifact_types,
+            techniques=["T1071", "T1571"],  # App-layer C2 / non-standard port
         )
 
     def _resolve_causality_violation(
@@ -628,6 +740,9 @@ class SelfCorrectionEngine:
                     contradiction_type="causality_violation",
                     resolution_method="event_log_confirms_prefetch",
                     confidence_recovery=0.30,
+                    # CONFIRMS the finding (Event Log corroborates the Prefetch
+                    # execution time), it does not clear the subject.
+                    is_exonerating=False,
                     evidence={
                         "prefetch_time": prefetch_time.isoformat(),
                         "event_log_time": event.time_created.isoformat(),

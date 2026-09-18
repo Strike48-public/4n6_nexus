@@ -48,8 +48,9 @@ lets callers choose when to pay the 30-60s Vol3 symbolization cost
 from __future__ import annotations
 
 import ipaddress
+import json
 import re
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from ..findings import FindingCategory
 from ..memory.obfuscation import DeobfuscationResult, analyze_cmdline_obfuscation
@@ -80,6 +81,54 @@ def _timeline_event(ts: str, source: str, actor: str, etype: str) -> dict:
         "target": "",
         "type": etype,
     }
+
+
+# Row attributes that carry a finding's re-derivable anchors, used to
+# reconstruct a provenance span when a row omits its raw plugin record.
+_SPAN_FALLBACK_ATTRS = (
+    "pid",
+    "ppid",
+    "process",
+    "name",
+    "owner",
+    "args",
+    "command",
+    "foreign_addr",
+    "local_addr",
+    "create_time",
+)
+
+
+def _source_span(row: Any) -> str:
+    """Serialize the specific tool-output record a finding was derived from.
+
+    This is per-finding PROVENANCE (SFE-fsno): the independent falsifier
+    re-derives a finding's asserted IP/PID anchor against THIS text - the exact
+    Volatility row the detector consumed - rather than a whole-corpus blob. A
+    real-but-misattributed anchor (a PID/IP that belongs to a DIFFERENT record)
+    is therefore FALSIFIED, because it is absent from the finding's OWN span.
+
+    The record's ``raw_row`` (the parsed plugin row) is the ground truth. When it
+    is empty (some unit fixtures omit it), reconstruct the span from the row's
+    own anchor-bearing attributes so it still carries the finding's PID/IP.
+    Deterministic: raw keys are sorted so the same row always yields the same
+    span. Purely additive - it never changes which findings are produced.
+
+    Keys are stringified before sorting so a ``raw_row`` with mixed key types
+    (which ``sort_keys`` cannot order) still serializes rather than raising.
+    Real Vol3 ``-r json`` output only has string keys, so this is belt-and-braces
+    for the ``row: Any`` contract, not a shape we expect from the parser.
+    """
+    raw = getattr(row, "raw_row", None)
+    if isinstance(raw, dict) and raw:
+        normalized = {str(k): v for k, v in raw.items()}
+        return json.dumps(normalized, sort_keys=True, default=str)
+    parts = []
+    for attr in _SPAN_FALLBACK_ATTRS:
+        val = getattr(row, attr, None)
+        if val is not None and val != "":
+            parts.append(f"{attr}={val}")
+    return " ".join(parts)
 
 
 # PIDs that routinely appear in psscan but not pslist because they have
@@ -322,22 +371,27 @@ class MemoryDetector:
         # process was maliciously unlinked, so the T1014 inference is unsound
         # (SFE-4n7). The Linux plugins are unaffected.
         listwalk_failed = bool(listwalk_gaps)
+        # PID -> process create_time from the process lists, so a finding whose own
+        # plugin carries no timestamp (malfind, netscan) inherits its process's real
+        # creation time. This is genuine cross-source evidence linkage - it lets a
+        # malfind injection and a netscan C2 socket for the SAME process
+        # time-correlate; it does not change what is flagged. Built even under
+        # list-walk failure (empty then) because netscan still runs.
+        create_times = {
+            r.pid: r.create_time
+            for r in (list(pslist_rows or ()) + list(psscan_rows or ()))
+            if getattr(r, "create_time", "")
+        }
         if not listwalk_failed:
-            # PID -> process create_time from the process lists, so an injection
-            # finding (malfind carries no timestamp of its own) inherits its
-            # process's real creation time. This is genuine cross-source evidence
-            # linkage - it lets a malfind injection time-correlate with other
-            # findings about the same process; it does not change what is flagged.
-            create_times = {
-                r.pid: r.create_time
-                for r in (list(pslist_rows or ()) + list(psscan_rows or ()))
-                if getattr(r, "create_time", "")
-            }
             findings.extend(self._analyze_malfind(malfind or (), create_times))
             findings.extend(self._analyze_hidden_processes(pslist_rows, psscan_rows))
             findings.extend(self._analyze_cmdline(cmdline or ()))
         findings.extend(
-            self._analyze_netscan(netscan or (), suppress_unowned=listwalk_failed)
+            self._analyze_netscan(
+                netscan or (),
+                suppress_unowned=listwalk_failed,
+                create_times=create_times,
+            )
         )
         findings.extend(self._analyze_linux_bash(linux_bash or ()))
         findings.extend(self._analyze_linux_pslist(linux_pslist or ()))
@@ -469,6 +523,9 @@ class MemoryDetector:
                 "commit_charge": row.commit_charge,
                 "private_memory": row.private_memory,
                 "mitre_attack": ["T1055"],
+                # Per-finding provenance: the exact malfind record this finding
+                # was derived from, for independent anchor re-derivation.
+                "source_span": _source_span(row),
                 # Timeline event keyed on the process so a malfind injection and
                 # a psscan hidden-process finding for the same process correlate.
                 "timeline": _timeline_event(
@@ -542,6 +599,7 @@ class MemoryDetector:
                 "create_time": row.create_time,
                 "source": "psscan_without_pslist",
                 "mitre_attack": ["T1014"],
+                "source_span": _source_span(row),
                 # Normalized timeline event so cross-source memory findings for
                 # the same process correlate in the shared hardening pipeline.
                 "timeline": _timeline_event(
@@ -626,6 +684,7 @@ class MemoryDetector:
                 "args": row.args,
                 "reasons": reasons,
                 "mitre_attack": ["T1059"],
+                "source_span": _source_span(row),
             },
             confidence=confidence,
             confidence_label=label,
@@ -675,6 +734,7 @@ class MemoryDetector:
                 "decoded_payload": deobf.decoded_payload,
                 "reasons": list(deobf.reasons),
                 "mitre_attack": list(deobf.mitre_attack),
+                "source_span": _source_span(row),
             },
             confidence=confidence,
             confidence_label=label,
@@ -696,18 +756,30 @@ class MemoryDetector:
     # --- netscan (suspicious sockets) -------------------------------------
 
     def _analyze_netscan(
-        self, rows: Iterable[NetworkRow], *, suppress_unowned: bool = False
+        self,
+        rows: Iterable[NetworkRow],
+        *,
+        suppress_unowned: bool = False,
+        create_times: Optional[dict] = None,
     ) -> list[Finding]:
+        create_times = create_times or {}
         findings: list[Finding] = []
         for row in rows:
-            finding = self._classify_netscan_row(row, suppress_unowned=suppress_unowned)
+            finding = self._classify_netscan_row(
+                row, suppress_unowned=suppress_unowned, create_times=create_times
+            )
             if finding is not None:
                 findings.append(finding)
         return findings
 
     def _classify_netscan_row(
-        self, row: NetworkRow, *, suppress_unowned: bool = False
+        self,
+        row: NetworkRow,
+        *,
+        suppress_unowned: bool = False,
+        create_times: Optional[dict] = None,
     ) -> Optional[Finding]:
+        create_times = create_times or {}
         # Unowned sockets — kernel-side or hidden process — fire first
         # regardless of destination. This is the T1014 adjunct to the
         # pslist/psscan divergence finding. We still require a live remote
@@ -761,9 +833,15 @@ class MemoryDetector:
         is_private = _is_rfc1918(row.foreign_addr)
         port = row.foreign_port or 0
 
+        # The owning process's creation time (when known) places this socket on
+        # the timeline so it can correlate with other findings about the same
+        # process (e.g. a malfind injection in the same PID).
+        create_time = create_times.get(row.pid, "")
         if is_private:
-            return self._build_lateral_movement_finding(row, basename, port)
-        return self._build_exfil_finding(row, basename, port)
+            return self._build_lateral_movement_finding(
+                row, basename, port, create_time
+            )
+        return self._build_exfil_finding(row, basename, port, create_time)
 
     def _build_unowned_socket_finding(self, row: NetworkRow) -> Finding:
         return Finding(
@@ -787,6 +865,7 @@ class MemoryDetector:
                 "foreign_port": row.foreign_port,
                 "state": row.state,
                 "mitre_attack": ["T1014"],
+                "source_span": _source_span(row),
             },
             confidence=0.65,
             confidence_label="Medium",
@@ -803,7 +882,7 @@ class MemoryDetector:
         )
 
     def _build_lateral_movement_finding(
-        self, row: NetworkRow, basename: str, port: int
+        self, row: NetworkRow, basename: str, port: int, create_time: str = ""
     ) -> Finding:
         is_lm_port = port in _SMB_WINRM_RPC_PORTS
         reasons = [
@@ -844,6 +923,15 @@ class MemoryDetector:
                 "state": row.state,
                 "reasons": reasons,
                 "mitre_attack": ["T1021"],
+                "source_span": _source_span(row),
+                # Timeline event keyed on the socket owner so this connection
+                # correlates with other findings about the same process.
+                "timeline": _timeline_event(
+                    ts=create_time,
+                    source="netscan",
+                    actor=row.owner or "",
+                    etype="lateral_connection",
+                ),
             },
             confidence=confidence,
             confidence_label=label,
@@ -863,7 +951,7 @@ class MemoryDetector:
         )
 
     def _build_exfil_finding(
-        self, row: NetworkRow, basename: str, port: int
+        self, row: NetworkRow, basename: str, port: int, create_time: str = ""
     ) -> Finding:
         is_reverse_shell_port = port in _REVERSE_SHELL_PORTS
         reasons = [
@@ -903,6 +991,16 @@ class MemoryDetector:
                 "state": row.state,
                 "reasons": reasons,
                 "mitre_attack": ["T1071"],
+                "source_span": _source_span(row),
+                # Timeline event keyed on the socket owner so this C2 connection
+                # correlates with a same-process finding from another source
+                # (e.g. a malfind injection in the same PID).
+                "timeline": _timeline_event(
+                    ts=create_time,
+                    source="netscan",
+                    actor=row.owner or "",
+                    etype="c2_connection",
+                ),
             },
             confidence=confidence,
             confidence_label=label,
@@ -977,6 +1075,7 @@ class MemoryDetector:
                 "command_time": row.command_time,
                 "reasons": reasons,
                 "mitre_attack": mitre,
+                "source_span": _source_span(row),
             },
             confidence=confidence,
             confidence_label=label,
@@ -1032,6 +1131,7 @@ class MemoryDetector:
                 "process": row.name,
                 "euid": row.euid,
                 "mitre_attack": ["T1070.004"],
+                "source_span": _source_span(row),
             },
             confidence=0.80,
             confidence_label="High",
@@ -1069,6 +1169,7 @@ class MemoryDetector:
                 "process": row.name,
                 "euid": row.euid,
                 "mitre_attack": ["T1036"],
+                "source_span": _source_span(row),
             },
             confidence=0.80,
             confidence_label="High",
@@ -1170,6 +1271,7 @@ class MemoryDetector:
                 "state": row.state,
                 "reasons": reasons,
                 "mitre_attack": ["T1021"],
+                "source_span": _source_span(row),
             },
             confidence=confidence,
             confidence_label=label,
@@ -1228,6 +1330,7 @@ class MemoryDetector:
                 "state": row.state,
                 "reasons": reasons,
                 "mitre_attack": ["T1071"],
+                "source_span": _source_span(row),
             },
             confidence=confidence,
             confidence_label=label,

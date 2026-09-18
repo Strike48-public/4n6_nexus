@@ -1,0 +1,50 @@
+name: 31_linux_journald_bruteforce
+tier: synthetic
+category: credential_access
+difficulty: intermediate
+description: >
+  Linux SSH brute-force compromise scored off a captured journalctl dump on a
+  systemd host with NO rsyslog (no /var/log/auth.log). The linux_artifacts
+  fixture is a synthetic mounted-image root carrying a `journalctl -o json`
+  (JSON Lines) capture at /var/log/journal/journalctl.json; the journald parser
+  normalizes its sshd records into auth_events, which LinuxAuthDetector scans
+  for a password-guessing run that culminates in a valid login (T1110.001 ->
+  T1078). One malicious source IP (45.83.122.10: 6 failed root attempts then an
+  Accepted) plus four precision decoys -- a benign low-failure login (alice, 2
+  typos then success, below threshold), a failed flood with no success
+  (198.51.100.9, an attempt but no compromise), a clean internal publickey login
+  (deploy from 10.0.0.5), and a non-auth sshd noise line -- so precision is
+  exercised, not assumed: any decoy that fires scores as a false positive.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  linux_artifacts: root
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    credential_access: 1
+    total: 1
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Exercises the journald parser + collector wiring end-to-end (SFE-4igf), the
+  final SFE-4fnv.6 Tranche-2 artifact (closes epic SFE-4fnv). Companion to
+  27_linux_auth_bruteforce (same T1110.001 compromise, but sourced from the
+  journal instead of a raw auth.log) and 29_linux_wtmp_login. The mounted root
+  carries no Windows artifacts, so it runs through the has_linux gate; it
+  carries no systemd/cron/sudoers/shell-init/auth.log/wtmp surfaces, so the only
+  finding is the credential_access compromise, cited as artifact_source
+  "journald".
+
+  The malicious Accepted also yields a login_session, but that (ip, user) pair
+  is already owned by the auth brute-force surface, so LinuxLoginSessionDetector
+  suppresses it (no double count) -- one finding total.
+
+  RFC-5737 caveat: the malicious source IP is a genuine public address
+  (45.83.122.10), NOT a documentation range, because the login-session dedupe
+  and any external-IP reasoning classify the doc ranges as non-global.

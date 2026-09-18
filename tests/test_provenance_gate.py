@@ -1,4 +1,4 @@
-"""Tests for the provenance gate (gallery idea #3).
+"""Tests for the provenance gate .
 
 Every finding citation must resolve to a real logged tool call. A citation
 that fails the strict id regex (path traversal, homoglyph, injection) is

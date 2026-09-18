@@ -1,0 +1,58 @@
+{
+  "index_patterns": ["dfir-findings*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "dynamic": true,
+      "properties": {
+        "class_uid": { "type": "integer" },
+        "category_uid": { "type": "integer" },
+        "type_uid": { "type": "long" },
+        "activity_id": { "type": "integer" },
+        "severity_id": { "type": "integer" },
+        "status_id": { "type": "integer" },
+        "confidence_score": { "type": "integer" },
+        "time": { "type": "date", "format": "epoch_millis" },
+        "message": { "type": "text" },
+        "finding_info": {
+          "properties": {
+            "uid": { "type": "keyword" },
+            "title": { "type": "text" },
+            "desc": { "type": "text" },
+            "attacks": {
+              "properties": {
+                "technique": {
+                  "properties": {
+                    "uid": { "type": "keyword" },
+                    "name": { "type": "keyword" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "observables": {
+          "properties": {
+            "name": { "type": "keyword" },
+            "type_id": { "type": "integer" },
+            "value": { "type": "keyword" }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "product": {
+              "properties": {
+                "name": { "type": "keyword" },
+                "vendor_name": { "type": "keyword" }
+              }
+            },
+            "version": { "type": "keyword" }
+          }
+        }
+      }
+    }
+  }
+}

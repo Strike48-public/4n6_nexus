@@ -1,5 +1,6 @@
 """MCP client for forensic tool execution with safety guards."""
 
+import platform
 import subprocess
 import time
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..audit.logger import AuditLogger
+from .guardrails import ToolGuard, tool_binary, tool_supported_on_platform
 
 
 @dataclass
@@ -23,42 +25,22 @@ class MCPToolResult:
     command: str
 
 
-# Flags that would let a tool mutate evidence. Matched as whole tokens
-# (optionally with an attached =value), so a write flag at any position --
-# including the final argument -- is caught, while read flags that merely
-# contain these letters (e.g. --password, --forward) are not. (SFE-0dq)
-#
-# Scoped to evidence-MUTATION flags. Derived-output flags like --csv <outdir>
-# are deliberately NOT blocked: writing analysis output to a separate directory
-# is the normal read-only workflow and is allowed by the server's ToolGuard
-# policy too. The real boundary (path containment) is ToolGuard, not this list.
-_WRITE_FLAG_TOKENS = frozenset({"-w", "-W", "--write", "--modify", "--delete"})
-
-
-def _is_write_flag(token: str) -> bool:
-    """True if a single argv token requests a write/mutation."""
-    base = token.split("=", 1)[
-        0
-    ]  # strip attached value: --write-out=... -> --write-out
-    if base in _WRITE_FLAG_TOKENS:
-        return True
-    # Catch long-form spellings like --write-out / --writeable without
-    # false-positiving on unrelated flags.
-    return base.startswith("--write")
-
-
 class MCPClient:
-    """Legacy client for executing forensic tools with best-effort safety guards.
+    """Client for executing forensic tools, routed through ToolGuard (SFE-fibx.14).
 
-    WARNING: This client is NOT the architectural security boundary. It performs
-    a best-effort write-flag rejection but has NO path-containment enforcement --
-    it runs ``subprocess.run`` on the command directly. For real forensic
-    investigations, drive tools through ``EvidenceMCPServer`` (server.py), where
-    ``ToolGuard`` enforces the read-only allowlist AND evidence-path containment
-    on every call. See SFE-0dq.
+    Every ``execute_tool`` call is validated by the SAME ``ToolGuard`` the
+    shipping ``EvidenceMCPServer`` (server.py) uses: the read-only allowlist AND
+    input/output evidence-path containment. Historically this client enforced
+    only a best-effort write-flag denylist and ran ``subprocess.run`` directly --
+    a ToolGuard bypass reachable through the exported ``EZToolsTool`` wrapper and
+    the documented ``cli_mcp`` entrypoint. That bypass is now closed at the choke
+    point: ``evidence_root`` is REQUIRED (containment is meaningless without one),
+    so there is no ungated fallback.
 
     Provides:
-    - Best-effort read-only enforcement (write-flag rejection; see warning above)
+    - Read-only enforcement via ToolGuard (allowlist + path/output containment)
+    - Platform gate: a tool that cannot produce output here is refused before
+      spawning (SFE-ybki), rather than exiting 0 while silently doing nothing
     - Timeout guards (default 5 minutes)
     - Circuit breaker for tool failures
     - Audit logging for all invocations
@@ -66,6 +48,7 @@ class MCPClient:
 
     def __init__(
         self,
+        evidence_root: Path,
         audit_logger: Optional[AuditLogger] = None,
         timeout_seconds: int = 300,
         max_failures: int = 3,
@@ -73,15 +56,28 @@ class MCPClient:
         """Initialize MCP client.
 
         Args:
+            evidence_root: The case evidence directory. REQUIRED -- the ToolGuard
+                path-containment check is meaningless without a root, so this
+                path has no default and there is no unguarded mode.
             audit_logger: Optional audit logger instance
             timeout_seconds: Command timeout (default 5 minutes)
             max_failures: Max consecutive failures before circuit break
         """
+        self.evidence_root = Path(evidence_root)
         self.audit_logger = audit_logger
         self.timeout_seconds = timeout_seconds
         self.max_failures = max_failures
         self.failure_count = 0
         self.last_failure_time: Optional[datetime] = None
+        # Route through the shipping server's read-only policies. Local import
+        # keeps this off the module-load path (client is imported at package
+        # import time via mcp/__init__.py; server pulls heavier deps).
+        from .server import default_policies
+
+        self.guard = ToolGuard(
+            policies=default_policies(),
+            evidence_root=self.evidence_root,
+        )
 
     def execute_tool(
         self,
@@ -100,7 +96,8 @@ class MCPClient:
             MCPToolResult with execution details
 
         Raises:
-            RuntimeError: If circuit breaker is open
+            RuntimeError: If circuit breaker is open, or if ``tool`` cannot do
+                work on this platform (SFE-ybki)
             TimeoutError: If command exceeds timeout
         """
         # Check circuit breaker
@@ -110,19 +107,58 @@ class MCPClient:
                 f"Last failure: {self.last_failure_time}"
             )
 
-        # Best-effort read-only enforcement: reject any whole-token write flag,
-        # at any position (the real boundary is ToolGuard; see class docstring).
-        if any(_is_write_flag(token) for token in command):
-            raise ValueError(
-                f"Write operations not allowed in read-only mode: {' '.join(command)}"
-            )
+        # Architectural boundary: the read-only allowlist AND input/output path
+        # containment, enforced by the same ToolGuard the shipping server uses
+        # (SFE-fibx.14). ``command[0]`` is the executable; the guard vets the
+        # argument vector, matching server.run_tool's ``check(tool, args)``
+        # contract where ``args`` excludes the binary. A write flag, an unknown
+        # tool/flag, an input path outside evidence, or an output path inside it
+        # raises GuardrailViolation here -- before anything is spawned.
+        self.guard.check(tool, command[1:])
+
+        # Resolve the binary from the logical ``tool`` key -- NEVER trust the
+        # caller's ``command[0]``. The guard validates args against ``tool``'s
+        # policy, so spawning whatever binary sat in ``command[0]`` would decouple
+        # "what was validated" from "what runs": a caller could pass tool="tshark"
+        # (a permissive policy) with command=["sh", ...] and the guard would wave
+        # the args through while ``sh`` spawned. Mirroring server._execute's
+        # ``[tool_binary(tool), *args]`` makes the spawned binary a pure function
+        # of the guard-checked key.
+        resolved_command = [tool_binary(tool), *command[1:]]
 
         start_time = time.time()
 
+        # Platform gate, mirroring server._execute and jobs_worker (SFE-ybki).
+        # This is the legacy path and not the architectural boundary, but
+        # EZToolsTool is exported from this package, so ``EZToolsTool(...).pecmd()``
+        # reaches subprocess here. PECmd on Linux refuses to work and exits 0, and
+        # ``success`` below is derived from the return code, so an ungated call
+        # would report success for a run that produced nothing -- the same silent
+        # failure being closed at the other doorways.
+        #
+        # RAISE rather than return a failed result, for two reasons. (1) This
+        # class already signals every cannot-run condition by raising (circuit
+        # breaker -> RuntimeError, timeout -> TimeoutError) and every RETURNED
+        # result carries a real integer ``returncode``; a None exit_code here
+        # would break that contract. (2) cli_mcp.analyze_prefetch already has a
+        # ``except RuntimeError`` handler for precisely this case, which was dead
+        # code until now because PECmd's exit-0 never raised anything.
+        #
+        # ``failure_count`` is deliberately NOT incremented: the tool never ran,
+        # so this is an environment condition and must not trip the breaker.
+        if not tool_supported_on_platform(tool):
+            raise RuntimeError(
+                f"Tool {tool} is not supported on this platform "
+                f"({platform.system()}): it cannot produce output here. "
+                "Refused before execution."
+            )
+
         try:
-            # Execute command with timeout
+            # Execute the resolved command with timeout. ``resolved_command`` uses
+            # the key-derived binary, so the caller's command[0] cannot influence
+            # what is spawned.
             result = subprocess.run(
-                command,
+                resolved_command,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout_seconds,
@@ -138,7 +174,7 @@ class MCPClient:
                 exit_code=result.returncode,
                 duration_ms=duration_ms,
                 tool=tool,
-                command=" ".join(command),
+                command=" ".join(resolved_command),
             )
 
             # Reset failure count on success
@@ -152,7 +188,7 @@ class MCPClient:
             if self.audit_logger:
                 self.audit_logger.log_tool_invocation(
                     tool=tool,
-                    command=" ".join(command),
+                    command=" ".join(resolved_command),
                     exit_code=result.returncode,
                     duration_ms=duration_ms,
                     output=result.stdout[:1024],  # First 1KB

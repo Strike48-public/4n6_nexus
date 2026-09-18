@@ -1,0 +1,31 @@
+name: 25_linux_persistence
+tier: synthetic
+category: persistence
+difficulty: intermediate
+description: >
+  Linux-only persistence scenario exercising all five detection surfaces:
+  systemd units with reverse shells, cron entries piping curl|sh, a
+  non-standard ld.so.preload, a NOPASSWD:ALL sudoers backdoor for a
+  non-system principal, and a netcat reverse shell in .bashrc. Includes
+  benign entries on each surface to prove precision = 1.00.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  linux_artifacts: linux_artifacts.json
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    persistence: 5
+    total: 5
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  MITRE ATT&CK T1543.002 (systemd), T1053.003 (cron), T1574.006 (ld.so.preload),
+  T1548.003 (sudoers), T1546.004 (shell init). Five persistence mechanisms, one
+  per category the LinuxPersistenceDetector is designed to catch. No Windows
+  artifacts (no mft/prefetch/evtx) so the scenario exercises the has_linux gate.

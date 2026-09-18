@@ -20,9 +20,9 @@ DFIR triage collects from a mounted image or a live-response bundle:
   MITRE ATT&CK **T1546.004** (Event Triggered Execution: Unix Shell
   Configuration Modification).
 
-All detectors share a single :data:`_SUSPICIOUS_CMD` regex table so the notion
-of "a suspicious command" stays consistent across surfaces. Input dicts are
-never mutated.
+All command-bearing detectors share a single suspicious-command table (see
+:mod:`._suspicious_cmd`) so the notion of "a suspicious command" stays
+consistent across surfaces. Input dicts are never mutated.
 """
 
 from __future__ import annotations
@@ -31,37 +31,7 @@ import re
 from typing import Any, Optional
 
 from ..findings import Finding, FindingCategory
-
-# --- shared suspicious-command table -----------------------------------------
-
-# One table, reused by systemd / cron / bashrc. Each pattern captures a distinct
-# offensive shape a defender expects to see in a persistence payload. Compiled
-# case-insensitively; matched against the raw command text.
-_SUSPICIOUS_CMD: tuple[tuple[re.Pattern[str], str], ...] = (
-    (
-        re.compile(r"\bbash\s+-i\b", re.IGNORECASE),
-        "interactive bash reverse shell (bash -i)",
-    ),
-    (re.compile(r"/dev/tcp/", re.IGNORECASE), "bash /dev/tcp network redirection"),
-    (
-        re.compile(r"\bnc\b[^\n]*\s-e\b", re.IGNORECASE),
-        "netcat with -e command execution",
-    ),
-    (
-        re.compile(r"\bncat\b[^\n]*\s-e\b", re.IGNORECASE),
-        "ncat with -e command execution",
-    ),
-    (
-        re.compile(r"(?:/tmp/|/dev/shm/)\S*", re.IGNORECASE),
-        "execution from /tmp or /dev/shm",
-    ),
-    (re.compile(r"base64\s+(?:-d|--decode)", re.IGNORECASE), "base64-decoded payload"),
-    (re.compile(r"\beval\b", re.IGNORECASE), "eval of dynamic content"),
-    (
-        re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:ba)?sh\b", re.IGNORECASE),
-        "curl/wget piped to a shell",
-    ),
-)
+from ._suspicious_cmd import match_suspicious as _match_suspicious
 
 # Directories the dynamic linker legitimately loads shared objects from. An
 # ld.so.preload entry outside every one of these is treated as hijacking.
@@ -93,22 +63,6 @@ _SYSTEM_SUDO_PRINCIPALS: frozenset[str] = frozenset(
 
 _NOPASSWD_ALL = re.compile(r"NOPASSWD:\s*ALL\b", re.IGNORECASE)
 _NOPASSWD_CMD = re.compile(r"NOPASSWD:\s*(?P<cmd>\S+)", re.IGNORECASE)
-
-
-def _match_suspicious(command: str) -> Optional[str]:
-    """Return the reason string for the first suspicious pattern that matches.
-
-    Args:
-        command: Raw command text to test.
-
-    Returns:
-        The human-readable reason for the first matching pattern, or ``None``
-        when the command matches nothing in the shared table.
-    """
-    for pattern, reason in _SUSPICIOUS_CMD:
-        if pattern.search(command):
-            return reason
-    return None
 
 
 class LinuxPersistenceDetector:

@@ -431,6 +431,9 @@ class RegistryDetector:
                 self._run_key_summary_line(reasons),
             ],
             artifact_sources=["registry"],
+            techniques=[
+                "T1547.001"
+            ],  # Registry Run Keys / Startup Folder (scenario 08)
         )
 
     @staticmethod
@@ -607,6 +610,7 @@ class RegistryDetector:
                 ),
             ],
             artifact_sources=["registry"],
+            techniques=["T1204.002"],  # User Execution: Malicious File
         )
 
     # --- UserAssist ---------------------------------------------------------
@@ -649,4 +653,5 @@ class RegistryDetector:
                 "Silent GUI-shell launches fit scripted/unattended invocation.",
             ],
             artifact_sources=["registry"],
+            techniques=["T1059"],  # Command and Scripting Interpreter
         )

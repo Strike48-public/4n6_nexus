@@ -275,6 +275,7 @@ class CloudUploadDetector:
             confidence_label=confidence_label,
             reasoning_chain=reasoning,
             artifact_sources=artifact_sources,
+            techniques=["T1567.002"],  # Exfiltration to Cloud Storage (scenario 07)
         )
 
     def _identify_provider(self, session: list[BrowserHistoryEntry]) -> str:

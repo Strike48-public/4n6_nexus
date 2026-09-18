@@ -1,0 +1,20 @@
+title: Failed Network Logon
+id: 4n6-sigma-0003
+status: stable
+description: >
+  Detects a failed network (type 3) logon (Security EventID 4625). A single
+  event is low-signal on its own, but a burst - many failures against one
+  account, or from many sources - is the raw material of brute-force and
+  password-spray campaigns. This rule surfaces each 4625; volume/cadence
+  analysis is left to the correlation layer.
+level: low
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+    LogonType: '3'
+  condition: selection
+mitre_attack:
+  - T1110

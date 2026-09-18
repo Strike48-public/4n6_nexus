@@ -18,6 +18,15 @@ class Resolution:
     resolution_method: str
     confidence_recovery: float  # Positive value (how much to recover confidence)
     evidence: dict
+    # Whether this resolution EXONERATES the finding (clears the subject as
+    # benign) rather than CONFIRMS it. Co-located here so the classification
+    # cannot drift from the resolution logic (SFE-h53w): the hypothesis ledger
+    # reads this flag to decide a SUPPORTS->REFUTES self-correction, so a new or
+    # renamed exonerating method self-declares at its construction site instead
+    # of relying on a hard-coded name set in another module. Required (no
+    # default) on purpose -- every construction site must classify itself, so a
+    # future site cannot silently omit it and be treated as confirming.
+    is_exonerating: bool
 
 
 class ConfidenceScorer:

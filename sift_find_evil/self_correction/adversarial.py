@@ -1,8 +1,6 @@
 """Adversarial verification: falsifier protocol + deterministic adjudicator.
 
-Gallery idea #8 - the highest-impact verification gap the field identified. The
-shared insight across MR. Robot Adversarial, The Tribunal, Council-SIFT, GLASSBOX
-and Glass Box is: **you cannot fix hallucination by cooperative self-review, only
+The core insight: **you cannot fix hallucination by cooperative self-review, only
 adversarially, and the final verdict must be produced by a deterministic rule
 ladder rather than an LLM judge.**
 

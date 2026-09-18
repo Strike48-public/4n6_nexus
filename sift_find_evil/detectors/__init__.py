@@ -9,8 +9,14 @@ interface declares.
 
 from __future__ import annotations
 
+from .base import LinuxArtifactDetector
 from .cloud_upload_detector import CloudUploadDetector
 from .exfil_ratio_detector import ExfilRatioDetector
+from .linux_auth import LinuxAuthDetector
+from .linux_execution import LinuxExecutionDetector
+from .linux_persistence import LinuxPersistenceDetector
+from .linux_proc import LinuxProcessDetector
+from .linux_wtmp import LinuxLoginSessionDetector
 from .lnk_jumplist_detector import LnkJumpListDetector
 from .memory_detector import MemoryDetector
 from .network_detector import NetworkDetector
@@ -30,6 +36,12 @@ __all__ = [
     "CloudUploadDetector",
     "DNSAnomalyDetector",
     "ExfilRatioDetector",
+    "LinuxArtifactDetector",
+    "LinuxAuthDetector",
+    "LinuxExecutionDetector",
+    "LinuxLoginSessionDetector",
+    "LinuxPersistenceDetector",
+    "LinuxProcessDetector",
     "LnkJumpListDetector",
     "MemoryDetector",
     "NetworkDetector",

@@ -63,6 +63,90 @@ def test_sub_technique_id_is_confirmed() -> None:
     assert report.confirmed[0]["technique_id"] == "T1070.006"
 
 
+def test_legacy_mitre_technique_key_scalar_reaches_the_matrix() -> None:
+    # SFE-katy PR1: linux_persistence / usn_timestomp emit techniques under the
+    # legacy scalar key `mitre_technique`, which confirmed_matrix historically
+    # IGNORED (it read only `mitre_attack` as a list) - so those detectors' whole
+    # ATT&CK contribution silently never reached the matrix. Normalize it in.
+    findings = [
+        {
+            "title": "systemd service persistence",
+            "evidence": {"mitre_technique": "T1543.002"},
+        },
+    ]
+
+    report = confirmed_matrix(findings)
+
+    assert [e["technique_id"] for e in report.confirmed] == ["T1543.002"]
+    assert report.confirmed[0]["cited_by"] == ["systemd service persistence"]
+
+
+def test_legacy_mitre_key_scalar_reaches_the_matrix() -> None:
+    # lateral_movement_detector emits under the bare scalar key `mitre`.
+    findings = [
+        {"title": "Password spray", "evidence": {"mitre": "T1110"}},
+    ]
+
+    report = confirmed_matrix(findings)
+
+    assert [e["technique_id"] for e in report.confirmed] == ["T1110"]
+
+
+def test_newly_surfaced_techniques_resolve_to_real_catalog_names() -> None:
+    # The 9 techniques the 3 legacy-key detectors emit must resolve to real
+    # ATT&CK names/tactics, not the "unknown" fallback - otherwise the matrix
+    # confirms an id with no human-readable meaning. Guards the CATALOG additions.
+    legacy_technique_ids = [
+        "T1543.002",
+        "T1053.003",
+        "T1574.006",
+        "T1548.003",
+        "T1546.004",
+        "T1110",
+        "T1078",
+        "T1070.006",  # usn timestomp (already in CATALOG)
+        "T1021",  # lateral remote services (already in CATALOG)
+    ]
+    findings = [
+        {"title": f"det-{tid}", "evidence": {"mitre_technique": tid}}
+        for tid in legacy_technique_ids
+    ]
+
+    report = confirmed_matrix(findings)
+
+    resolved = {e["technique_id"]: e for e in report.confirmed}
+    assert set(resolved) == set(legacy_technique_ids)
+    for tid, entry in resolved.items():
+        assert entry["name"] != "unknown", f"{tid} missing a CATALOG name"
+        assert entry["tactic"] != "unknown", f"{tid} missing a CATALOG tactic"
+
+
+def test_canonical_key_wins_when_multiple_mitre_keys_present() -> None:
+    # If a finding somehow carries more than one MITRE key, the canonical
+    # `mitre_attack` is authoritative; legacy keys are only a fallback so we never
+    # double-count the same finding's techniques.
+    findings = [
+        {
+            "title": "Both keys",
+            "evidence": {"mitre_attack": ["T1055"], "mitre": "T1110"},
+        },
+    ]
+
+    report = confirmed_matrix(findings)
+
+    assert [e["technique_id"] for e in report.confirmed] == ["T1055"]
+
+
+def test_legacy_scalar_and_list_mitre_attack_both_accepted() -> None:
+    # Defensive: a scalar `mitre_attack` (not the documented list) must still be
+    # read, so a detector that forgets the list wrapper is not silently dropped.
+    findings = [{"title": "Scalar canonical", "evidence": {"mitre_attack": "T1071"}}]
+
+    report = confirmed_matrix(findings)
+
+    assert [e["technique_id"] for e in report.confirmed] == ["T1071"]
+
+
 def test_malformed_technique_id_is_dropped() -> None:
     # Arrange
     findings = [{"title": "Garbage", "evidence": {"mitre_attack": ["TXYZ"]}}]

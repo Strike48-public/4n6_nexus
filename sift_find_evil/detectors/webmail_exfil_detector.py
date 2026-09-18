@@ -297,6 +297,7 @@ class WebmailExfilDetector:
             confidence_label=confidence_label,
             reasoning_chain=reasoning,
             artifact_sources=artifact_sources,
+            techniques=["T1567"],  # Exfiltration Over Web Service (scenario 06)
         )
 
     def _identify_provider(self, session: list[BrowserHistoryEntry]) -> str:

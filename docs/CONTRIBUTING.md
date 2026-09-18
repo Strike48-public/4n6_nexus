@@ -142,22 +142,26 @@ except SpecificException as exc:
 
 ### Test Coverage
 
-**Minimum 85% line coverage required** (enforced by CI via `--cov-fail-under=85`).
-Current: ~91% on a core install, ~95% with the forensic extras installed.
+**A line-coverage floor is enforced by CI** from a single source -- the
+`[tool.coverage.report] fail_under` value in `pyproject.toml` (currently 97.5,
+with `precision = 2` for an exact check). CI and the local script pass no
+`--cov-fail-under`, so pytest-cov inherits that one value. Current: ~98.1% in the
+enforcing CI `core` tier (~98.9% in a full local run, which also exercises the
+forensic-tool-gated tests the `core` tier skips; see the `[tool.coverage.run]`
+omit list).
 
 ```bash
 # Run tests with coverage
-pytest --cov=sift_find_evil --cov-report=html
+pytest --cov --cov-report=html
 
 # View coverage report
 open htmlcov/index.html
 ```
 
-Pure-rendering UI modules (`tui_app.py`, `tui/*`) and thin CLI/driver wrappers
-are omitted from the coverage gate (see `[tool.coverage.run]` in
-`pyproject.toml`); their behavior is covered by the Pilot-driven tests in
-`tests/test_tui.py`. The detection library and orchestration layer are measured
-directly.
+Thin CLI/driver wrappers (`cli.py`, `__main__.py`, `cli_mcp.py`) are omitted from
+the coverage gate (see `[tool.coverage.run]` in `pyproject.toml`); they are
+exercised end-to-end via the scenario runner and CLI smoke tests. The detection
+library and orchestration layer are measured directly.
 
 ### Test Organization
 
@@ -230,7 +234,7 @@ pytest tests/unit/test_parsers.py::test_mft_parser_basic
 pytest -v
 
 # Run with coverage
-pytest --cov=sift_find_evil
+pytest --cov
 
 # Run scenario harness
 PYTHONPATH=. python3 tests/scenario_harness.py
@@ -511,7 +515,7 @@ ruff check sift_find_evil/
 mypy sift_find_evil/
 
 # Run tests
-pytest --cov=sift_find_evil
+pytest --cov
 
 # Run scenario harness
 PYTHONPATH=. python3 tests/scenario_harness.py
@@ -527,7 +531,7 @@ PYTHONPATH=. python3 tests/scenario_harness.py
    - Unit tests for new functions/classes
    - Integration tests for CLI commands
    - Scenario tests for new detectors
-   - Maintain 85%+ coverage
+   - Keep coverage at or above the `pyproject.toml` floor
 
 ### PR Template
 
@@ -549,7 +553,7 @@ Brief description of changes.
 - [ ] Integration tests added/updated
 - [ ] Scenario tests added/updated
 - [ ] All tests passing
-- [ ] Coverage >= 85%
+- [ ] Coverage stays at or above the `pyproject.toml` floor
 
 ## Checklist
 
@@ -617,7 +621,7 @@ Brief description of changes.
 
 3. **Run full test suite:**
    ```bash
-   pytest --cov=sift_find_evil
+   pytest --cov
    PYTHONPATH=. python3 tests/scenario_harness.py
    ```
 
@@ -668,7 +672,7 @@ Violations may result in temporary or permanent ban from the project.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the Mozilla Public License 2.0 (MPL-2.0), the same license that covers the detection engine.
 
 ---
 

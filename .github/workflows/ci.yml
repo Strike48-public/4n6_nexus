@@ -63,7 +63,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
-          pip install ruff 'black==25.9.0'
+          # Pin both linters to the same versions private CI uses, or the float
+          # breaks nothing in private but turns public red: an unpinned ruff
+          # floats to the newest release, which stabilized new rules (ISC004 et
+          # al.) that fire 1500+ times across this tree. Same rationale as the
+          # black pin below (kept in lockstep with [tool.ruff] in pyproject).
+          pip install 'ruff==0.15.11' 'black==25.9.0'
 
       - name: Install forensic extras (forensic tier only)
         # Native bindings (pyewf/pytsk3/pypff/rbloom). System libs installed above.

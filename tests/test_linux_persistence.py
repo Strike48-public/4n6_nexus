@@ -116,6 +116,31 @@ def test_malicious_cron_flagged() -> None:
     assert findings[0].evidence["mitre_technique"] == "T1053.003"
 
 
+def test_cron_running_bare_tmp_binary_flagged() -> None:
+    """A cron directive running a bare /tmp binary mid-line still fires.
+
+    Guards the directive context of the shared matcher (SFE-l3ep): on a
+    persistence directive any world-writable-path reference is suspicious, even
+    when the path is not in an interactive execution position (here it follows
+    the schedule + user fields, not the line start).
+    """
+    # Arrange
+    detector = LinuxPersistenceDetector()
+    artifacts = {
+        "cron_entries": [
+            {"path": "/etc/cron.d/backdoor", "line": "*/5 * * * * root /tmp/implant.sh"}
+        ]
+    }
+
+    # Act
+    findings = detector.analyze(artifacts)
+
+    # Assert
+    assert len(findings) == 1
+    assert findings[0].category == FindingCategory.PERSISTENCE
+    assert "tmp" in findings[0].evidence["reason"]
+
+
 def test_benign_cron_not_flagged() -> None:
     # Arrange (inverse control)
     detector = LinuxPersistenceDetector()

@@ -176,6 +176,7 @@ class BeaconingDetector:
                 "Uniform cadence is consistent with automated/beaconing traffic.",
             ],
             artifact_sources=["pcap"],
+            techniques=["T1071.001"],  # Application Layer Protocol: Web Protocols
         )
 
 
@@ -325,6 +326,7 @@ class DNSAnomalyDetector:
                 ),
             ],
             artifact_sources=["pcap"],
+            techniques=["T1071.004"],  # Application Layer Protocol: DNS
         )
 
     @staticmethod

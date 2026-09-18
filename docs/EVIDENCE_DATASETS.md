@@ -43,7 +43,7 @@ Two evidence styles are used deliberately:
 
 ## Synthetic scenarios
 
-**Source / license:** hand-authored in this repository (internal, MIT). Each is a
+**Source / license:** hand-authored in this repository (internal, MPL-2.0). Each is a
 small set of CSV/JSON fixtures shaped exactly like the real tool's output
 (MFTECmd CSV, Volatility `-r json`, etc.) plus a `scenario.yaml` manifest that
 declares the ground-truth finding count. The scenario harness
@@ -96,7 +96,7 @@ orchestration harness (not the regression harness). Running
 disk/timeline, memory, and network** in one correlated A2A log — including a
 hidden process resolved via a psscan tiebreaker and a hardcoded-IP C2 that stays
 detected next to a benign direct-IP hit that resolves. See
-[ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md) and
+[ARCHITECTURE.md](ARCHITECTURE.md) and
 [TRY_IT_OUT.md](TRY_IT_OUT.md).
 
 ---
@@ -106,7 +106,7 @@ detected next to a benign direct-IP hit that resolves. See
 All real images carry a `scenario.yaml` manifest recording the source URL,
 publication date, license, and SHA-256 of each evidence file. Evidence is
 **read-only**; the engine never modifies it (enforced architecturally at the MCP
-boundary — see [ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)).
+boundary — see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 ### `circl-2023-wiped` — wiped-disk anti-forensics
 

@@ -101,7 +101,14 @@ class VolatilityTool:
 
 
 class SleuthKitTool:
-    """Wrapper for Sleuth Kit filesystem analysis."""
+    """Wrapper for the Sleuth Kit read-only file listing (``fls``).
+
+    Only ``fls`` is exposed: the ToolGuard ``sleuthkit`` policy resolves to the
+    ``fls`` binary (see ``tool_binary``), which is the single read-only
+    capability the boundary offers. ``mmls``/``icat``/``mactime`` were retired
+    (SFE-kek8) -- they do not map to the ``sleuthkit`` key's binary and had no
+    consumers; expose them as their own guarded capabilities if ever needed.
+    """
 
     def __init__(self, mcp_client: MCPClient):
         """Initialize Sleuth Kit wrapper.
@@ -134,53 +141,6 @@ class SleuthKitTool:
             command.extend(["-o", str(partition_offset)])
         command.append(str(image_file))
 
-        return self.mcp.execute_tool("sleuthkit", command)
-
-    def icat(
-        self, image_file: Path, inode: int, partition_offset: Optional[int] = None
-    ) -> MCPToolResult:
-        """Extract file contents by inode.
-
-        Args:
-            image_file: Path to disk image
-            inode: Inode number
-            partition_offset: Byte offset to partition (optional)
-
-        Returns:
-            MCPToolResult with file contents
-        """
-        command = ["icat"]
-        if partition_offset:
-            command.extend(["-o", str(partition_offset)])
-        command.extend([str(image_file), str(inode)])
-
-        return self.mcp.execute_tool("sleuthkit", command)
-
-    def mmls(self, image_file: Path) -> MCPToolResult:
-        """Display partition layout.
-
-        Args:
-            image_file: Path to disk image
-
-        Returns:
-            MCPToolResult with partition table
-        """
-        command = ["mmls", str(image_file)]
-        return self.mcp.execute_tool("sleuthkit", command)
-
-    def mactime(
-        self, body_file: Path, date_format: str = "%Y-%m-%d %H:%M:%S"
-    ) -> MCPToolResult:
-        """Generate timeline from body file.
-
-        Args:
-            body_file: Path to body file (from fls -m)
-            date_format: strftime format string
-
-        Returns:
-            MCPToolResult with timeline
-        """
-        command = ["mactime", "-b", str(body_file), "-d", "-z", "UTC"]
         return self.mcp.execute_tool("sleuthkit", command)
 
 
@@ -285,69 +245,3 @@ class EZToolsTool:
             str(output_dir),
         ]
         return self.mcp.execute_tool("recmd", command)
-
-
-class PlasoTool:
-    """Wrapper for Plaso timeline analysis."""
-
-    def __init__(
-        self,
-        mcp_client: MCPClient,
-        log2timeline_path: str = "log2timeline.py",
-        psort_path: str = "psort.py",
-    ):
-        """Initialize Plaso wrapper.
-
-        Args:
-            mcp_client: MCP client instance
-            log2timeline_path: Path to log2timeline.py
-            psort_path: Path to psort.py
-        """
-        self.mcp = mcp_client
-        self.log2timeline_path = log2timeline_path
-        self.psort_path = psort_path
-
-    def log2timeline(
-        self, image_file: Path, plaso_file: Path, timezone: str = "UTC"
-    ) -> MCPToolResult:
-        """Create Plaso storage file from evidence.
-
-        Args:
-            image_file: Path to disk image
-            plaso_file: Output Plaso storage file
-            timezone: Timezone for timestamps
-
-        Returns:
-            MCPToolResult with Plaso file path
-        """
-        command = [
-            self.log2timeline_path,
-            "--timezone",
-            timezone,
-            str(plaso_file),
-            str(image_file),
-        ]
-        return self.mcp.execute_tool("plaso", command)
-
-    def psort(
-        self, plaso_file: Path, output_file: Path, output_format: str = "l2tcsv"
-    ) -> MCPToolResult:
-        """Sort and filter Plaso timeline.
-
-        Args:
-            plaso_file: Input Plaso storage file
-            output_file: Output timeline file
-            output_format: Output format (l2tcsv, json, etc.)
-
-        Returns:
-            MCPToolResult with timeline file path
-        """
-        command = [
-            self.psort_path,
-            "-o",
-            output_format,
-            "-w",
-            str(output_file),
-            str(plaso_file),
-        ]
-        return self.mcp.execute_tool("plaso", command)

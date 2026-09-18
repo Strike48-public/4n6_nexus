@@ -33,9 +33,13 @@ Executes forensic tools with safety guards:
 
 Pre-built wrappers for:
 - **VolatilityTool** - pslist, netscan, malfind, cmdline
-- **SleuthKitTool** - fls, icat, mmls, mactime
-- **EZToolsTool** - MFTECmd, PECmd, EvtxECmd
-- **PlasoTool** - log2timeline, psort
+- **SleuthKitTool** - fls (the read-only file listing the `sleuthkit` policy exposes)
+- **EZToolsTool** - MFTECmd, PECmd, EvtxECmd, RECmd
+
+Each wrapper drives `MCPClient.execute_tool`, which routes through `ToolGuard`
+(read-only allowlist + evidence-path containment). A tool that maps to no
+guarded capability is refused by construction, so only wrappers backed by a
+`ToolGuard` policy are provided.
 
 ### 3. Detection Pipeline (`sift_find_evil/mcp/example_integration.py`)
 

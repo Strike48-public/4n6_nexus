@@ -15,7 +15,7 @@ from sift_find_evil.correlation.sql_timeline import (
     Correlation,
     RuleRejectedError,
     correlate_timeline,
-    find_contradictions,
+    find_co_occurrences,
     validate_rule_string,
 )
 
@@ -93,7 +93,7 @@ def test_events_outside_window_do_not_correlate() -> None:
     assert correlations == []
 
 
-def test_same_actor_different_type_overlap_surfaced_unresolved() -> None:
+def test_same_actor_different_type_overlap_surfaced_as_co_occurrence() -> None:
     # Arrange: same actor, overlapping window, DIFFERENT type across sources
     events = [
         _event("2026-07-20T10:00:00", "memory", "mal.exe", "hostA", "inject"),
@@ -101,28 +101,30 @@ def test_same_actor_different_type_overlap_surfaced_unresolved() -> None:
     ]
 
     # Act
-    contradictions = find_contradictions(events, window_seconds=5)
+    co_occurrences = find_co_occurrences(events, window_seconds=5)
 
     # Assert
-    assert len(contradictions) == 1
-    c = contradictions[0]
-    assert c["status"] == "UNRESOLVED"
+    assert len(co_occurrences) == 1
+    c = co_occurrences[0]
+    # A corroborating co-occurrence, NOT an unresolved conflict (SFE-nh4h).
+    assert c["relation"] == "same_actor_multi_behavior"
+    assert "status" not in c
     assert c["actor"] == "mal.exe"
     assert {c["type_a"], c["type_b"]} == {"inject", "process_start"}
 
 
-def test_same_actor_same_type_is_not_a_contradiction() -> None:
-    # Inverse control: same actor + same type -> no contradiction surfaced
+def test_same_actor_same_type_is_not_a_co_occurrence() -> None:
+    # Inverse control: same actor + same type -> no co-occurrence surfaced
     events = [
         _event("2026-07-20T10:00:00", "memory", "mal.exe", "hostA", "process_start"),
         _event("2026-07-20T10:00:03", "evtx", "mal.exe", "hostA", "process_start"),
     ]
 
     # Act
-    contradictions = find_contradictions(events, window_seconds=5)
+    co_occurrences = find_co_occurrences(events, window_seconds=5)
 
     # Assert
-    assert contradictions == []
+    assert co_occurrences == []
 
 
 def test_malicious_rule_string_is_rejected_not_executed() -> None:

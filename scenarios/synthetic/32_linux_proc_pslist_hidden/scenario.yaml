@@ -1,0 +1,83 @@
+name: 32_linux_proc_pslist_hidden
+tier: synthetic
+category: process_injection
+difficulty: intermediate
+description: >
+  Cross-source Linux hidden-process detection (MITRE T1014). Two disjoint views
+  of the same host are supplied: the memory kernel task list (Volatility
+  linux.pslist, a JSON fixture) and a /proc filesystem capture (a synthetic
+  mounted-image root). A userland rootkit that hooks getdents() on /proc hides
+  its process from ps/ls but cannot remove it from the kernel task list, so the
+  process appears in linux.pslist yet is ABSENT from the /proc capture. The
+  divergence is invisible to either single-artifact detector (neither the /proc
+  detector nor the memory pslist detector fires on a merely-hidden process) and
+  is only caught by the correlation cross-check (SFE-6mqd).
+
+  linux.pslist holds seven processes: init/systemd (1), kthreadd (2), sshd (900),
+  bash (1200), an httpd (4444) running from a deleted on-disk binary, a benign
+  kernel worker [kworker/1:0] (6666, ppid=2), and the hidden malicious process
+  kdevtmpfsi (31337, ppid=1200, euid=0). The /proc capture holds five visible
+  processes (1, 2, 900, 1200, 4444) -- 31337 and 6666 are absent from it.
+
+  This exercises TWO surfaces at once, which is why the scenario also guards the
+  scoring-key separation (SFE-6mqd post-PR review):
+    - hidden_process (T1070.004): PID 4444's /proc/4444/exe targets a deleted
+      binary, so LinuxProcessDetector fires ONE proc-only finding. 4444 is
+      present in BOTH views, so it is NOT a divergence.
+    - hidden_process_divergence (T1014): PID 31337 is in pslist but not /proc,
+      so the correlation fires ONE finding carrying both memory+proc sources.
+  The divergence finding must NOT be double-counted under hidden_process (it
+  carries ``proc`` too); the memory-absent clause in the hidden_process matcher
+  keeps the two keys disjoint. Without that clause this scenario scores a false
+  positive (precision 2/3), so it is a live regression guard for the fix.
+
+  Precision decoy: PID 6666 is a genuine kernel thread ([kworker/1:0], ppid=2)
+  also absent from /proc. It MUST NOT fire -- a userland getdents hook cannot
+  hide a kernel thread. Structural PIDs (0/1/2) and kernel threads (ppid==2) are
+  excluded from the divergence check.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  linux_artifacts: root
+  memory:
+    linux_pslist: memory_fixtures/linux_pslist.json
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    hidden_process: 1
+    hidden_process_divergence: 1
+    total: 2
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Two scored keys, kept disjoint by artifact-source:
+    - ``hidden_process_divergence`` (this PR, SFE-6mqd) matches a finding carrying
+      BOTH ``memory`` and ``proc`` -- uniquely the correlation finding.
+    - ``hidden_process`` (30_linux_proc_hidden) matches a ``proc``-only finding
+      (memory absent) -- uniquely the LinuxProcessDetector finding.
+  The memory detector's own findings are ``memory`` only, so ``memory_finding``
+  (12_memory_intrusion) is disjoint from both. This scenario deliberately fires
+  BOTH the proc-only (4444) and the divergence (31337) findings so the disjoint
+  matching is regression-guarded, not just asserted.
+
+  Precision guards baked into the fixtures:
+    - PID 6666 is a genuine kernel thread ([kworker/1:0], ppid=2) that is also
+      absent from /proc. It MUST NOT fire: userland getdents hooks cannot hide
+      kernel threads, and its absence is capture skew, not T1014.
+    - PID 4444's pslist COMM is "httpd" (not ''(deleted)''), so the memory
+      deleted-binary check stays silent; the deleted signal lives only on the
+      /proc/4444/exe symlink target, which the /proc detector reads. The only
+      bracketed COMM ([kworker/1:0]) has ppid==2, so the kthread-masquerade
+      check also stays silent. The memory detector emits nothing here.
+
+  Residual FP surface (documented, not eliminated): a userland process that
+  exited between the memory capture and the /proc walk would also appear in
+  pslist-but-not-/proc. The finding carries Medium confidence and flags this in
+  its reasoning chain; real IR corroborates against the timeline before acting.
+  This is the Linux analog of the Windows psscan-vs-pslist divergence in
+  MemoryDetector._analyze_hidden_processes.

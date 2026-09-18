@@ -1,0 +1,3 @@
+@reboot /usr/bin/warmup-cache
+@daily /usr/bin/rsync -a /srv /backup
+0 3 * * * /usr/local/bin/report.sh

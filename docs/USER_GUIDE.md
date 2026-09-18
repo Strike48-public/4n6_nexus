@@ -439,7 +439,7 @@ pytest -v
 pytest tests/test_exfil_detector.py::test_detect_exfiltration -v
 
 # Check test coverage
-pytest --cov=sift_find_evil --cov-report=html
+pytest --cov --cov-report=html
 ```
 
 ---

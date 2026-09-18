@@ -223,7 +223,12 @@ def test_pristine_valid_call_against_default_policies(tmp_path: Path) -> None:
     )
     mft = tmp_path / "MFT.raw"
     mft.write_bytes(b"")
-    out_dir = tmp_path / "out"
+    # Output MUST route OUTSIDE the evidence root (SFE-fibx.2): --csv is now a
+    # containment-guarded output flag, so a legitimate call writes its CSV to a
+    # non-evidence dir (mirrors the real server, which writes to a separate
+    # output_dir). Output INTO evidence is rejected -- see
+    # test_mcp_output_containment.py.
+    out_dir = tmp_path.parent / "mftecmd_out"
 
-    # Act / Assert -- -f is an evidence path, --csv output dir is not containment-checked
+    # Act / Assert -- -f is an evidence input path; --csv output is outside evidence.
     assert guard.check("mftecmd", ["-f", str(mft), "--csv", str(out_dir)]) is None

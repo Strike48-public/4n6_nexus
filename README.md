@@ -1,6 +1,6 @@
 # 4n6 Nexus - Autonomous DFIR Agent
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
 [![SANS FIND EVIL! Hackathon](https://img.shields.io/badge/SANS-FIND%20EVIL!%20Hackathon-blue)](https://www.sans.org)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Detection Accuracy](https://img.shields.io/badge/F1%20Score-1.00-brightgreen)](docs/ACCURACY_REPORT.md)
@@ -15,6 +15,27 @@ architecture designed for real-world forensic investigations.
 > system - product, competition entry, and code module respectively.
 
 **New here?** See **[docs/START_HERE.md](docs/START_HERE.md)** for documentation navigation guide with visual maps and quick paths by role (judges, users, developers, researchers).
+
+### Recent progress (actively maintained)
+
+4n6 Nexus is under active development. The detection invariant (**F1 = 1.00**
+across all 16 recall scenarios) is preserved by every change - the improvements
+below are integrity/verification overlays, not changes to the scored detection
+path.
+
+- **Verification tier → independently re-runnable** - a standalone,
+  stdlib-only verifier (`tools/verify_verification.py`) re-derives every
+  adversarial-verification verdict from the recorded evidence, importing nothing
+  from the engine, so a third party can re-check the verification tier offline.
+- **Injection defense** - Trojan-Source confusable folding (homoglyph-disguised
+  role tokens caught, folded surgically), a tamper-evident injection ledger on
+  the scored path, and a self-attack corpus the sanitizer is proven against.
+- **Adversarial verification tier** - the verifier now runs an *iterative* adversarial verify/remand loop: contested findings are re-adjudicated across bounded rounds and escalate to human review at a remand cap, bounded by a loop-breaker with reachable oscillation/iteration limits. Moves verification beyond single-engine self-correction.
+- **Per-finding evidence provenance** - the independent entailment falsifier re-derives each finding's asserted IP/PID anchors against *its own* tool-output record, catching a real-but-misattributed anchor that a corpus-wide check would pass.
+- **Injection defense on the scored path** - evidence text is routed through the sanitizer on the standalone orchestrator/harness path (it was already live on the MCP path), so the defense rides the same path that gets scored.
+
+For a single-page map of every capability and how to drive it, see
+[docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
 ---
 
@@ -46,8 +67,8 @@ It implements **two of the four supported FIND EVIL! architectural approaches**:
 
 These two are the competition's most architecturally sound approaches - guardrails are
 enforced at the boundary, not by trusting a prompt. See
-**[docs/ARCHITECTURAL_APPROACHES.md](docs/ARCHITECTURAL_APPROACHES.md)** for the full
-mapping to the competition rules, with code references.
+**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the architectural-vs-prompt
+guardrail model, with code references.
 
 ### Two ways to run it (dual-path)
 
@@ -62,8 +83,7 @@ Both paths share the **exact same core**: the MCP server (`EvidenceMCPServer`), 
 self-correction engine (`SelfCorrectionEngine`), the guardrails (`ToolGuard`), and the
 A2A audit trail. The standalone path produces an identical-every-time audit log (its
 strength for reproducibility); the Claude Code path is the authentic Protocol SIFT
-extension for the live demo. See [Quick Start](#quick-start) below and
-[docs/DUAL_PATH_STRATEGY.md](docs/DUAL_PATH_STRATEGY.md).
+extension for the live demo. See [Quick Start](#quick-start) below.
 
 > **On "runs without SIFT":** the synthetic validation harness and the standalone
 > self-correction demo run on pure-Python synthetic fixtures (no SIFT tools needed),
@@ -338,6 +358,22 @@ python3 tools/verify_chain.py /cases/INC-2026-001/audit.jsonl
 # exit 0 = chain valid; exit 1 = invalid (prints failing entry index + reason)
 ```
 
+**Three independent offline verifiers (import nothing from the engine).** The
+same third-party-checkable property extends across the trust pipeline - each
+tool re-implements its contract from the standard library so a court or auditor
+can re-run it without installing our code:
+
+```bash
+# 1. Audit hash-chain integrity
+python3 tools/verify_chain.py /cases/INC-2026-001/audit.jsonl
+# 2. Finding receipts + set-level Merkle anchor (Ed25519, no shared secret)
+python3 tools/verify_receipts.py report.json [trusted_pubkey.pem]
+# 3. Adversarial-verification verdicts: re-derive every finding's entailment
+#    ruling from the recorded evidence and confirm it matches (tamper/drift)
+python3 tools/verify_verification.py report.json
+# each: exit 0 = verified; non-zero = a specific, printed failure reason
+```
+
 **Cryptographic finding receipts (`custody/`).** Every finding the engine emits
 is bound to the evidence image hash by an HMAC-SHA256 receipt, so a receipt
 cannot be lifted onto a different finding, a different case, or a rebound image
@@ -440,6 +476,19 @@ prompt** - so the guarantees hold regardless of what the model does.
   wraps the content in a nonce-keyed sentinel the system prompt declares hostile.
   The injection attempt is itself surfaced as a finding, and only counts are
   logged - the payload is never re-emitted.
+- **Trojan-Source confusable folding** (`injection_defense/confusables.py`)
+  catches a role token disguised with Cyrillic/Greek/fullwidth look-alikes (e.g.
+  `ѕуѕtem:` reading as `system:`) that an ASCII-only matcher would miss. Folding
+  is applied *surgically* - only to a token span the fold actually reveals - so
+  genuine non-Latin evidence is never transliterated.
+- A **tamper-evident injection ledger** (`injection_defense/ledger.py`) records
+  every attempt on the scored path as a genesis-anchored, counts-only SHA-256
+  hash chain (parity with the MCP audit chain), so add/drop/reorder of the
+  recorded attempts is detectable.
+- A **self-attack corpus** (`injection_defense/attack_corpus.py`) - a static
+  battery of BIDI / homoglyph / role-token / forged-JSON / sentinel-close vectors
+  the sanitizer is proven against, load-bearing in the benchmark ablation and
+  paired with benign controls that prove zero false positives.
 - A **unicode-masquerade detector** flags RLO / zero-width / homoglyph tricks
   (Cyrillic "о" in `Micrоsoft.exe`) at the byte level (MITRE T1036.002).
 
@@ -510,9 +559,11 @@ guardrail) inline as it builds each finding. Both arrive at the same guarantees.
   routes all 62 findings through the *same* `harden_findings()` call, so the
   trust pipeline is regression-tested against ground truth, not just unit-tested
   in isolation - and F1 stays 1.00 through it.
-- **Independently checkable:** `tools/verify_chain.py` (audit chain) and the
-  Ed25519 receipt path (findings) can both be verified by a third party with no
-  access to our engine.
+- **Independently checkable:** three standalone verifiers - `tools/verify_chain.py`
+  (audit chain), `tools/verify_receipts.py` (Ed25519 finding receipts + Merkle
+  anchor), and `tools/verify_verification.py` (adversarial-verification verdicts,
+  re-derived from the recorded evidence) - can each be run by a third party with
+  no access to our engine.
 
 *Correlation currently runs on the CI harness path (via `harden_findings`); the
 live orchestrator applies the other primitives inline and gains correlation when
@@ -556,9 +607,8 @@ graph TD
 
 The MCP server (red) is a hard trust boundary: agents hold no tool binaries and
 no write path to evidence, so read-only and path-containment are enforced in
-code, not by prompt. See **[docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md)**
-for the full diagram, the architectural-vs-prompt guardrail taxonomy, and the
-A2A trace sequence.
+code, not by prompt. See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
+for the system diagrams and the architectural-vs-prompt guardrail model.
 
 ---
 
@@ -1058,10 +1108,10 @@ sift_find_evil/
 │   ├── ARCHITECTURE.md           # Component architecture
 │   ├── CONTRIBUTING.md           # Development guide
 │   ├── ACCURACY_REPORT.md        # Detection metrics
-│   ├── PRD.md                    # Product requirements
+│   ├── PRD_MATRIX_INTEGRATION.md # Product requirements (connector)
 │   └── SELF_CORRECTION.md        # Self-correction logic
 ├── requirements.txt              # Python dependencies
-├── LICENSE                       # MIT License
+├── LICENSE                       # Mozilla Public License 2.0
 ├── CLAUDE.md                     # AI agent instructions
 └── README.md                     # This file
 ```
@@ -1075,8 +1125,8 @@ PYTHONPATH=. python3 tests/scenario_harness.py
 # Full test suite (requires pytest)
 pytest
 
-# Test coverage (matches the CI gate: 85% minimum)
-pytest --cov=sift_find_evil --cov-report=html
+# Test coverage (the CI gate's floor is single-sourced in pyproject.toml)
+pytest --cov --cov-report=html
 ```
 
 > Tests that exercise native forensic libraries (E01 images, PST, NSRL bloom,
@@ -1122,7 +1172,7 @@ pip install pre-commit && pre-commit install
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 - Development environment setup
 - Coding standards (PEP 8, type hints)
-- Testing requirements (85% coverage minimum)
+- Testing requirements (coverage floor enforced by CI, set in pyproject.toml)
 - Pull request workflow
 - Adding new detectors, parsers, scenarios
 
@@ -1150,7 +1200,7 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Development guide, coding standards, PR workflow |
 | [ACCURACY_REPORT.md](docs/ACCURACY_REPORT.md) | Precision/recall results, validation methodology |
 | [SELF_CORRECTION.md](docs/SELF_CORRECTION.md) | Self-correction scenarios and logic |
-| [PRD.md](docs/PRD.md) | Product Requirements Document |
+| [PRD_MATRIX_INTEGRATION.md](docs/PRD_MATRIX_INTEGRATION.md) | Product Requirements Document (connector integration) |
 
 ---
 
@@ -1194,7 +1244,13 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
+The detection engine (`sift_find_evil/`) is licensed under the **Mozilla Public
+License 2.0** - see [LICENSE](LICENSE) for the full text. MPL-2.0 is weak
+copyleft: modifications to covered files stay open source, while proprietary
+modules may be added alongside.
+
+The `ui/` connector GUI (a hard fork of `pick`, tied to Prospector Studio) is
+**not** open source and is licensed proprietarily - see [ui/LICENSE](ui/LICENSE).
 
 Open-source community edition. Commercial SaaS offering coming 2026.
 

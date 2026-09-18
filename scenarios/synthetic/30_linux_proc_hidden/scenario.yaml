@@ -1,0 +1,59 @@
+name: 30_linux_proc_hidden
+tier: synthetic
+category: process_injection
+difficulty: intermediate
+description: >
+  Linux live-response /proc capture scored for suspicious running processes.
+  The linux_artifacts fixture is a synthetic mounted-image root; the /proc
+  parser walks root/proc/<pid>/ and the collector assembles proc_processes,
+  which LinuxProcessDetector scans for two filesystem-visible shapes: a process
+  running from a deleted on-disk binary (T1070.004) and a process backed by an
+  executable in a world-writable staging directory (T1059). The capture holds
+  three malicious processes -- PID 1337 (httpd) whose /proc/1337/exe targets
+  '/usr/sbin/httpd (deleted)', PID 2048 (beacon) executing from /tmp/.cache, and
+  PID 3120 (kdevtmpfsi) executing from /dev/shm/.x -- plus five benign decoys
+  that exercise precision: init/systemd, the kthreadd kernel thread (no exe
+  symlink), sshd, a tmpwatch process whose exe is '/tmpreaper/tmpwatch' (a
+  /tmp-prefix boundary that must NOT match /tmp/), and a backup running from
+  '/home/analyst/tmp/backup' (contains 'tmp/' but is not a staging root). Only
+  the three malicious processes may fire; any decoy that fires scores a false
+  positive.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  linux_artifacts: root
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    hidden_process: 3
+    total: 3
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Exercises the /proc process-capture parser + LinuxProcessDetector path
+  end-to-end (SFE-4fnv.6), the Tranche-2 companion to 27_linux_auth_bruteforce,
+  28_linux_history_execution and 29_linux_wtmp_login. Scored via the
+  ``hidden_process`` finding_counts key (matched by the ``proc`` artifact source,
+  not by category, so it never collides with the memory detector's own
+  PROCESS_INJECTION findings).
+
+  The detector keys solely off the /proc/<pid>/exe symlink target. This is the
+  procfs-native, near-zero-FP signal set: a comm/name "kernel-worker masquerade"
+  check does NOT belong here, because the bracketed [kworker] names are a ps
+  DISPLAY convention for empty-cmdline tasks and are not present in
+  /proc/<pid>/comm. The procfs-vs-linux.pslist (memory) hidden-process
+  divergence cross-check is deferred to the correlation layer (two harness
+  inputs) and tracked separately.
+
+  Fixture layout (root/proc/<pid>/{comm,cmdline,status,exe}): exe is a real
+  symlink whose target string is the signal; cmdline is NUL-separated argv;
+  status carries the PPid line. The deleted-binary exe target uses the exact
+  kernel format with a LEADING SPACE ('/usr/sbin/httpd (deleted)'); the detector
+  matches ' (deleted)' so a benign path merely ending in the literal '(deleted)'
+  does not fire. Kernel thread PID 2 (kthreadd) has no exe symlink. Non-numeric
+  /proc entries (cpuinfo, self) are present and skipped by the parser.

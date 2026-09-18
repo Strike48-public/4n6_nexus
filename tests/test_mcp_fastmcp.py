@@ -48,7 +48,7 @@ def server(tmp_path, evidence_root):
         case_id="INC-2026-001",
         evidence_root=evidence_root,
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
 
 
@@ -65,13 +65,27 @@ def test_fastmcp_registers_a_tool_for_every_policy(server):
     ), f"missing MCP tools: {EXPECTED_TOOLS - registered}"
 
 
+# Job-control tools (SFE-dup8) are NOT forensic-tool wrappers: they carry no
+# path policy of their own (the guard runs on the PAYLOAD they stage, not on the
+# job-control call), so they are exempt from the tool<->policy 1:1 invariant.
+_JOB_CONTROL_TOOLS = {"start_job", "poll_job", "load_job_results"}
+
+
 def test_registered_tools_match_default_policies(server):
-    """The exposed tool set tracks the read-only policy allowlist exactly."""
+    """The forensic tool set tracks the read-only policy allowlist exactly.
+
+    Every forensic-tool wrapper must have a read-only policy and vice versa; the
+    job-control tools are a separate, explicitly-enumerated set (they guard the
+    staged payload, not themselves).
+    """
     mcp = build_fastmcp(server)
     registered = _registered_tool_names(mcp)
-    assert registered == set(
+    forensic_tools = registered - _JOB_CONTROL_TOOLS
+    assert forensic_tools == set(
         default_policies()
-    ), "every registered MCP tool must have a read-only policy and vice versa"
+    ), "every forensic MCP tool must have a read-only policy and vice versa"
+    # And the job-control tools are all present.
+    assert _JOB_CONTROL_TOOLS.issubset(registered)
 
 
 def test_registered_tool_routes_through_guardrail_and_audit(server, monkeypatch):
@@ -110,7 +124,7 @@ def test_stdio_launcher_builds_server_and_app(tmp_path, evidence_root):
         case_id="INC-2026-001",
         evidence_root=evidence_root,
         audit_path=tmp_path / "audit.jsonl",
-        examiner="jtomek",
+        examiner="jdoe",
     )
     registered = _registered_tool_names(mcp)
     assert EXPECTED_TOOLS.issubset(registered)

@@ -1,4 +1,4 @@
-"""Tests for the standalone offline audit-chain verifier (gallery idea #5).
+"""Tests for the standalone offline audit-chain verifier .
 
 ``tools/verify_chain.py`` re-implements canonicalization + hashing from the
 stdlib only, importing NOTHING from sift_find_evil, so a third party can prove

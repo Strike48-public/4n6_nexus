@@ -16,9 +16,18 @@ from ._csv_schema import require_columns as _require_columns
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class MFTEntry:
-    """Represents a single MFT entry with timestamps."""
+    """Represents a single MFT entry with timestamps.
+
+    ``slots=True`` drops the per-instance ``__dict__``: the MFT is the largest
+    artifact on a real image (millions of rows re-parsed into a resident list),
+    so shaving the per-entry footprint is a bounded-ingestion win (SFE-s0nb).
+    Safe because every attribute set on an entry -- including ``file_path`` in
+    ``__post_init__`` -- is a declared field; nothing monkeypatches, pickles, or
+    ``deepcopy``s an entry. The per-entry ceiling in
+    ``tests/test_benchmark_mft_memory.py`` guards the footprint against regressing.
+    """
 
     entry_number: int
     file_name: str

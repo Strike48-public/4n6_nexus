@@ -1,4 +1,4 @@
-"""Cryptographic finding receipts (gallery idea #4).
+"""Cryptographic finding receipts .
 
 Each finding is bound to a signed envelope that carries:
 
@@ -12,9 +12,6 @@ Only code holding the per-run key can mint a receipt, so a hallucinated finding
 and any post-hoc edit to the finding body, the bound image hash, or the
 provenance breaks verification. This mirrors the canonical-JSON + HMAC
 convention already proven in ``sift_find_evil/approval/manager.py``.
-
-Independently built by: OATH MCP, Stigmergy, VERDICT, ClaimGuard, Agentropix
-MCP, logflip-sift-agent.
 """
 
 from __future__ import annotations

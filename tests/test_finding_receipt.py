@@ -1,4 +1,4 @@
-"""Tests for cryptographic finding receipts (gallery idea #4).
+"""Tests for cryptographic finding receipts .
 
 Each finding is bound to a signed envelope carrying the evidence-image SHA-256,
 the tool provenance, and a hash of the finding's own content. Only code holding

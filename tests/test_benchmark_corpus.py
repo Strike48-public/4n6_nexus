@@ -1,4 +1,4 @@
-"""Tests for the benchmark corpus + runner (gallery idea #7, data + entrypoint).
+"""Tests for the benchmark corpus + runner (data + entrypoint).
 
 The scorer (test_hallucination_benchmark.py) is engine-agnostic. This exercises
 the shipped corpus of hallucination cases and the runner that grades a set of

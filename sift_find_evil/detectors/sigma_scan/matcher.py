@@ -207,6 +207,15 @@ def _make_finding(rule: Mapping[str, Any], matched_fields: Dict[str, Any]) -> Fi
         severity, (0.7, "Medium")
     )
     title = str(rule.get("title", "Sigma Rule Match"))
+    # ATT&CK ids the rule author declared under its ``mitre_attack`` key, promoted
+    # to the first-class Finding.techniques field (SFE-fibx.4). A rule without the
+    # key contributes no technique (never a fabricated id).
+    raw_techniques = rule.get("mitre_attack") or []
+    techniques = (
+        [str(t) for t in raw_techniques]
+        if isinstance(raw_techniques, (list, tuple))
+        else [str(raw_techniques)]
+    )
     return Finding(
         title=title,
         description=f"Sigma rule '{title}' matched a parsed event.",
@@ -228,6 +237,7 @@ def _make_finding(rule: Mapping[str, Any], matched_fields: Dict[str, Any]) -> Fi
             f"Matched fields: {sorted(matched_fields)}.",
         ],
         artifact_sources=["sigma_scan"],
+        techniques=techniques,
     )
 
 

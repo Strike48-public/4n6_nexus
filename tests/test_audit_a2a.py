@@ -32,7 +32,7 @@ def audit_path(tmp_path):
 
 @pytest.fixture
 def logger(audit_path):
-    return AuditLogger(audit_path, examiner="jtomek")
+    return AuditLogger(audit_path, examiner="jdoe")
 
 
 # --------------------------------------------------------------------------
@@ -122,7 +122,7 @@ def test_log_agent_message_writes_envelope_with_identity(logger, audit_path):
 
     assert rec["action"] == "agent_message"
     assert rec["agent"] == "orchestrator"  # acting agent identity
-    assert rec["examiner"] == "jtomek"  # human examiner
+    assert rec["examiner"] == "jdoe"  # human examiner
     assert rec["correlation_id"] == "corr-malware-exe"
     assert rec["entry_id"].startswith("evt-")  # auto-assigned
     assert rec["timestamp"].endswith(("Z", "+00:00")) or "T" in rec["timestamp"]
@@ -178,12 +178,12 @@ def test_legacy_entry_without_entry_id_deserializes(audit_path):
     legacy = {
         "timestamp": "2026-06-04T14:25:03",
         "action": "tool_invocation",
-        "examiner": "jtomek",
+        "examiner": "jdoe",
         "details": {"tool": "vol.py", "command": "vol.py -f mem windows.pslist"},
     }
     audit_path.write_text(json.dumps(legacy) + "\n")
 
-    logger = AuditLogger(audit_path, examiner="jtomek")
+    logger = AuditLogger(audit_path, examiner="jdoe")
     entries = logger.get_recent(limit=5)
     assert len(entries) == 1
     assert entries[0].action == "tool_invocation"
@@ -192,7 +192,7 @@ def test_legacy_entry_without_entry_id_deserializes(audit_path):
 
 def test_new_entry_ids_continue_after_existing_log(audit_path):
     # Seed two existing A2A entries, reopen, ensure new ids do not collide.
-    logger1 = AuditLogger(audit_path, examiner="jtomek")
+    logger1 = AuditLogger(audit_path, examiner="jdoe")
     logger1.log_agent_message(
         AgentMessage(
             sender="orchestrator", recipient="triage", message_type="dispatch", body={}
@@ -200,7 +200,7 @@ def test_new_entry_ids_continue_after_existing_log(audit_path):
         correlation_id="corr-x",
         agent="orchestrator",
     )
-    logger2 = AuditLogger(audit_path, examiner="jtomek")
+    logger2 = AuditLogger(audit_path, examiner="jdoe")
     logger2.log_agent_message(
         AgentMessage(
             sender="triage", recipient="disk_analyst", message_type="dispatch", body={}

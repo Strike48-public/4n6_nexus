@@ -3,7 +3,7 @@
 ![4n6 Nexus Banner](docs/logo_banner.svg)
 
 ![CI Status](https://img.shields.io/badge/CI-passing-brightgreen.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![License](https://img.shields.io/badge/license-MPL%202.0-brightgreen.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![F1 Score](https://img.shields.io/badge/F1%20Score-1.00-brightgreen.svg)
 ![FIND EVIL!](https://img.shields.io/badge/FIND%20EVIL!-Submission-blue.svg)
@@ -413,7 +413,7 @@ Tested on **16 validation scenarios** (synthetic + real evidence):
 
 ## Roadmap & Editions
 
-### Community Edition (Open Source - MIT License)
+### Community Edition (Open Source - MPL-2.0 License)
 
 **Available Now:**
 
@@ -618,17 +618,13 @@ Found a security issue? Email: [security@4n6nexus.dev](mailto:security@4n6nexus.
 
 ## License
 
-**Community Edition:** MIT License (see [LICENSE](LICENSE))
+**Community Edition:** Mozilla Public License 2.0 (see [LICENSE](LICENSE))
 
 **Commercial Editions (Pro/Enterprise):** Proprietary license
 
-Copyright (c) 2024 4n6 Nexus Contributors
+Copyright (c) 2026 4n6 Nexus Contributors
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ---
 

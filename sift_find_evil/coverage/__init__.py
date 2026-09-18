@@ -10,5 +10,17 @@ from sift_find_evil.coverage.audit import (
     CoverageReport,
     assess_coverage,
 )
+from sift_find_evil.coverage.harden_coverage import (
+    COARSE_CLASSES,
+    HardenCoverage,
+    harden_coverage,
+)
 
-__all__ = ["ARTIFACT_CATALOG", "CoverageReport", "assess_coverage"]
+__all__ = [
+    "ARTIFACT_CATALOG",
+    "CoverageReport",
+    "assess_coverage",
+    "COARSE_CLASSES",
+    "HardenCoverage",
+    "harden_coverage",
+]

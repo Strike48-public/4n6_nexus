@@ -1,4 +1,4 @@
-"""Benchmark runner: grade agent outputs against the corpus (gallery idea #7).
+"""Benchmark runner: grade agent outputs against the corpus .
 
 Takes a mapping of case-name -> agent output ({"flagged": set, "asserted_absent":
 set}) and scores it with the hallucination scorer. A case with NO output is

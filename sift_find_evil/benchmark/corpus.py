@@ -1,4 +1,4 @@
-"""Benchmark corpus: hallucination/abstention ground truth (gallery idea #7).
+"""Benchmark corpus: hallucination/abstention ground truth .
 
 Each case pairs the artifacts that MUST be flagged with two adversarial
 dimensions the recall harness lacks:

@@ -1,0 +1,45 @@
+name: 28_linux_history_execution
+tier: synthetic
+category: execution
+difficulty: intermediate
+description: >
+  Linux dead-disk suspicious-command execution scored off RAW shell history.
+  The linux_artifacts fixture is a synthetic mounted-image root; the raw
+  shell-history parser walks /root/.bash_history and /home/<user>/.bash_history
+  and the collector assembles shell_history, which LinuxExecutionDetector scans
+  for offensive command shapes recorded in history (T1059.004, Unix Shell).
+  /root/.bash_history holds four malicious commands -- a curl|sh download
+  cradle, a wget writing an implant to /tmp, a base64-decoded payload piped to
+  bash, and a bash /dev/tcp reverse shell -- interleaved with benign recon and
+  admin commands (whoami, id, uname -a, cat /etc/passwd, ls). Precision on the
+  /tmp shape is exercised directly: /root/.bash_history also holds benign
+  read/navigation commands that reference /tmp (cat /tmp/build.log, ls -la
+  /tmp/, vim /tmp/session-notes.txt) which must NOT fire -- only execution or
+  staging under /tmp does (SFE-l3ep). A second user home
+  (/home/analyst/.bash_history) is an entirely benign operator history
+  (git, apt, systemctl, vim). Precision is exercised, not assumed: any benign
+  command that fires scores as an extra -> false positive.
+
+source:
+  provider: synthetic
+  license: internal
+
+fixtures:
+  linux_artifacts: root
+
+expected:
+  malicious_executables: []
+  finding_counts:
+    execution: 4
+    total: 4
+  min_precision: 1.0
+  min_recall: 1.0
+
+notes: |
+  Exercises the shell-history parser + LinuxExecutionDetector path end-to-end
+  (SFE-jdii), the Tranche-2 companion to 27_linux_auth_bruteforce (auth) and
+  26_linux_intrusion_raw (persistence). The mounted root carries no Windows
+  artifacts, so it runs through the has_linux gate; it carries no
+  systemd/cron/sudoers/shell-init or auth-log surfaces, so LinuxPersistenceDetector
+  and LinuxAuthDetector emit nothing and the only findings are the four
+  execution matches.

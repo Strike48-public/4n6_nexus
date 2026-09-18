@@ -172,8 +172,7 @@ subagents (`.claude/agents/dfir-orchestrator.md`, `dfir-triage.md`,
 `dfir-disk-analyst.md`, `dfir-memory-analyst.md`, `dfir-network-analyst.md`,
 `dfir-verifier.md`) for interactive use on a Protocol SIFT host, and as the in-process
 `orchestration.py` harness for a deterministic, judge-reproducible run. Both write the
-same correlated A2A log over the same MCP server. See
-[DUAL_PATH_STRATEGY.md](DUAL_PATH_STRATEGY.md).
+same correlated A2A log over the same MCP server.
 
 **Agent-to-agent communication is logged with timestamps.** Every dispatch, result,
 challenge, finding, and verification is an append-only JSONL `AuditEntry` carrying a

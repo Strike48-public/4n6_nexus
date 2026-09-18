@@ -1,0 +1,26 @@
+title: Process Spawned From User-Writable Directory
+id: 4n6-sigma-0002
+status: stable
+description: >
+  Detects a process whose PARENT image resides in a user-writable staging
+  directory (Downloads, AppData\Roaming, ProgramData) - a common malware
+  execution-chain pattern (dropper -> payload) that legitimate system binaries
+  spawned from explorer.exe do not exhibit. Matches a 4688 process-creation
+  event's ParentImage.
+level: medium
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  downloads:
+    EventID: 4688
+    ParentImage|contains: '\Downloads\'
+  approaming:
+    EventID: 4688
+    ParentImage|contains: '\AppData\Roaming\'
+  programdata:
+    EventID: 4688
+    ParentImage|contains: '\ProgramData\'
+  condition: downloads or approaming or programdata
+mitre_attack:
+  - T1059

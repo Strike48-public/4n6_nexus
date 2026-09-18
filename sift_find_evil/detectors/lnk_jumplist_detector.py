@@ -413,6 +413,7 @@ class LnkJumpListDetector:
                 ),
             ],
             artifact_sources=["lnk_jumplist"],
+            techniques=["T1052.001"],  # Exfiltration over USB / removable media
         )
 
     # --- Startup-folder persistence ---------------------------------------
@@ -489,6 +490,7 @@ class LnkJumpListDetector:
                 ),
             ],
             artifact_sources=["lnk_jumplist"],
+            techniques=["T1547.001"],  # Registry Run Keys / Startup Folder
         )
 
     @staticmethod
@@ -578,6 +580,7 @@ class LnkJumpListDetector:
                 "Drive-type metadata did not pre-flag this as a network mount; report as a weaker signal.",
             ],
             artifact_sources=["lnk_jumplist"],
+            techniques=["T1021.002"],  # Remote Services: SMB/Windows Admin Shares
         )
 
 

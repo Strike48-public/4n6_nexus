@@ -3,6 +3,12 @@
 **Purpose:** How to add copyright headers to source files (not full license text)
 **Last Updated:** 2026-04-24
 
+> **Superseded (2026-08-12):** the engine is now licensed under **MPL-2.0**, not
+> MIT. Per-file headers should use the MPL-2.0 Exhibit A notice, not the MIT
+> SPDX header shown below; the full rewrite of this guide is pending. MPL-2.0
+> Exhibit A permits the notice to live in the root LICENSE file, so the repo is
+> compliant today.
+
 ---
 
 ## What We Do (Standard Practice)
@@ -23,7 +29,7 @@
 ### ✅ Full License Text Only in Repository Root
 
 ```
-LICENSE                  (full MIT license text - 21 lines)
+LICENSE                  (full MPL-2.0 license text)
 ```
 
 ---
