@@ -1,4 +1,4 @@
-"""Tests for the detached background-job runner (SFE-eiqz, gallery idea #37).
+"""Tests for the detached background-job runner (SFE-eiqz).
 
 The runner decouples slow mechanical forensic tools (Volatility on a 4GB image,
 Plaso timelines) from the interactive MCP session: ``start_job`` spawns a

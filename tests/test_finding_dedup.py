@@ -1,4 +1,4 @@
-"""Tests for the entity fingerprint / cross-source dedup (gallery idea #35).
+"""Tests for the entity fingerprint / cross-source dedup .
 
 A canonical entity key collapses equivalent findings across sources to ONE
 identity: a disk MFT record for ``crypt_engine.exe`` and a memory ``_EPROCESS``

@@ -1,4 +1,4 @@
-"""Verdict rank clamp - a structural severity ceiling (gallery idea #10).
+"""Verdict rank clamp - a structural severity ceiling .
 
 The single cheapest hallucination firewall in the mined field: the analyst LLM
 may narrate freely, but a finding's *severity* is structurally re-derived from

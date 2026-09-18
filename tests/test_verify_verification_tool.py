@@ -11,10 +11,9 @@ recorded.
 Like the other two verifiers it is DELIBERATELY self-contained: it imports nothing
 from ``sift_find_evil`` and re-implements the token-boundary entailment match and the
 adjudication rules from the Python standard library. That is what makes the
-verification tier a VERDICT-parity "5": the challenger is not only deterministic
+verification tier independently re-runnable: the challenger is not only deterministic
 (entailment re-derivation) and replayable (committed verdicts) but INDEPENDENTLY
-re-runnable by a third party with no engine and no live model - the exact bar the
-field's 5s clear via "LLM-free entailment + replay".
+re-runnable by a third party with no engine and no live model.
 
 RED-first: before SFE-xj7t the hardening report recorded only the verdict
 (``outcome``/``falsifier_status``/``falsifier_family``/``architectural_distance``)

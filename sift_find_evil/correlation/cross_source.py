@@ -1,4 +1,4 @@
-"""Cross-source memory-vs-disk-vs-network correlator (SFE-md4v, gallery idea #20).
+"""Cross-source memory-vs-disk-vs-network correlator (SFE-md4v).
 
 A discrepancy pass that runs AFTER the domain analysts and consumes only their
 verified evidence to emit typed cross-source contradictions that no single domain

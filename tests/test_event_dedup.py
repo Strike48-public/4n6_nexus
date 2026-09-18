@@ -1,4 +1,4 @@
-"""Tests for high-volume event dedup (gallery idea #35, SFE-p0hi PR2).
+"""Tests for high-volume event dedup (SFE-p0hi PR2).
 
 High-volume / low-information events (4624 logons, Sysmon EID3 network
 connections) are collapsed to the first occurrence per distinct tuple so the

@@ -1,9 +1,8 @@
-"""Hallucination / abstention scorer (gallery idea #7).
+"""Hallucination / abstention scorer .
 
 The scenario harness answers "did we find the evil" (recall/precision/F1) against
-our own ground truth. The field's strongest entries (VERDICT, Council-SIFT,
-GLASSBOX) argue that is a by-construction number and instead measure the harder
-questions:
+our own ground truth. That is a by-construction number; the harder questions
+measure how the agent fails:
 
   * Over-calling: does the agent flag benign artifacts (``false_positive_traps``)
     it must NOT flag, or invent artifacts absent from ground truth entirely?
@@ -15,9 +14,6 @@ From these it derives a ``hallucination_rate`` = bad flags / total flags, a
 number our F1 harness cannot produce. This module is a pure scorer over sets of
 artifact identifiers; it is engine- and case-agnostic, so it can grade the
 standalone orchestrator, the Claude Code path, or a replayed transcript.
-
-Independently built by: MR. Robot Adversarial, OATH MCP, VERDICT, GLASSBOX,
-SIFT-Bench, Council-SIFT.
 """
 
 from __future__ import annotations

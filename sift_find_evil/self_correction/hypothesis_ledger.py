@@ -1,8 +1,7 @@
 """Falsifiable competing-hypothesis ledger with logged self-correction (SFE-udkk).
 
-Gallery idea #33, built independently by four FIND EVIL! competitors (VERDICT,
-Camel, SIFT-MIND, LinuxIR Agent) -- a strong signal that an explicit hypothesis
-structure is how a trustworthy DFIR agent shows its work.
+An explicit hypothesis structure is how a trustworthy DFIR agent shows its
+work: every finding is tied to a named, falsifiable claim about the case.
 
 The structure:
 

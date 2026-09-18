@@ -1,7 +1,8 @@
 """Static self-attack corpus for the prompt-injection sanitizer.
 
 An auditable battery of adversarial evidence-text vectors the sanitizer is proven
-against - the "self-attack corpus" half of VERDICT's injection-5 bar. Each vector
+against - a self-attack corpus: the defense is run against a fixed, inspectable
+set, not scattered inline assertions. Each vector
 is a concrete payload plus the indicator type it must trip and the hostile marker
 that must not survive sanitization. The corpus is:
 

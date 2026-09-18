@@ -1,4 +1,4 @@
-"""Tests for mechanically-verified proven negatives (gallery idea #17, SFE-rylr).
+"""Tests for mechanically-verified proven negatives (SFE-rylr).
 
 A proven negative is a first-class finding asserting "tool X ran and found zero Y"
 that is INDEPENDENTLY re-verified by re-reading the tool's captured output:

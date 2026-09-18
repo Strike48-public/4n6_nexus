@@ -1,4 +1,4 @@
-"""Content-addressed LLM verdict/judge cache (SFE-y3qc, gallery idea #34).
+"""Content-addressed LLM verdict/judge cache (SFE-y3qc).
 
 Every LLM verifier/judge call is cached under a key derived from the SHA-256 of
 the CONTENT of its inputs -- the ground-truth record, the agent finding, the

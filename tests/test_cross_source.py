@@ -1,4 +1,4 @@
-"""Tests for the cross-source memory-vs-disk correlator (gallery idea #20, SFE-md4v).
+"""Tests for the cross-source memory-vs-disk correlator (SFE-md4v).
 
 A pass that runs after the domain analysts and consumes their verified evidence to
 emit typed cross-source discrepancies that no single domain can see:

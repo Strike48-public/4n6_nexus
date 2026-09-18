@@ -1,4 +1,4 @@
-"""Entity canonicalization + cross-source finding dedup (gallery idea #35).
+"""Entity canonicalization + cross-source finding dedup .
 
 A single canonical identity for the subject of a finding, so equivalent findings
 from different sources collapse to ONE entity: a disk MFT record for

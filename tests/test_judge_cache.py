@@ -1,4 +1,4 @@
-"""Tests for the content-addressed LLM judge cache (gallery idea #34, SFE-y3qc).
+"""Tests for the content-addressed LLM judge cache (SFE-y3qc).
 
 Every LLM verifier/judge call is cached under a key derived from the SHA-256 of
 the CONTENT of its inputs -- ground-truth + agent finding + model id + prompt

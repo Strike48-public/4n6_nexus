@@ -1,4 +1,4 @@
-"""Tests for the verdict rank clamp (gallery idea #10).
+"""Tests for the verdict rank clamp .
 
 A structural severity ceiling: the analyst LLM narrates freely, but a finding's
 severity cannot exceed what the deterministic detector output supports, and a

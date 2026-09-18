@@ -1,4 +1,4 @@
-"""Mechanically-verified proven negatives (SFE-rylr, gallery idea #17).
+"""Mechanically-verified proven negatives (SFE-rylr).
 
 A detector that runs clean usually says nothing -- and silence is indistinguishable
 from a detector that never ran. A *proven negative* is the opposite: a first-class

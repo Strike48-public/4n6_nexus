@@ -470,7 +470,7 @@ def lite_harden(findings: list[Any]) -> tuple[list[Any], list[dict]]:
     defensible scored path and carry no triage signal (SFE-i596). This applies
     only the two halves that are both cheap AND correctness-relevant:
 
-      1. the VERDICT CLAMPS (``guard_finding``): severity ceiling + single-source
+      1. the verdict clamps (``guard_finding``): severity ceiling + single-source
          cap, so a lone-source finding cannot present above its defensible
          severity pending corroboration -- the GUI shows the SAME severities the
          scored path would, not raw detector output; and

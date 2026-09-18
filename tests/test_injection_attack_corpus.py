@@ -1,7 +1,7 @@
 """Self-attack corpus: the injection sanitizer is proven against a battery of
 adversarial vectors (SFE-q715 slice 3).
 
-VERDICT's injection-5 bar cites a "self-attack corpus" - an auditable set of
+A self-attack corpus is an auditable set of
 attack vectors the defense is run against, not scattered inline assertions. This
 module IS that corpus consumer: it drives every vector in
 ``injection_defense.attack_corpus`` through the real sanitizer and asserts each
@@ -34,7 +34,7 @@ def test_corpus_is_nonempty_and_categorized():
     """The corpus must cover the named attack families, not a token sample."""
     assert len(ATTACK_CORPUS) >= 8, "corpus too thin to be a self-attack battery"
     categories = {v.category for v in ATTACK_CORPUS}
-    # Every deterministic family VERDICT's injection-5 bar names must be present.
+    # Every deterministic attack family the corpus declares must be present.
     for family in {"bidi", "homoglyph", "role-token", "forged-json", "sentinel-close"}:
         assert family in categories, f"corpus missing the {family} family"
 

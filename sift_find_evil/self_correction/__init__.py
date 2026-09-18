@@ -22,7 +22,7 @@ __all__ = [
     "Resolution",
     "SelfCorrectionEngine",
     "Finding",  # Re-exported for backward compatibility
-    # Falsifiable hypothesis ledger (SFE-udkk, gallery idea #33)
+    # Falsifiable hypothesis ledger (SFE-udkk)
     "HypothesisLedger",
     "Hypothesis",
     "AttachedFinding",

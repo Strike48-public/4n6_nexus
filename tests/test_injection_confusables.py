@@ -4,8 +4,8 @@ The sanitizer strips BIDI/zero-width controls and neutralizes ASCII role tokens
 ("system:", "ignore previous instructions", ...). But a Trojan-Source-style
 CONFUSABLE attack - writing the control token with Cyrillic/Greek look-alikes,
 e.g. Cyrillic "ѕуѕtem:" which reads as "system:" - slips past the
-ASCII-only matcher untouched. This is the deterministic half of VERDICT's
-injection-5 bar (BIDI + Trojan-Source confusable) that we were missing.
+ASCII-only matcher untouched. The defense needs a deterministic confusable-folding
+half (Trojan-Source-class attacks) alongside the strip/neutralize pass.
 
 RED-first: before slice 1 a homoglyph role token produces empty
 ``detect_injection`` metadata and is NOT neutralized in ``clean_text``. These

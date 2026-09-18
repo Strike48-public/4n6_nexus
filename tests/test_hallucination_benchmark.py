@@ -1,8 +1,7 @@
-"""Tests for the hallucination/abstention benchmark scorer (gallery idea #7).
+"""Tests for the hallucination/abstention benchmark scorer .
 
 The scenario harness measures recall/precision/F1 against our own ground truth.
-That is a by-construction number the field's leaders (VERDICT, Council-SIFT)
-would discount. This benchmark scores the harder questions: does the agent
+That is a by-construction number. This benchmark scores the harder questions: does the agent
 resist calling benign artifacts evil (false-positive traps it must NOT flag),
 does it actively assert facts are ABSENT when they are (negative assertions),
 and it credits only ACTIVE retraction/absence, never silence. It yields a

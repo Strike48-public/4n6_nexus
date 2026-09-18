@@ -1,4 +1,4 @@
-"""Tests for the falsifiable hypothesis ledger (gallery idea #33, SFE-udkk).
+"""Tests for the falsifiable hypothesis ledger (SFE-udkk).
 
 A competing-hypothesis structure where the lead registers falsifiable hypotheses
 (each naming the artifact that would confirm/kill it), findings attach to a

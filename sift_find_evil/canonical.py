@@ -13,7 +13,7 @@ raising.
 
 NOTE: ``tools/verify_chain.py`` deliberately re-implements this from the stdlib
 rather than importing it - that independence is what lets it detect writer/reader
-drift (gallery idea #5). Keep the two in lockstep by hand.
+drift . Keep the two in lockstep by hand.
 """
 
 from __future__ import annotations

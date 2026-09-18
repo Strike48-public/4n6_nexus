@@ -1,4 +1,4 @@
-"""High-volume event dedup (gallery idea #35, SFE-p0hi PR2).
+"""High-volume event dedup (SFE-p0hi PR2).
 
 Some Windows/Sysmon events arrive in the thousands with almost no per-row
 information: a workstation logs a 4624 for the same (user, source-IP, logon-type)

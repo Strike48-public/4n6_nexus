@@ -81,7 +81,7 @@ class AuditEntry:
     and ``agent`` records the acting agent identity (distinct from the human
     ``examiner``). All four are optional so legacy/tool-only callers are unaffected.
 
-    Tamper-evidence (gallery idea #1): ``prev_hash`` links each entry to the
+    Tamper-evidence : ``prev_hash`` links each entry to the
     digest of the prior entry and ``entry_hash`` is the SHA-256 over this entry's
     canonical body (with ``prev_hash`` included, ``entry_hash`` excluded). Both
     are assigned by ``AuditLogger`` at write time; they are optional on the

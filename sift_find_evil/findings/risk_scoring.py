@@ -1,4 +1,4 @@
-"""Weak-signal additive risk scoring per subject (gallery idea #32, SFE-kh4h).
+"""Weak-signal additive risk scoring per subject (SFE-kh4h).
 
 The engine scores confidence PER finding, but a real incident is often a PILE of
 individually-weak signals on ONE subject: an off-hours login alone is noise;

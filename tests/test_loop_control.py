@@ -1,4 +1,4 @@
-"""Tests for the oscillation-aware loop breaker (gallery idea #21, SFE-jrwx).
+"""Tests for the oscillation-aware loop breaker (SFE-jrwx).
 
 Upgrades an N-consecutive-failure breaker into one that trips on LOGICAL
 non-progress: a recurring (evidence + claim + objection + ruling) state hash, an

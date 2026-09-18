@@ -4,7 +4,7 @@ Injection attempts are recorded in the tamper-evident audit hash chain ONLY on
 the MCP server path (``log_action("prompt_injection_attempt", ...)``). The
 scored / hardening path - the one that produces the signed, court-facing report -
 promotes an attempt to a Finding but keeps no dedicated, append-only,
-tamper-evident LEDGER of attempts. VERDICT's injection-5 bar wants that ledger.
+tamper-evident LEDGER of attempts.
 
 This slice adds a hash-chained injection ledger, built from the injection
 findings already in the set, and attaches it to the HardeningReport so the
