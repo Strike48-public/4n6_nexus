@@ -81,19 +81,10 @@ sanitizer boundary before it can reach a prompt:
   (load-bearing in the benchmark ablation), with benign controls proving zero
   false positives.
 
-## Where 4n6 Nexus stands
+## Validation & current status
 
-On the SANS FIND EVIL! hostile-audit scale it scores **47/50 - outright #1**,
-one point ahead of the field's prior benchmark-setter, with a defended lead on
-multi-agent orchestration. The two closing points (verification, injection) were
-reached deterministically in CI, with the live-model variants disclosed and not
-claimed. Per-dimension detail and the honest disclosures live in
-[`COMPETITIVE_POSITIONING.md`](COMPETITIVE_POSITIONING.md) (the action ladder is
-tracked in beads).
-
-## The plan beyond the scorecard
-
-The ranking climb is complete; the next leverage is **off the scale** - turning
-the engine into an investigator-facing product (matrix integration, tracked in
-`bd` epic `SFE-8kd`). The north star is investigator velocity, for which "#1"
-and the GUI are proxies, not the goal.
+Detection accuracy: **F1 = 1.00** across all 16 recall scenarios with 0 false
+positives and 0 false negatives - reproducible locally with
+`PYTHONPATH=. python3 tests/scenario_harness.py`. Full methodology, held-out
+and tamper benchmarks, and the accuracy history live in
+[`ACCURACY_REPORT.md`](ACCURACY_REPORT.md).

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from sift_find_evil.benchmark.heldout import (
     detector_logic_hash,
     discover_heldout,
@@ -28,6 +30,20 @@ from sift_find_evil.benchmark.heldout import (
 from sift_find_evil.benchmark.hallucination import SuiteResult
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# The held-out corpus is deliberately NOT shipped to the Community-tier mirror
+# (blind benchmark data must not be public; private-repo decision 2026-09-18).
+# When the corpus is absent the whole module skips honestly instead of failing
+# collection; in the private repo, where the corpus lives, every gate below
+# runs for real.
+_HELDOUT_CASES = discover_heldout(REPO_ROOT)
+pytestmark = pytest.mark.skipif(
+    len(_HELDOUT_CASES) < 3,
+    reason=(
+        "held-out corpus withheld from the Community tier (blind benchmark "
+        "data stays private); this gate runs in the private repo"
+    ),
+)
 
 
 def test_heldout_corpus_exists_and_is_discoverable():

@@ -1,3 +1,0 @@
-TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
-2025-06-10T04:00:00.1000000Z,4688,70001,FIN-WKS-11,Security,Information,S-1-5-21-8100,C:\Users\Public\Libraries\svchost_helper.exe,%%1936,0xFF66,C:\Windows\System32\cmd.exe,0xC001,svchost_helper.exe -k netsvcs,Process Create (Event ID 4688)
-2025-06-10T03:30:00.1000000Z,4688,70002,FIN-WKS-11,Security,Information,S-1-5-18,C:\Windows\System32\svchost.exe,%%1936,0x1177,C:\Windows\System32\services.exe,0xC002,svchost.exe -k rpcss,Process Create (Event ID 4688)

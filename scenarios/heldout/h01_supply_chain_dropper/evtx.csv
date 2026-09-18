@@ -1,3 +1,0 @@
-TimeCreated,EventId,RecordId,Computer,Channel,Level,UserId,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,MapDescription
-2025-06-02T09:00:00.1000000Z,4688,50001,BUILD-07,Security,Information,S-1-5-21-5551212,C:\Users\svc_build\AppData\Local\Temp\vendor\upd_agent.exe,%%1936,0xAA11,C:\Windows\System32\wscript.exe,0xE001,upd_agent.exe,Process Create (Event ID 4688)
-2025-06-02T09:00:00.2000000Z,4688,50002,BUILD-07,Security,Information,S-1-5-18,C:\Program Files\VendorCorp\Updater\vendorupdate.exe,%%1936,0xBB22,C:\Windows\System32\services.exe,0xE002,vendorupdate.exe,Process Create (Event ID 4688)

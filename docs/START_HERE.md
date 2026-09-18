@@ -59,7 +59,7 @@ graph TD
 1. **[CAPABILITIES.md](CAPABILITIES.md)** (2 min)
    - One-page map: what it does, how to drive each part, the 60-second tour
    - The three independent offline verifiers (chain / receipts / verification)
-   - Where it stands on the hostile-audit scale (47/50, outright #1)
+   - Accuracy and validation story (F1=1.00; see [ACCURACY_REPORT.md](ACCURACY_REPORT.md))
 
 2. **[../README.md](../README.md)** (5 min)
    - Detection accuracy table (F1=1.00)

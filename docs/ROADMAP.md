@@ -20,17 +20,14 @@ on purpose.
 
 ## Current status
 
-**The Project exists** as Strike48 org project #105
-(https://github.com/orgs/Strike48/projects/105), created 2026-09-16 under
-`SFE-9eox` and seeded with the open beads epics. Its Roadmap view is empty until
-epics carry `Start`/`Target` dates, so **there is no dated roadmap yet**; the
-first dates land with the `v0.1.0` release planning (`SFE-uln6`). Run `bd ready`
-for available work and `bd list --status=in_progress` for active work.
+**The Project exists** as a Strike48 org project, created 2026-09-16 and seeded
+with the open work epics. Its Roadmap view is empty until epics carry
+`Start`/`Target` dates, so **there is no dated roadmap yet**; the first dates
+land with the `v0.1.0` release planning.
 
-There are also **no releases yet**: `git tag` returns zero tags and
-`gh release list` is empty. The stated cadence is monthly; building the release
-substrate (tag scheme, `CHANGELOG.md`, release workflow) is tracked as `SFE-uln6`
-and is a prerequisite for the first release, not a step within it.
+There are also **no releases yet**: the stated cadence is monthly; building the
+release substrate (tag scheme, `CHANGELOG.md`, release workflow) is a
+prerequisite for the first release, not a step within it.
 
 ## Why this file is a stub
 

@@ -18,30 +18,24 @@ architecture designed for real-world forensic investigations.
 
 ### Recent progress (actively maintained)
 
-4n6 Nexus is under active development against the competitive-positioning ladder
-(positioning in [docs/COMPETITIVE_POSITIONING.md](docs/COMPETITIVE_POSITIONING.md);
-the action ladder is tracked in beads). Each item below links a
-merged PR so progress is verifiable against git history, not asserted. The
-detection invariant (**F1 = 1.00** across all 16 recall scenarios) is preserved
-by every change - the improvements below are integrity/verification overlays, not
-changes to the scored detection path.
+4n6 Nexus is under active development. The detection invariant (**F1 = 1.00**
+across all 16 recall scenarios) is preserved by every change - the improvements
+below are integrity/verification overlays, not changes to the scored detection
+path.
 
-- **Verification tier → independently re-runnable** (PR #129) - a standalone,
+- **Verification tier → independently re-runnable** - a standalone,
   stdlib-only verifier (`tools/verify_verification.py`) re-derives every
   adversarial-verification verdict from the recorded evidence, importing nothing
   from the engine, so a third party can re-check the verification tier offline.
-- **Injection defense → VERDICT-parity** (PRs #130/#131/#132) - Trojan-Source
-  confusable folding (homoglyph-disguised role tokens caught, folded surgically),
-  a tamper-evident injection ledger on the scored path, and a self-attack corpus
-  the sanitizer is proven against.
-- **Adversarial verification tier** (PR #89) - the verifier now runs an *iterative* adversarial verify/remand loop: contested findings are re-adjudicated across bounded rounds and escalate to human review at a remand cap, bounded by a loop-breaker with reachable oscillation/iteration limits. Moves verification beyond single-engine self-correction.
-- **Per-finding evidence provenance** (PR #88) - the independent entailment falsifier re-derives each finding's asserted IP/PID anchors against *its own* tool-output record, catching a real-but-misattributed anchor that a corpus-wide check would pass.
-- **Injection defense on the scored path** (PR #87) - evidence text is routed through the sanitizer on the standalone orchestrator/harness path (it was already live on the MCP path), so the defense rides the same path that gets scored.
+- **Injection defense** - Trojan-Source confusable folding (homoglyph-disguised
+  role tokens caught, folded surgically), a tamper-evident injection ledger on
+  the scored path, and a self-attack corpus the sanitizer is proven against.
+- **Adversarial verification tier** - the verifier now runs an *iterative* adversarial verify/remand loop: contested findings are re-adjudicated across bounded rounds and escalate to human review at a remand cap, bounded by a loop-breaker with reachable oscillation/iteration limits. Moves verification beyond single-engine self-correction.
+- **Per-finding evidence provenance** - the independent entailment falsifier re-derives each finding's asserted IP/PID anchors against *its own* tool-output record, catching a real-but-misattributed anchor that a corpus-wide check would pass.
+- **Injection defense on the scored path** - evidence text is routed through the sanitizer on the standalone orchestrator/harness path (it was already live on the MCP path), so the defense rides the same path that gets scored.
 
 For a single-page map of every capability and how to drive it, see
-[docs/CAPABILITIES.md](docs/CAPABILITIES.md). For the honest, no-home-team-bias
-competitive assessment (where we lead, where we trail, and why), see
-[docs/COMPETITIVE_POSITIONING.md](docs/COMPETITIVE_POSITIONING.md).
+[docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
 ---
 
@@ -89,8 +83,7 @@ Both paths share the **exact same core**: the MCP server (`EvidenceMCPServer`), 
 self-correction engine (`SelfCorrectionEngine`), the guardrails (`ToolGuard`), and the
 A2A audit trail. The standalone path produces an identical-every-time audit log (its
 strength for reproducibility); the Claude Code path is the authentic Protocol SIFT
-extension for the live demo. See [Quick Start](#quick-start) below and
-[docs/DUAL_PATH_STRATEGY.md](docs/DUAL_PATH_STRATEGY.md).
+extension for the live demo. See [Quick Start](#quick-start) below.
 
 > **On "runs without SIFT":** the synthetic validation harness and the standalone
 > self-correction demo run on pure-Python synthetic fixtures (no SIFT tools needed),
