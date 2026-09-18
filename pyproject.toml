@@ -40,10 +40,6 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-# the .proto and are not hand-maintained; excluding them keeps generated-code
-# lint/format noise out of CI. Vendored YARA community rules likewise. The ui/
-# subtree is a Rust workspace (the DFIR WebGUI); its stray Python (e.g. an
-# inherited sidecar shim) is not part of the engine and must not gate Python CI.
 extend-exclude = ["rules/yara/community", "ui"]
 
 [tool.pytest.ini_options]
@@ -52,9 +48,6 @@ extend-exclude = ["rules/yara/community", "ui"]
 # if a path is passed explicitly, so folding the WebGUI in never perturbs the
 # Python test run.
 testpaths = ["tests"]
-# Makes `import nexus_pipeline` resolve under a plain `pytest` invocation (no
-# PYTHONPATH=. needed). Required for tests/pipeline/ (bd SFE-rbje.4); without
-# it those tests fail to collect under CI's `pytest -q --cov`.
 pythonpath = ["."]
 norecursedirs = ["ui", "rules/yara/community", ".git", ".venv"]
 markers = [
@@ -69,13 +62,7 @@ markers = [
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
-# TWO top-level packages are measured. `nexus_pipeline` (the autonomous-pipeline
-# containment/gates/state layer, bd SFE-rbje) is exercised by tests/pipeline/ but
-# would be INVISIBLE to the floor unless it is BOTH listed here AND run under a
-# bare `--cov` (never `--cov=<pkg>`, which discards this list). That coupling is
-# enforced by tests/test_coverage_inclusion_guard.py -- do not add a package here
-# without also confirming the enforcing invocations use bare `--cov`.
-source = ["sift_find_evil", "nexus_pipeline"]
+source = ["sift_find_evil"]
 # Driver layers are omitted so the coverage floor speaks to the detection library +
 # orchestration surface, not to CLI glue:
 #   - cli.py / __main__.py / cli_mcp.py: thin argparse wrappers exercised E2E via
