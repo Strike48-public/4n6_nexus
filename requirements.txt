@@ -20,7 +20,9 @@ pydantic>=2.0.0
 # Model Context Protocol server (Custom MCP Server architecture lane). The agent
 # layer reaches forensic tools only through this server, where the architectural
 # guardrails (read-only allowlist, path containment, circuit breaker) are enforced.
-mcp>=1.14.0
+# Upper-bounded: mcp 2.x renamed FastMCP -> MCPServer (migration guide) and
+# breaks sift_find_evil's mcp.server.fastmcp imports and its test suite.
+mcp>=1.14.0,<2
 starlette>=0.27.0
 
 # Terminal UI and rich output
